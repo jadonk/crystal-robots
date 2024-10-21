@@ -5,7 +5,7 @@ module CrystalRobots
   end
 
   class Emitter
-    def uLEB128(n)
+    def unsignedLEB128(n)
       buffer = Bytes.new()
       loop do
         byte = n & 0xff
@@ -18,6 +18,11 @@ module CrystalRobots
           break
         end
       end
+    end
+
+    def encodeString(string)
+      Bytes[string.size] +
+      string.bytes
     end
 
     # https://webassembly.github.io/spec/core/binary/modules.html#sections
@@ -36,7 +41,7 @@ module CrystalRobots
     end
 
     # https://webassembly.github.io/spec/core/binary/types.html
-    enum Types
+    enum Valtype
       I32 = 0x7f
       F32 = 0x7d
     end
@@ -57,7 +62,7 @@ module CrystalRobots
     end
 
     # http://webassembly.github.io/spec/core/binary/types.html#function-types
-    FunctionType = 0x60
+    FunctionType = Bytes[0x60]
 
     EmptyArray = 0
 
@@ -68,13 +73,51 @@ module CrystalRobots
     # https://webassembly.github.io/spec/core/binary/conventions.html#binary-vec
     # Vectors are encoded with their length followed by their element sequence
     def encodeVector(data)
-      uLEB128(data.length) +
+      unsignedLEB128(data.size) +
       Bytes[data]
     end
 
     def createSection(type, data)
-      type +
+      Bytes[type] +
       encodeVector(data)
+    end
+
+    # Function types are vectors of parameters and return types. Currently
+    # WebAssembly only supports single return values
+    def addFunctionType
+      FunctionType +
+      encodeVector([Valtype.F32, Valtype.F32]) +
+      encodeVector([Valtype.F32])
+    end
+
+    # the type section is a vector of function types
+    def typeSection
+      Section.Type +
+      encodeVector([addFunctionType])
+    end
+
+    # the function section is a vector of type indices that indicate the type of each function
+    # in the code section
+    def funcSection
+      createSection(Section.Func, encodeVector([0x00])) # type index
+    end
+
+    # the export section is a vector of exported functions
+    def exportSection
+      createSection(Section.Export, encodeVector(
+        [encodeString("run"), ExportType.Func, 0x00] # function index
+      ))
+    end
+
+    # the code section contains vectors of functions
+    def code
+      [
+        Opcodes.Get_local,
+        unsignedLEB128(0),
+        Opcodes.Get_local,
+        unsignedLEB128(1),
+        Opcodes.F32_add
+      ]
     end
 
     def emitter
