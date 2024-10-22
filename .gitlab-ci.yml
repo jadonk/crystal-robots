@@ -1,0 +1,14 @@
+image: $CI_REGISTRY/jkridner/crystal
+build:
+  stage: build
+  script:
+    - crystal build src/crystal-robots.cr
+  artifacts:
+    paths:
+      - crystal-robots
+
+# run tests using the binary built before
+test:
+  stage: test
+  script:
+    - crystal spec
