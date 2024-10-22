@@ -5,10 +5,13 @@ module CrystalRobots
   end
 
   class Emitter
-    def unsignedLEB128(n)
+    # Helpful tool for exploring - https://webassembly.github.io/wabt/demo/wat2wasm/
+
+    # https://en.wikipedia.org/wiki/LEB128
+    def unsignedLEB128(n : UInt32 | Int32) : Bytes
       buffer = Bytes[]
       loop do
-        byte = n & 0xff
+        byte = n & 0x7f
         n = n >> 7
         if n != 0
           byte |= 0x80
@@ -18,32 +21,47 @@ module CrystalRobots
           break
         end
       end
+      buffer
     end
 
-    def encodeString(string)
-      Bytes[string.size] +
-      string.bytes
+    # https://webassembly.github.io/spec/core/binary/conventions.html#binary-vec
+    # Vectors are encoded with their length followed by their element sequence
+    def encodeVector(data : Bytes) : Bytes
+      unsignedLEB128(data.size) +
+      data
+    end
+
+    # https://webassembly.github.io/spec/core/binary/values.html#names
+    def encodeString(string : String) : Bytes
+      unsignedLEB128(string.bytesize) +
+      string.encode("UTF-8")
     end
 
     # https://webassembly.github.io/spec/core/binary/modules.html#sections
     enum Section : UInt8
-      Custom
-      Type
-      Import
-      Func
-      Table
-      Memory
-      Global
-      Export
-      Start
-      Code
-      Data
+      Custom = 0
+      Type = 1
+      Import = 2
+      Func = 3
+      Table = 4
+      Memory = 5
+      Global = 6
+      Export = 7
+      Start = 8
+      Element = 9
+      Code = 10
+      Data = 11
     end
 
     # https://webassembly.github.io/spec/core/binary/types.html
     enum Valtype : UInt8
-      I32 = 0x7f
+      Externref = 0x6f
+      Funcref = 0x70
+      V128 = 0x7b
+      F64 = 0x7c
       F32 = 0x7d
+      I64 = 0x7e
+      I32 = 0x7f
     end
 
     # https://webassembly.github.io/spec/core/binary/instructions.html
@@ -62,70 +80,68 @@ module CrystalRobots
     end
 
     # http://webassembly.github.io/spec/core/binary/types.html#function-types
-    FunctionType = Bytes[0x60]
-
-    EmptyArray = Bytes[0]
+    FunctionType = 0x60
 
     # https://webassembly.github.io/spec/core/binary/modules.html#binary-module
     MagicModuleHeader = Bytes[0,'a'.ord,'s'.ord,'m'.ord]
     ModuleVersion = Bytes[1,0,0,0]
 
-    # https://webassembly.github.io/spec/core/binary/conventions.html#binary-vec
-    # Vectors are encoded with their length followed by their element sequence
-    def encodeVector(data : Bytes)
-      unsignedLEB128([data.size]) +
-      Bytes[data]
-    end
-
-    def createSection(type, data)
-      Bytes[type] +
+    def createSection(type : Section, data : Bytes)
+      Bytes[type.value] +
       encodeVector(data)
     end
 
     # Function types are vectors of parameters and return types. Currently
     # WebAssembly only supports single return values
     def addFunctionType
-      FunctionType +
-      encodeVector([Valtype::F32.value, Valtype::F32.value]) +
-      encodeVector([Valtype::F32.value])
+      Bytes[FunctionType] +
+      encodeVector(Bytes[Valtype::F32.value, Valtype::F32.value]) +
+      encodeVector(Bytes[Valtype::F32.value])
     end
 
     # the type section is a vector of function types
     def typeSection
-      createSection(Section::Type.value, encodeVector([addFunctionType]))
+      createSection(Section::Type,
+        Bytes[1] + # number of types
+        addFunctionType()
+      )
     end
 
     # the function section is a vector of type indices that indicate the type of each function
     # in the code section
     def funcSection
-      createSection(Section::Func.value, encodeVector([0x00])) # type index
+      createSection(Section::Func,
+        Bytes[1] + # number of functions
+        Bytes[0] # type index
+      )
     end
 
     # the export section is a vector of exported functions
     def exportSection
-      createSection(Section::Export.value, encodeVector(
-        [encodeString("run"), ExportType::Func.value, 0x00] # function index
-      ))
+      createSection(Section::Export,
+        Bytes[1] + # number of exports
+        encodeString("run") +
+        Bytes[ExportType::Func.value] + # export type
+        Bytes[0x00] # function index
+      )
+    end
+
+    def code
+      Bytes[0] + # number of locals
+      Bytes[Opcodes::Get_local.value] +
+      Bytes[0] + # index 0
+      Bytes[Opcodes::Get_local.value] +
+      Bytes[1] + # index 1
+      Bytes[Opcodes::F32_add.value] +
+      Bytes[Opcodes::End.value]
     end
 
     # the code section contains vectors of functions
-    def code
-      Bytes[Opcodes.Get_local] +
-      unsignedLEB128([0]) +
-      Bytes[Opcodes.Get_local] +
-      unsignedLEB128([1]) +
-      Bytes[Opcodes.F32_add]
-    end
-
-    def functionBody
-      encodeVector(EmptyArray + code + Bytes[Opcodes.End])
-    end
-
     def codeSection
-      Bytes[
-        Section.Code,
-        encodeVector(functionBody)
-      ]
+      createSection(Section::Code,
+        Bytes[1] + # number of functions
+        encodeVector(code())
+      )
     end
 
     def emitter
