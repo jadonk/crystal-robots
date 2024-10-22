@@ -72,8 +72,8 @@ module CrystalRobots
 
     # https://webassembly.github.io/spec/core/binary/conventions.html#binary-vec
     # Vectors are encoded with their length followed by their element sequence
-    def encodeVector(data)
-      unsignedLEB128(data.size) +
+    def encodeVector(data : Bytes)
+      unsignedLEB128([data.size]) +
       Bytes[data]
     end
 
@@ -110,13 +110,11 @@ module CrystalRobots
 
     # the code section contains vectors of functions
     def code
-      Bytes[
-        Opcodes.Get_local,
-        unsignedLEB128(0),
-        Opcodes.Get_local,
-        unsignedLEB128(1),
-        Opcodes.F32_add
-      ]
+      Bytes[Opcodes.Get_local] +
+      unsignedLEB128([0]) +
+      Bytes[Opcodes.Get_local] +
+      unsignedLEB128([1]) +
+      Bytes[Opcodes.F32_add]
     end
 
     def functionBody
