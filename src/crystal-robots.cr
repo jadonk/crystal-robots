@@ -1,4 +1,7 @@
 module CrystalRobots
+  class TokenizerError < Exception
+  end
+
   class Compiler
     def initialize
       @code = Bytes[]

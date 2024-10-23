@@ -17,10 +17,9 @@ describe CrystalRobots do
 
     it "throws exception with bad keyword" do
       c = CrystalRobots::Compiler.new
-      expect_raises
-      tokens = c.tokenizer(" puts")
-      tokens.length.should eq 1
-      tokens[0].type.should eq "keyword"
+      expect_raises(TokenizerError, "Unexpected token f") do
+        tokens = c.tokenizer(" puts foo")
+      end
     end
 
     it "has an emitter" do
