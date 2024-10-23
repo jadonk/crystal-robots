@@ -8,6 +8,21 @@ describe CrystalRobots do
       c.should_not eq nil
     end
 
+    it "tokenizes single keyword" do
+      c = CrystalRobots::Compiler.new
+      tokens = c.tokenizer(" puts")
+      tokens.length.should eq 1
+      tokens[0].type.should eq "keyword"
+    end
+
+    it "throws exception with bad keyword" do
+      c = CrystalRobots::Compiler.new
+      expect_raises
+      tokens = c.tokenizer(" puts")
+      tokens.length.should eq 1
+      tokens[0].type.should eq "keyword"
+    end
+
     it "has an emitter" do
       c = CrystalRobots::Compiler.new
       # https://webassembly.github.io/wabt/demo/wat2wasm/
