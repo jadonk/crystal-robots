@@ -10,20 +10,54 @@ require "random"
 # Eventually, there will be CPU cycle counting, but for now, I'll just
 # count the number of calls and throw an exception when it is reached
 
-class Robot
-  MAX_CALLS = 100
-  @calls : UInt32
-  @loc_x : Int32
-  @loc_y : Int32
-  @damage : Int32
-  @speed : Int32
+class Missle
+  MIS_SPEED = 500              # how far in one motion cycle (in clicks)
+  MIS_RANGE = 700              # maximum missle range
 
   def initialize
+    @stat =             # missle status
+    @beg_x =            # beginning x * 100
+    @beg_y =            # beginning y * 100
+    @cur_x =            # current x * 100
+    @cur_y =            # current y * 100
+    @last_xx =          # last plotted x
+    @last_yy =          # last plotted y
+    @head =             # heading, 0 - 359
+    @count =            # cycle count for exploding missles
+    @rang =             # range of missle
+    @curr_dist =        # current distance from origin * 100
+  end
+end
+
+class Robot
+  MAX_CALLS = 100
+  MAXROBOTS = 4                # maximum number of robots
+  MOTION_CYCLES = 15           # number of cycles before motion update
+  ROBOT_SPEED = 7              # multiplicative speed factor
+  TURN_SPEED = 50              # maximum speed for direction change
+  ACCEL = 10                   # acceleration per motion cycle
+
+  def initialize(name : String)
+    @@
+    @name = name
+    @status = 0
     @calls = 0
-    @loc_x = rand(1000)
-    @loc_y = rand(1000)
-    @damage = 0
+    @x = 0
+    @y = 0
+    @org_x = 0
+    @org_y = 0
+    @range = 0
+    @last_x = -1
+    @last_y = -1
     @speed = 0
+    @last_speed = -1
+    @accel = 0
+    @d_speed = 0
+    @damage = 0
+    @last_damage = -1
+    @scan = 0
+    @last_scan = -1
+    @reload = 0
   end
 
   private def debug(s)
@@ -60,13 +94,15 @@ class Robot
   end
 
   def loc_x
-    debug "loc_x -> #{@loc_x}"
-    @loc_x
+    r = @x // 100
+    debug "loc_x -> #{r}"
+    r
   end
 
   def loc_y
-    debug "loc_y -> #{@loc_y}"
-    @loc_y
+    r = @y // 100
+    debug "loc_y -> #{r}"
+    r
   end
 end
 
