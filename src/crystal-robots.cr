@@ -143,7 +143,7 @@ module CrystalRobots
     def codeSection
       createSection(Section::Code,
         Bytes[1] + # number of functions
-        encodeVector(code())
+        encodeVector(codeFromAst())
       )
     end
 
