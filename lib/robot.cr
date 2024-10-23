@@ -10,21 +10,27 @@ require "random"
 # Eventually, there will be CPU cycle counting, but for now, I'll just
 # count the number of calls and throw an exception when it is reached
 
-class Missle
-  MIS_SPEED = 500              # how far in one motion cycle (in clicks)
-  MIS_RANGE = 700              # maximum missle range
+class Missile
+  MIS_SPEED = 500       # how far in one motion cycle (in clicks)
+  MIS_RANGE = 700       # maximum missile range
+  MIS_ROBOT = 2         # number of active missiles per robot
+  AVAIL = 0             # missile available for use
+  FLYING = 1            # missile in air
+  EXPLODING = 2         # missile exploding on ground
+  RELOAD = 15           # motion cycles before reload
+  EXP_COUNT = 5         # motion cycles for exploding missile
 
   def initialize
-    @stat =             # missle status
-    @beg_x =            # beginning x * 100
-    @beg_y =            # beginning y * 100
-    @cur_x =            # current x * 100
-    @cur_y =            # current y * 100
-    @last_xx =          # last plotted x
-    @last_yy =          # last plotted y
-    @head =             # heading, 0 - 359
-    @count =            # cycle count for exploding missles
-    @rang =             # range of missle
+    @stat = AVAIL       # missile status
+    @beg_x = 0          # beginning x * 100
+    @beg_y = 0          # beginning y * 100
+    @cur_x = 0          # current x * 100
+    @cur_y = 0          # current y * 100
+    @last_xx = -1       # last plotted x
+    @last_yy = -1       # last plotted y
+    @head = 0           # heading, 0 - 359
+    @count =            # cycle count for exploding missiles
+    @rang =             # range of missile
     @curr_dist =        # current distance from origin * 100
   end
 end
@@ -38,7 +44,6 @@ class Robot
   ACCEL = 10                   # acceleration per motion cycle
 
   def initialize(name : String)
-    @@
     @name = name
     @status = 0
     @calls = 0
@@ -58,6 +63,18 @@ class Robot
     @scan = 0
     @last_scan = -1
     @reload = 0
+  end
+
+  def self.instance
+    if @@num_robots.nil?
+      @@num_robots = 1
+    else
+      @@num_robots += 1
+    end
+    @i = @@num_robots - 1
+    if @@num_robots > MAXROBOTS
+      raise "Too many robots!"
+    end
   end
 
   private def debug(s)
