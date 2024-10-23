@@ -3,6 +3,8 @@ module CrystalRobots
   end
 
   class Compiler
+    @code : Bytes
+
     def initialize
       @code = Bytes[]
     end
