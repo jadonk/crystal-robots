@@ -67,7 +67,9 @@ module CrystalRobots
     # https://webassembly.github.io/spec/core/binary/instructions.html
     enum Opcodes : UInt8
       End = 0x0b
+      Call = 0x10
       Get_local = 0x20
+      F32_const = 0x43
       F32_add = 0x92
     end
 
@@ -126,7 +128,8 @@ module CrystalRobots
       )
     end
 
-    def code
+    def codeFromAst(ast : Program)
+      code = Bytes[]
       Bytes[0] + # number of locals
       Bytes[Opcodes::Get_local.value] +
       Bytes[0] + # index 0
