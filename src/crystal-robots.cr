@@ -1,11 +1,14 @@
 module CrystalRobots
-  class Tokenizer
-    def tokenizer(input)
+  class Compiler
+    def initialize
+      @code = Bytes[]
     end
-  end
 
-  class Emitter
-    # Helpful tool for exploring - https://webassembly.github.io/wabt/demo/wat2wasm/
+    def tokenizer(src : String)
+    end
+
+    def parser(tokens)
+    end
 
     # https://en.wikipedia.org/wiki/LEB128
     def unsignedLEB128(n : UInt32 | Int32) : Bytes
@@ -128,8 +131,15 @@ module CrystalRobots
       )
     end
 
+    def emitFromExpression(node : ExpressionNode)
+      case node.type
+      when "numberLiteral"
+        @code << Bytes[Opcodes::F32_const.local]
+        @code << ieee753(node.value)
+      end
+    end
+
     def codeFromAst(ast : Program)
-      code = Bytes[]
       Bytes[0] + # number of locals
       Bytes[Opcodes::Get_local.value] +
       Bytes[0] + # index 0
@@ -140,20 +150,24 @@ module CrystalRobots
     end
 
     # the code section contains vectors of functions
-    def codeSection
+    def codeSection(ast : Program)
       createSection(Section::Code,
         Bytes[1] + # number of functions
-        encodeVector(codeFromAst())
+        encodeVector(codeFromAst(ast : Program))
       )
     end
 
-    def emitter
+    # Helpful tool for exploring - https://webassembly.github.io/wabt/demo/wat2wasm/
+    def emitter(ast : Program)
       MagicModuleHeader +
       ModuleVersion +
       typeSection +
       funcSection +
       exportSection +
-      codeSection
+      codeSection(ast)
     end
+  end
+
+  class Runtime
   end
 end
