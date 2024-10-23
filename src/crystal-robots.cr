@@ -131,11 +131,11 @@ module CrystalRobots
       )
     end
 
-    def emitFromExpression(node : ExpressionNode)
+    def emitExpression(node : ExpressionNode)
       case node.type
       when "numberLiteral"
         @code << Bytes[Opcodes::F32_const.local]
-        @code << ieee753(node.value)
+        @code << ieee754(node.value)
       end
     end
 
