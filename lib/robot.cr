@@ -29,22 +29,24 @@ class Missile
     @last_xx = -1       # last plotted x
     @last_yy = -1       # last plotted y
     @head = 0           # heading, 0 - 359
-    @count =            # cycle count for exploding missiles
-    @rang =             # range of missile
-    @curr_dist =        # current distance from origin * 100
+    @count = 0          # cycle count for exploding missiles
+    @rang = 0           # range of missile
+    @curr_dist = 0      # current distance from origin * 100
   end
 end
 
 class Robot
+  @@num_robots = 0
   MAX_CALLS = 100
   MAXROBOTS = 4                # maximum number of robots
   MOTION_CYCLES = 15           # number of cycles before motion update
   ROBOT_SPEED = 7              # multiplicative speed factor
   TURN_SPEED = 50              # maximum speed for direction change
   ACCEL = 10                   # acceleration per motion cycle
+  @i : Int32
 
-  def initialize(name : String)
-    @name = name
+  def initialize(name = "")
+    @name = "#{name}"
     @status = 0
     @calls = 0
     @x = 0
@@ -63,15 +65,8 @@ class Robot
     @scan = 0
     @last_scan = -1
     @reload = 0
-  end
-
-  def self.instance
-    if @@num_robots.nil?
-      @@num_robots = 1
-    else
-      @@num_robots += 1
-    end
-    @i = @@num_robots - 1
+    @@num_robots += 1
+    @i = @@num_robots
     if @@num_robots > MAXROBOTS
       raise "Too many robots!"
     end
