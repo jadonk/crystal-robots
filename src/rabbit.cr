@@ -29,6 +29,7 @@ def distance(x1, y1, x2, y2)
   sqrt((x*x)+(y*y))
 end
 
+# plot_course - figure out which heading to go
 def plot_course(r, xx, yy)
   scale = 100000 # scale for trig functions
   curx = r.loc_x()
