@@ -6,9 +6,15 @@
 
 require "math"
 require "random"
+require "fiber"
 
-# Eventually, there will be CPU cycle counting, but for now, I'll just
-# count the number of calls and throw an exception when it is reached
+# I'm trying to figure out how to interrupt the robot flow at some
+# interval. It will never match the WASM interpreter cycles, but I
+# hope I can make each robot yield to let another robot run.
+#
+# By not forcing robots to put their code inside a method, I'm
+# having a bit of a hard time figuring out if I can manipulate the
+# remaining code within the file
 
 class Missile
   MIS_SPEED = 500       # how far in one motion cycle (in clicks)
@@ -70,6 +76,7 @@ class Robot
     if @@num_robots > MAXROBOTS
       raise "Too many robots!"
     end
+    Fiber.new(@name)
   end
 
   private def debug(s)
