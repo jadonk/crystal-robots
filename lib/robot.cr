@@ -77,11 +77,9 @@ class Robot
     if @@num_robots > MAXROBOTS
       raise "Too many robots!"
     end
-    @has_program = false
   end
 
   def main(&program : Robot -> Nil)
-    @has_program = true
     @@robots << self
     @program = program
     run
