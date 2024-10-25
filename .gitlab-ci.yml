@@ -3,12 +3,22 @@ build:
   stage: build
   script:
     - crystal build src/crystal-robots.cr
+    - crystal build src/rabbit.cr
   artifacts:
     paths:
       - crystal-robots
+      - rabbit
 
-# run tests using the binary built before
 test:
   stage: test
   script:
     - crystal spec
+
+pages:
+  stage: deploy
+  script:
+    - crystal docs
+    - mv docs public
+  artifacts:
+    paths:
+      - public
