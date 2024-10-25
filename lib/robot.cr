@@ -80,10 +80,17 @@ class Robot
     @has_program = false
   end
 
-  def main(&program)
+  def main(&program : Robot -> Nil)
     @has_program = true
     @@robots << self
-    yield self
+    @program = program
+    run
+  end
+
+  def run
+    if program = @program
+      program.call(self)
+    end
   end
 
   private def debug(s)
