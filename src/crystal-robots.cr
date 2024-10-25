@@ -3,8 +3,8 @@ module CrystalRobots
   #
   # ## Description
   #
-  # The Crystal Robots compiler accepts a limited subset of the [Crystal Programming Language](https://crystal-lang.org). The entire program must be a single source file. No macro operations are supported. The compile machine code targets [WebAssembly](https://webassembly.org/) and calls various functions in a browser-based simulation 
-  # 
+  # The Crystal Robots compiler accepts a limited subset of the [Crystal Programming Language](https://crystal-lang.org). The entire program must be a single source file. No macro operations are supported. The compile machine code targets [WebAssembly](https://webassembly.org/) and calls various functions in a browser-based simulation
+  #
   # ## Features missing
   #
   class Compiler
@@ -52,9 +52,9 @@ module CrystalRobots
     ].join("|")
 
     @@matchers = [
-      {/^([.0-9]+)/,                    TokenType::Number},
-      {Regex.new("^(#{@@keywords})"),   TokenType::Keyword},
-      {/^(\s+)/,                        TokenType::Whitespace},
+      {/^([.0-9]+)/, TokenType::Number},
+      {Regex.new("^(#{@@keywords})"), TokenType::Keyword},
+      {/^(\s+)/, TokenType::Whitespace},
     ]
 
     class TokenizerError < Exception
@@ -72,17 +72,17 @@ module CrystalRobots
           {"m": m, "type": type}
         end
         if matches.size == 0
-          raise TokenizerError.new("Unexpected token #{src[index..index+1]}")
+          raise TokenizerError.new("Unexpected token #{src[index..index + 1]}")
         end
         if !matches[0].nil? && !matches[0][:m][0].nil?
-          #puts "Found #{matches[0][:m][0]} as #{matches[0][:type]}"
+          # puts "Found #{matches[0][:m][0]} as #{matches[0][:type]}"
           if matches[0][:type] != TokenType::Whitespace
             t = Token.new(type: matches[0][:type], value: matches[0][:m][0])
             tokens << t
           end
           index += matches[0][:m][0].size
         else
-          raise TokenizerError.new("Unexpected match in token array #{src[index..index+1]}")
+          raise TokenizerError.new("Unexpected match in token array #{src[index..index + 1]}")
         end
       end
       tokens
@@ -112,56 +112,56 @@ module CrystalRobots
     # Vectors are encoded with their length followed by their element sequence
     def encodeVector(data : Bytes) : Bytes
       unsignedLEB128(data.size) +
-      data
+        data
     end
 
     # https://webassembly.github.io/spec/core/binary/values.html#names
     def encodeString(string : String) : Bytes
       unsignedLEB128(string.bytesize) +
-      string.encode("UTF-8")
+        string.encode("UTF-8")
     end
 
     # https://webassembly.github.io/spec/core/binary/modules.html#sections
     enum Section : UInt8
-      Custom = 0
-      Type = 1
-      Import = 2
-      Func = 3
-      Table = 4
-      Memory = 5
-      Global = 6
-      Export = 7
-      Start = 8
-      Element = 9
-      Code = 10
-      Data = 11
+      Custom  =  0
+      Type    =  1
+      Import  =  2
+      Func    =  3
+      Table   =  4
+      Memory  =  5
+      Global  =  6
+      Export  =  7
+      Start   =  8
+      Element =  9
+      Code    = 10
+      Data    = 11
     end
 
     # https://webassembly.github.io/spec/core/binary/types.html
     enum Valtype : UInt8
       Externref = 0x6f
-      Funcref = 0x70
-      V128 = 0x7b
-      F64 = 0x7c
-      F32 = 0x7d
-      I64 = 0x7e
-      I32 = 0x7f
+      Funcref   = 0x70
+      V128      = 0x7b
+      F64       = 0x7c
+      F32       = 0x7d
+      I64       = 0x7e
+      I32       = 0x7f
     end
 
     # https://webassembly.github.io/spec/core/binary/instructions.html
     enum Opcodes : UInt8
-      End = 0x0b
-      Call = 0x10
+      End       = 0x0b
+      Call      = 0x10
       Get_local = 0x20
       F32_const = 0x43
-      F32_add = 0x92
+      F32_add   = 0x92
     end
 
     # http://webassembly.github.io/spec/core/binary/modules.html#export-section
     enum ExportType : UInt8
-      Func = 0x00
-      Table = 0x01
-      Mem = 0x02
+      Func   = 0x00
+      Table  = 0x01
+      Mem    = 0x02
       Global = 0x03
     end
 
@@ -169,20 +169,20 @@ module CrystalRobots
     FunctionType = 0x60
 
     # https://webassembly.github.io/spec/core/binary/modules.html#binary-module
-    MagicModuleHeader = Bytes[0,'a'.ord,'s'.ord,'m'.ord]
-    ModuleVersion = Bytes[1,0,0,0]
+    MagicModuleHeader = Bytes[0, 'a'.ord, 's'.ord, 'm'.ord]
+    ModuleVersion     = Bytes[1, 0, 0, 0]
 
     def createSection(type : Section, data : Bytes)
       Bytes[type.value] +
-      encodeVector(data)
+        encodeVector(data)
     end
 
     # Function types are vectors of parameters and return types. Currently
     # WebAssembly only supports single return values
     def addFunctionType
       Bytes[FunctionType] +
-      encodeVector(Bytes[Valtype::F32.value, Valtype::F32.value]) +
-      encodeVector(Bytes[Valtype::F32.value])
+        encodeVector(Bytes[Valtype::F32.value, Valtype::F32.value]) +
+        encodeVector(Bytes[Valtype::F32.value])
     end
 
     # the type section is a vector of function types
@@ -198,7 +198,7 @@ module CrystalRobots
     def funcSection
       createSection(Section::Func,
         Bytes[1] + # number of functions
-        Bytes[0] # type index
+        Bytes[0]   # type index
       )
     end
 
@@ -208,7 +208,7 @@ module CrystalRobots
         Bytes[1] + # number of exports
         encodeString("run") +
         Bytes[ExportType::Func.value] + # export type
-        Bytes[0x00] # function index
+        Bytes[0x00]                     # function index
       )
     end
 
@@ -220,37 +220,37 @@ module CrystalRobots
       end
     end
 
-    #def codeFromAst(ast : Program)
+    # def codeFromAst(ast : Program)
     def code
       Bytes[0] + # number of locals
-      Bytes[Opcodes::Get_local.value] +
-      Bytes[0] + # index 0
-      Bytes[Opcodes::Get_local.value] +
-      Bytes[1] + # index 1
-      Bytes[Opcodes::F32_add.value] +
-      Bytes[Opcodes::End.value]
+        Bytes[Opcodes::Get_local.value] +
+        Bytes[0] + # index 0
+        Bytes[Opcodes::Get_local.value] +
+        Bytes[1] + # index 1
+        Bytes[Opcodes::F32_add.value] +
+        Bytes[Opcodes::End.value]
     end
 
     # the code section contains vectors of functions
-    #def codeSection(ast : Program)
+    # def codeSection(ast : Program)
     def codeSection
       createSection(Section::Code,
         Bytes[1] + # number of functions
-        #encodeVector(codeFromAst(ast : Program))
+        # encodeVector(codeFromAst(ast : Program))
         encodeVector(code)
       )
     end
 
     # Helpful tool for exploring - https://webassembly.github.io/wabt/demo/wat2wasm/
-    #def emitter(ast : Program)
+    # def emitter(ast : Program)
     def emitter
       MagicModuleHeader +
-      ModuleVersion +
-      typeSection +
-      funcSection +
-      exportSection +
-      #codeSection(ast)
-      codeSection
+        ModuleVersion +
+        typeSection +
+        funcSection +
+        exportSection +
+        # codeSection(ast)
+        codeSection
     end
   end
 
