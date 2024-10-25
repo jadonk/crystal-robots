@@ -4,10 +4,13 @@ A great way to learn about programming with a simple Ruby-like syntax. Write pro
 it out with other programs on a virtual battlefield. Then, learn about how programming languages
 turn your code into instructions a machine can understand.
 
-Inspired by [CROBOTS - a programming game, for programmers, or aspiring programmers](http://tpoindex.github.io/crobots/),
-the [Crystal Programming Language - A language for humans and computers](https://crystal-lang.org/),
-and [chasm - a simple compile-to-WASM language](https://github.com/ColinEberhardt/chasm),
-`crystal-robots` is my exploration of depending on my own programming tools.
+`crystal-robots` is inspired and derived from:
+*  [CROBOTS - a programming game, for programmers, or aspiring programmers](http://tpoindex.github.io/crobots/),
+* the [Crystal Programming Language - A language for humans and computers](https://crystal-lang.org/),
+* and [chasm - a simple compile-to-WASM language](https://github.com/ColinEberhardt/chasm).
+
+`crystal-robots` is my exploration of depending on my own programming tools, taking control over a programming
+language itself.
 
 * [Source Code](https://openbeagle.org/jkridner/crystal-robots)
 * [Documentation](https://jkridner.pages.openbeagle.org/crystal-robots)
