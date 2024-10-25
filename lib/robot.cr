@@ -87,7 +87,12 @@ class Robot
 
   def run
     if program = @program
-      program.call(self)
+      puts "Running robot #{@i}, aka '#{@name}'"
+      begin
+        program.call(self)
+      rescue ex
+        puts "Stopping robot #{@i}, aka #{@name}: #{ex.message}"
+      end
     end
   end
 

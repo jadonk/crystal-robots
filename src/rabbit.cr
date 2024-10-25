@@ -4,7 +4,7 @@
 
 require "robot"
 
-rabbit = Robot.new("rabbit")
+rabbit = Robot.new("Rabbit")
 
 rabbit.main do |r|
   while true
