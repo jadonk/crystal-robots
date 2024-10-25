@@ -17,7 +17,7 @@ describe CrystalRobots do
 
     it "throws exception with bad keyword" do
       c = CrystalRobots::Compiler.new
-      expect_raises(CrystalRobots::TokenizerError, "Unexpected token f") do
+      expect_raises(CrystalRobots::Compiler::TokenizerError, "Unexpected token f") do
         tokens = c.tokenizer(" def foo")
       end
     end
