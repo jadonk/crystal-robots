@@ -17,7 +17,7 @@ test:
 pages:
   stage: deploy
   script:
-    - crystal docs --project-name crystal-robots --project-version 0.0.1
+    - crystal docs --project-name crystal-robots --project-version `git show --format=%h -s`
     - mv docs public
   artifacts:
     paths:

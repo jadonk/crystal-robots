@@ -9,6 +9,9 @@ the [Crystal Programming Language - A language for humans and computers](https:/
 and [chasm - a simple compile-to-WASM language](https://github.com/ColinEberhardt/chasm),
 `crystal-robots` is my exploration of depending on my own programming tools.
 
+* [Source Code](https://openbeagle.org/jkridner/crystal-robots)
+* [Documentation](https://jkridner.pages.openbeagle.org/crystal-robots)
+
 ## Installation
 
 Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
