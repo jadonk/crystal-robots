@@ -4,9 +4,12 @@
 
 require "robot"
 
-r = Robot.new
-while true
-  go(r,rand(1000),rand(1000))   # go somewhere on the field
+rabbit = Robot.new("rabbit")
+
+rabbit.main do |r|
+  while true
+    go(r,rand(1000),rand(1000))   # go somewhere on the field
+  end
 end
 
 # go - go to the point specified

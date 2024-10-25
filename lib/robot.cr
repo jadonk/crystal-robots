@@ -43,6 +43,7 @@ end
 
 class Robot
   @@num_robots = 0
+  @@robots = [] of Robot
   MAX_CALLS = 100
   MAXROBOTS = 4                # maximum number of robots
   MOTION_CYCLES = 15           # number of cycles before motion update
@@ -51,7 +52,7 @@ class Robot
   ACCEL = 10                   # acceleration per motion cycle
   @i : Int32
 
-  def initialize(name = "")
+  def initialize(name : String)
     @name = "#{name}"
     @status = 0
     @calls = 0
@@ -71,12 +72,18 @@ class Robot
     @scan = 0
     @last_scan = -1
     @reload = 0
-    @@num_robots += 1
     @i = @@num_robots
+    @@num_robots += 1
     if @@num_robots > MAXROBOTS
       raise "Too many robots!"
     end
-    Fiber.new(@name)
+    @has_program = false
+  end
+
+  def main(&program)
+    @has_program = true
+    @@robots << self
+    yield self
   end
 
   private def debug(s)
