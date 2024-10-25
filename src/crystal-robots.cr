@@ -9,7 +9,75 @@ module CrystalRobots
       @code = Bytes[]
     end
 
+    enum TokenType
+      Number
+      Keyword
+      Whitespace
+    end
+
+    struct Token
+      property type, value
+
+      def initialize(@type : TokenType, @value : String)
+      end
+    end
+
+    def regexMatcher(regex : String, type : TokenType)
+    end
+
+    @@keywords = [
+      "begin",
+      "break",
+      "case",
+      "def",
+      "do",
+      "else",
+      "elsif",
+      "end",
+      "false",
+      "for",
+      "if",
+      "in",
+      "next",
+      "nil",
+      "require",
+      "then",
+      "true",
+      "while",
+    ].join("|")
+
+    @@matchers = [
+      {/^([.0-9]+)/,                    TokenType::Number},
+      {Regex.new("^(#{@@keywords})"),   TokenType::Keyword},
+      {/^(\s+)/,                        TokenType::Whitespace},
+    ]
+
     def tokenizer(src : String)
+      tokens = Array(Token).new
+      index = 0
+      while index < src.size
+        matches = @@matchers.compact_map do |regex, type|
+          m = regex.match(src[(index..)])
+          if m.nil?
+            next
+          end
+          {"m": m, "type": type}
+        end
+        if matches.size == 0
+          raise TokenizerError.new("Unexpected token #{src[index..index+1]}")
+        end
+        if !matches[0].nil? && !matches[0][:m][0].nil?
+          #puts "Found #{matches[0][:m][0]} as #{matches[0][:type]}"
+          if matches[0][:type] != TokenType::Whitespace
+            t = Token.new(type: matches[0][:type], value: matches[0][:m][0])
+            tokens << t
+          end
+          index += matches[0][:m][0].size
+        else
+          raise TokenizerError.new("Unexpected match in token array #{src[index..index+1]}")
+        end
+      end
+      tokens
     end
 
     def parser(tokens)
@@ -144,7 +212,8 @@ module CrystalRobots
       end
     end
 
-    def codeFromAst(ast : Program)
+    #def codeFromAst(ast : Program)
+    def code
       Bytes[0] + # number of locals
       Bytes[Opcodes::Get_local.value] +
       Bytes[0] + # index 0
@@ -155,21 +224,25 @@ module CrystalRobots
     end
 
     # the code section contains vectors of functions
-    def codeSection(ast : Program)
+    #def codeSection(ast : Program)
+    def codeSection
       createSection(Section::Code,
         Bytes[1] + # number of functions
-        encodeVector(codeFromAst(ast : Program))
+        #encodeVector(codeFromAst(ast : Program))
+        encodeVector(code)
       )
     end
 
     # Helpful tool for exploring - https://webassembly.github.io/wabt/demo/wat2wasm/
-    def emitter(ast : Program)
+    #def emitter(ast : Program)
+    def emitter
       MagicModuleHeader +
       ModuleVersion +
       typeSection +
       funcSection +
       exportSection +
-      codeSection(ast)
+      #codeSection(ast)
+      codeSection
     end
   end
 

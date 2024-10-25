@@ -10,15 +10,15 @@ describe CrystalRobots do
 
     it "tokenizes single keyword" do
       c = CrystalRobots::Compiler.new
-      tokens = c.tokenizer(" puts")
-      tokens.length.should eq 1
-      tokens[0].type.should eq "keyword"
+      tokens = c.tokenizer(" def")
+      tokens.size.should eq 1
+      tokens[0].type.should eq CrystalRobots::Compiler::TokenType::Keyword
     end
 
     it "throws exception with bad keyword" do
       c = CrystalRobots::Compiler.new
-      expect_raises(TokenizerError, "Unexpected token f") do
-        tokens = c.tokenizer(" puts foo")
+      expect_raises(CrystalRobots::TokenizerError, "Unexpected token f") do
+        tokens = c.tokenizer(" def foo")
       end
     end
 
