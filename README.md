@@ -13,7 +13,7 @@ turn your code into instructions a machine can understand.
 language itself.
 
 * [Source Code](https://openbeagle.org/jkridner/crystal-robots)
-* [Documentation](https://jkridner.pages.openbeagle.org/crystal-robots)
+* [Documentation](https://jkridner.beagleboard.io/crystal-robots)
 
 ## Installation
 
