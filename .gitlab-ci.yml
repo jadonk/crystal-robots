@@ -3,7 +3,7 @@ build:
   stage: build
   script:
     - crystal build src/crystal-robots.cr
-    - crystal build src/rabbit.cr
+    - crystal build src/examples/rabbit.cr
   artifacts:
     paths:
       - crystal-robots
