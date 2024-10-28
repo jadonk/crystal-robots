@@ -1,4 +1,7 @@
-module CrystalRobots
+# TODO: Write documentation for `Crystal::Robots`
+module Crystal::Robots
+  VERSION = "0.0.1"
+
   # Crystal Robots compiler
   #
   # ## Description

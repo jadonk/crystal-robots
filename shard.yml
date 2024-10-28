@@ -1,0 +1,13 @@
+name: crystal-robots
+version: 0.0.1
+
+authors:
+  - Jason Kridner <jkridner@beagleboard.org>
+
+targets:
+  crystal-robots:
+    main: src/crystal-robots.cr
+
+crystal: '>= 1.8.0'
+
+license: MIT
