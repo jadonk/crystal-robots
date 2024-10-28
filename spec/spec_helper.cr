@@ -1,2 +1,2 @@
 require "spec"
-require "../src/crystal-robots"
+require "../lib/crystal-robots"
