@@ -408,11 +408,16 @@ module CrystalRobots
     def initialize
       @matches = 1
       @cycles = 500_000
+      @show_version = false
 
       # TODO: http://tpoindex.github.io/crobots/docs/crobots_manual.html#4
       parser = OptionParser.new
       customize_parser(parser)
       parser.parse
+
+      if @show_version
+        return 0
+      end
 
       if !@robot_to_compile.nil?
         # TODO: Call the compiler
@@ -432,12 +437,14 @@ module CrystalRobots
 
       # TODO: Call for battle
       puts "Imagine the robots #{@robots_to_battle} battling here"
+      0
     end
 
     def customize_parser(parser)
       parser.banner = "Welcome to Crystal Robots!\nUsage: crystal-robots [options] robot-source-file-1 [robot-source-file-n] [>file]"
       parser.on "-v", "--version", "Show version" do
         puts CrystalRobots::VERSION
+        @show_version = true
         parser.stop
       end
       parser.on "-h", "--help", "Show help" do
