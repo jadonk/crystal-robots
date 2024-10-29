@@ -402,8 +402,8 @@ module CrystalRobots
   end
 
   class CLI
-    @robot : String | Nil
-    @robots : Array(String) | Nil
+    @robot_to_compile : String | Nil
+    @robots_to_battle : Array(String) | Nil
 
     def initialize
       @matches = 1
@@ -414,10 +414,24 @@ module CrystalRobots
       customize_parser(parser)
       parser.parse
 
-      if @robots.nil?
-        puts parser
-        1
+      if !@robot_to_compile.nil?
+        # TODO: Call the compiler
+        puts "Imagine the compiler running here"
+        return 0
       end
+
+      if @robots_to_battle.nil?
+        puts parser
+        return 1
+      end
+
+      if @robots_to_battle.size > 4
+        puts "Maximum of 4 robots allowed"
+        return 1
+      end
+
+      # TODO: Call for battle
+      puts "Imagine the robots battling here"
     end
 
     def customize_parser(parser)
@@ -433,7 +447,8 @@ module CrystalRobots
       parser.on "-c ROBOT", "--compile=ROBOT", "Compile robot source only and output WebAssembly (WASM)" do |robot|
         # TODO: call the compiler and output .WASM with symbol tables
         STDERR.puts "Compiling #{robot}"
-        @robot = robot
+        @robot_to_compile = robot
+        parser.stop
       end
       parser.on "-m MATCHES", "--matches=MATCHES", "Run MATCHES matches" do |matches|
         # TODO: run the battlefield simulator repeatedly
@@ -449,7 +464,7 @@ module CrystalRobots
         if args.size > 0
           robots = args
           puts "Running with robots: #{robots}"
-          @robots = robots
+          @robots_to_battle = robots
         end
       end
     end
