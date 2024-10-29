@@ -1,28 +1,31 @@
 require "./spec_helper"
 
-describe Crystal::Robots do
+describe CrystalRobots do
+  describe "Robot" do
+  end
+
   describe "Compiler" do
     it "can be instantiated" do
-      c = Crystal::Robots::Compiler.new
+      c = CrystalRobots::Compiler.new
       c.should_not eq nil
     end
 
     it "tokenizes single keyword" do
-      c = Crystal::Robots::Compiler.new
+      c = CrystalRobots::Compiler.new
       tokens = c.tokenizer(" def")
       tokens.size.should eq 1
-      tokens[0].type.should eq Crystal::Robots::Compiler::TokenType::Keyword
+      tokens[0].type.should eq CrystalRobots::Compiler::TokenType::Keyword
     end
 
     it "throws exception with bad keyword" do
-      c = Crystal::Robots::Compiler.new
-      expect_raises(Crystal::Robots::Compiler::TokenizerError, "Unexpected token f") do
+      c = CrystalRobots::Compiler.new
+      expect_raises(CrystalRobots::Compiler::TokenizerError, "Unexpected token f") do
         tokens = c.tokenizer(" def foo")
       end
     end
 
     it "has an emitter" do
-      c = Crystal::Robots::Compiler.new
+      c = CrystalRobots::Compiler.new
       # https://webassembly.github.io/wabt/demo/wat2wasm/
       c.emitter.should eq Bytes[
         0, 0x61, 0x73, 0x6d,                        # WASM_BINARY_MAGIC

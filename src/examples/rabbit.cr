@@ -2,9 +2,9 @@
 # rabbit runs around the field, randomly
 # and never fires;  use as a target
 
-require "robot"
+require "crystal_robots"
 
-rabbit = Robot.new "Rabbit"
+rabbit = CrystalRobots::Robot.new "Rabbit"
 rabbit.main do |r|
   while true
     go(r, rand(1000), rand(1000)) # go somewhere on the field
