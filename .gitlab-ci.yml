@@ -13,6 +13,9 @@ test:
   stage: test
   script:
     - crystal spec
+    - ./crystal-robots -v
+    - ./crystal-robots
+    - ./rabbit
 
 pages:
   stage: deploy

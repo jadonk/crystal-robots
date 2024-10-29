@@ -522,5 +522,3 @@ end
 private def i2f(n)
   (n/100000).to_f32
 end
-
-CrystalRobots::CLI.new
