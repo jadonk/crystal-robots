@@ -115,10 +115,6 @@ module CrystalRobots
       debug "loc_y -> #{r}"
       r
     end
-
-    private def debug(s)
-      puts "other: #{s}"
-    end
   end
 
   class Missile
@@ -407,37 +403,37 @@ end
 
 def rand(limit)
   r = Random.rand(limit)
-  CrystalRobots::debug "rand #{limit} -> #{r}"
+  puts "rand #{limit} -> #{r}"
   r
 end
 
 def sqrt(number)
   r = Math.isqrt(number.abs)
-  CrystalRobots::debug "sqrt #{number} -> #{r}"
+  puts "sqrt #{number} -> #{r}"
   r
 end
 
 def sin(degree)
   r = f2i(Math.sin(d2r(degree)))
-  CrystalRobots::debug "sin #{degree} -> #{r}"
+  puts "sin #{degree} -> #{r}"
   r
 end
 
 def cos(degree)
   r = f2i(Math.cos(d2r(degree)))
-  CrystalRobots::debug "cos #{degree} -> #{r}"
+  puts "cos #{degree} -> #{r}"
   r
 end
 
 def tan(degree)
   r = f2i(Math.tan(d2r(degree)))
-  CrystalRobots::debug "tan #{degree} -> #{r}"
+  puts "tan #{degree} -> #{r}"
   r
 end
 
 def atan(ratio)
   r = r2d(Math.atan(i2f(ratio)))
-  CrystalRobots::debug "tan #{ratio} -> #{r}"
+  puts "tan #{ratio} -> #{r}"
   r
 end
 
