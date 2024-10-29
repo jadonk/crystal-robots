@@ -18,7 +18,7 @@ pages:
   stage: deploy
   script:
     - git config --global --add safe.directory /builds/jkridner/crystal-robots
-    - crystal docs --project-name crystal-robots --project-version `git show --format=%h -s`
+    - crystal docs --project-version `git show --format=%h -s`
     - mv docs public
   artifacts:
     paths:
