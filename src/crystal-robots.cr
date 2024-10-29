@@ -425,13 +425,13 @@ module CrystalRobots
         return 1
       end
 
-      if @robots_to_battle.size > 4
+      if @robots_to_battle.not_nil!.size > 4
         puts "Maximum of 4 robots allowed"
         return 1
       end
 
       # TODO: Call for battle
-      puts "Imagine the robots battling here"
+      puts "Imagine the robots #{@robots_to_battle} battling here"
     end
 
     def customize_parser(parser)
