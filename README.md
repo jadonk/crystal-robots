@@ -13,7 +13,8 @@ turn your code into instructions a machine can understand.
 language itself.
 
 * [Source Code](https://openbeagle.org/jkridner/crystal-robots)
-* [Documentation](https://jkridner.beagleboard.io/crystal-robots)
+* [Github Mirror](https://github.com/jadonk/crystal-robots)
+* [Documentation and online hosting](https://jkridner.beagleboard.io/crystal-robots)
 
 ## Installation
 
@@ -45,8 +46,15 @@ TODO: Write development instructions here
 
 ## License
 
-TODO: Provide code licenses
+`crystal-robots` is distributed under terms of the GNU General Public License, version 2.
+
+This is in line with Tom Poindexter's release of `CROBOTS`. While more restrictive than
+Colin Eberhardt's release of `chasm` under an MIT license, it seems to me to be better
+to follow the more restrictive license. I hope that Colin agrees and if I ever complete
+this, I'll be sure to engage to find a suitable compromise.
 
 ## Contributors
 
-- [Jason Kridner](https://github.com/jadonk) - creator and maintainer
+- [Tom Poindexter](https://github.com/tpoindex) - creator of `CROBOTS`
+- [Colin Eberhardt](https://github.com/ColinEberhardt) - creator of `chasm`
+- [Jason Kridner](https://github.com/jadonk) - creator and maintainer of `crystal-robots`
