@@ -1,5 +1,10 @@
 name: crystal-robots
 version: 0.0.1
+description: |
+  Start to learn the Crystal Programming Language by creating robots that battle on a virtual field using a toy compiler that runs in your browser.
+
+documentation: https://jkridner.beagleboard.io/crystal-robots
+homepage: https://openbeagle.org/jkridner/crystal-robots
 
 authors:
   - Jason Kridner <jkridner@beagleboard.org>
@@ -7,6 +12,8 @@ authors:
 targets:
   crystal-robots:
     main: src/crystal-robots.cr
+  examples-rabbit:
+    main: src/examples/rabbit.cr
 
 crystal: '>= 1.8.0'
 

@@ -13,6 +13,7 @@ test:
   stage: test
   script:
     - crystal spec
+    - crystal tool format --check
     - ./crystal-robots -v
     - ./crystal-robots
     - ./rabbit
@@ -21,8 +22,7 @@ pages:
   stage: deploy
   script:
     - git config --global --add safe.directory /builds/jkridner/crystal-robots
-    - crystal docs --project-version `git show --format=%h -s`
-    - mv docs public
+    - crystal docs -o public --project-version `git show --format=%h -s` src/crystal-robots.cr lib/crystal-robots/src/crystal-robots.cr
   artifacts:
     paths:
       - public
