@@ -2,21 +2,24 @@ image: $CI_REGISTRY/jkridner/crystal
 build:
   stage: build
   script:
-    - crystal build src/crystal-robots.cr
-    - crystal build src/examples/rabbit.cr
+    - shards build
   artifacts:
     paths:
-      - crystal-robots
-      - rabbit
+      - bin/crystal-robots
+      - bin/examples-rabbit
 
 test:
   stage: test
+  before_script:
+    - curl https://get.wasmer.io -sSfL | sh
+    - . $HOME/.wasmer/wasmer.sh
+    - shards install
   script:
     - crystal spec
     - crystal tool format --check
-    - ./crystal-robots -v
-    - ./crystal-robots
-    - ./rabbit
+    - bin/crystal-robots -v
+    - bin/crystal-robots
+    - bin/examples-rabbit
 
 pages:
   stage: deploy

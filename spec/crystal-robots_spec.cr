@@ -36,5 +36,28 @@ describe CrystalRobots do
         10, 9, 1, 7, 0, 0x20, 0, 0x20, 1, 0x92, 0xb # Section "Code"
       ]
     end
+
+    it "test function should load the emited WASM" do
+      c = CrystalRobots::Compiler.new
+      file = c.emitter
+      i = load_wasm(file)
+      i.should_not be_nil
+    end
+
+    it "test function should find exported function" do
+      c = CrystalRobots::Compiler.new
+      file = c.emitter
+      i = load_wasm(file)
+      run = i.function("run")
+      run.should_not be_nil
+    end
+
+    it "emitted function should run" do
+      c = CrystalRobots::Compiler.new
+      file = c.emitter
+      i = load_wasm(file)
+      run = i.function("run").not_nil!
+      run.call(11.1, 22.2).should eq 33.3
+    end
   end
 end
