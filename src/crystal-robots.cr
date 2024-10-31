@@ -432,8 +432,9 @@ module CrystalRobots
       end
 
       if !@robot_to_compile.nil?
-        # TODO: Call the compiler
-        puts "Imagine the compiler running here"
+        c = Compiler.new
+        # TODO: load file and actually pass it to the compiler
+        STDOUT.write(c.emitter)
         return 0
       end
 
