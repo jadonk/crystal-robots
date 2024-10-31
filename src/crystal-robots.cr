@@ -72,6 +72,18 @@ module CrystalRobots
       end
     end
 
+    def self.num_robots
+      @@num_robots
+    end
+
+    def self.robots
+      @@robots
+    end
+
+    def name
+      @name
+    end
+
     def debug(s)
       @calls += 1
       puts "#{@calls}: #{s}"
@@ -426,8 +438,19 @@ module CrystalRobots
       end
 
       if @robots_to_battle.nil?
-        puts parser
-        return 1
+        if Robot.num_robots > 0 # there may be already compiled robots
+          already_compiled_robots = [] of String
+          Robot.robots.not_nil!
+          Robot.robots.each do |robot|
+            name = robot.name
+            name.not_nil!
+            already_compiled_robots << robot.name
+          end
+          @robots_to_battle = already_compiled_robots
+        else
+          puts parser
+          return 1
+        end
       end
 
       if @robots_to_battle.not_nil!.size > 4
@@ -441,7 +464,7 @@ module CrystalRobots
     end
 
     def customize_parser(parser)
-      parser.banner = "Welcome to Crystal Robots!\nUsage: crystal-robots [options] robot-source-file-1 [robot-source-file-n] [>file]"
+      parser.banner = "Welcome to Crystal Robots!\nUsage: crystal-robots [options] robot-source-file-1 [..2 [..3 [robot-source-file-4]]] [>file]"
       parser.on "-v", "--version", "Show version" do
         puts CrystalRobots::VERSION
         @show_version = true
@@ -530,4 +553,6 @@ private def i2f(n)
   (n/100000).to_f32
 end
 
-CrystalRobots::CLI.new
+at_exit do
+  CrystalRobots::CLI.new
+end
