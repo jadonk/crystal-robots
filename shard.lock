@@ -1,0 +1,6 @@
+version: 2.0
+shards:
+  wasmer:
+    git: https://github.com/naqvis/wasmer-crystal.git
+    version: 0.2.2
+
