@@ -9,6 +9,10 @@ homepage: https://openbeagle.org/jkridner/crystal-robots
 authors:
   - Jason Kridner <jkridner@beagleboard.org>
 
+development_dependencies:
+  wasmer:
+    github: naqvis/wasmer-crystal
+
 targets:
   crystal-robots:
     main: src/crystal-robots.cr
