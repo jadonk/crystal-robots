@@ -57,7 +57,7 @@ describe CrystalRobots do
       file = c.emitter
       i = load_wasm(file)
       run = i.function("run").not_nil!
-      run.call(11.1, 22.2).should eq 33.3
+      run.call(11.1_f32, 22.2_f32).should eq 33.300003_f32
     end
   end
 end
