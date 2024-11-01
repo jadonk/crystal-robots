@@ -14,6 +14,7 @@ build:
 test:
   stage: test
   before_script:
+    - sudo apk add curl
     - curl https://get.wasmer.io -sSfL | sh
     - . $HOME/.wasmer/wasmer.sh
     - shards update
