@@ -77,8 +77,8 @@ end
 
 def main(name, &program)
   r = CrystalRobots::Robot.new name
-  r.activate
   r.main do |r|
+    r.activate
     program.call
   end
 end
