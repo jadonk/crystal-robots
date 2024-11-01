@@ -91,6 +91,17 @@ module CrystalRobots
       end
     end
 
+    # The `scan` method invokes the robot's scanner, at a specified degree and resolution. `scan` returns 0 if no robots are
+    # within the scan range or a positive integer representing the range to the closest robot. Degree should be within the
+    # range 0-359, otherwise degree is forced into 0-359 by a modulo 360 operation, and made positive if necessary. Resolution
+    # controls the scanner's sensing resolution, up to +/- 10 degrees.
+    #
+    # Examples:
+    #
+    # ```
+    #   range = scan(45,0)    # scan 45, with no variance
+    #   range = scan(365,10)  # scans the range from 355 to 15 */
+    # ```
     def scan(degree, resolution)
       debug "scan #{degree} #{resolution}"
       0
