@@ -4,16 +4,6 @@ require "option_parser"
 module CrystalRobots
   VERSION = "0.0.1"
 
-  # Robot intrinsic functions
-  #
-  # http://tpoindex.github.io/crobots/docs/crobots_manual.html#8
-  #
-  # This is to enable native compilation of robots for syntax checking
-  #
-  # I'm trying to figure out how to interrupt the robot flow at some
-  # interval. It will never match the WASM interpreter cycles, but I
-  # hope I can make each robot yield to let another robot run.
-  #
   class Robot
     @@num_robots = 0
     @@robots = [] of Robot
@@ -97,35 +87,11 @@ module CrystalRobots
       end
     end
 
-    # The `scan` method invokes the robot's scanner, at a specified degree and resolution. `scan` returns 0 if no robots are
-    # within the scan range or a positive integer representing the range to the closest robot. Degree should be within the
-    # range 0-359, otherwise degree is forced into 0-359 by a modulo 360 operation, and made positive if necessary. Resolution
-    # controls the scanner's sensing resolution, up to +/- 10 degrees.
-    #
-    # Examples:
-    #
-    # ```
-    # range = r.scan(45, 0)   # scan 45, with no variance
-    # range = r.scan(365, 10) # scans the range from 355 to 15
-    # ```
     def scan(degree, resolution)
       debug "scan #{degree} #{resolution}"
       0
     end
 
-    # The `cannon` method fires a missile heading a specified range and direction. `cannon` returns 1 (true) if a missile was
-    # fired, or 0 (false) if the cannon is reloading. Degree is forced into the range 0-359 as in `scan`. Range can be 0-700,
-    # with greater ranges truncated to 700.
-    #
-    # Examples:
-    #
-    # ```
-    # degree = 45               # set a direction to scan
-    # range = r.scan(degree, 2) # scan for a target
-    # if range > 0              # if there is a target in range
-    #   r.cannon(degree, range) # fire a missle
-    # end
-    # ```
     def cannon(degree, range)
       r = true
       debug "cannon #{degree} #{range} -> #{r}"
@@ -250,7 +216,21 @@ module CrystalRobots
 
     # These are classes/methods already defined
     @@builtins = [
+      "main",
       "puts",
+      "scan",
+      "cannon",
+      "drive",
+      "damage",
+      "speed",
+      "loc_x",
+      "loc_y",
+      "rand",
+      "sqrt",
+      "sin",
+      "cos",
+      "tan",
+      "atan",
     ].join("|")
 
     @@matchers = [
