@@ -164,15 +164,26 @@ module CrystalRobots
   #
   class Compiler
     @code : Bytes
+    @ast : Program
 
     def initialize
       @code = Bytes[]
+      @ast = Program.new
+    end
+
+    def program
+      @ast
     end
 
     enum TokenType
       Number
       Keyword
+      Builtin
+      String
       Whitespace
+    end
+
+    struct Program
     end
 
     struct Token
@@ -185,6 +196,7 @@ module CrystalRobots
     def regexMatcher(regex : String, type : TokenType)
     end
 
+    # These are language keywords that generate various statement types
     @@keywords = [
       "begin",
       "break",
@@ -206,16 +218,31 @@ module CrystalRobots
       "while",
     ].join("|")
 
+    # These are classes/methods already defined
+    @@builtins = [
+      "puts",
+    ].join("|")
+
     @@matchers = [
+      {/^\"([^\"]+)\"/, TokenType::String},
       {/^([.0-9]+)/, TokenType::Number},
       {Regex.new("^(#{@@keywords})"), TokenType::Keyword},
+      {Regex.new("^(#{@@builtins})"), TokenType::Builtin},
       {/^(\s+)/, TokenType::Whitespace},
     ]
 
     class TokenizerError < Exception
     end
 
-    def tokenizer(src : String)
+    def compile(src)
+      @src = src
+      @tokens = tokenize(src)
+      @ast = parse(@tokens)
+      @wasm = emitter(@ast)
+      @wasm
+    end
+
+    def tokenize(src : String)
       tokens = Array(Token).new
       index = 0
       while index < src.size
@@ -244,6 +271,8 @@ module CrystalRobots
     end
 
     def parser(tokens)
+      tokens.each do |token|
+      end
     end
 
     # https://en.wikipedia.org/wiki/LEB128
@@ -367,16 +396,38 @@ module CrystalRobots
       )
     end
 
+    enum NodeType
+      Program
+      Statement
+      NumberLiteral
+      Identifier
+      PrintStatement
+    end
+
+    struct Node
+      property type
+    end
+
+    struct ExpressionNode
+      property value
+      forward_missing_to @node
+
+      def initilize(@node : Node, @value : Float32)
+        @node.type = NodeType::NumberLiteral
+      end
+    end
+
     def emitExpression(node : ExpressionNode)
       case node.type
-      when "numberLiteral"
+      when NodeType::NumberLiteral
         @code << Bytes[Opcodes::F32_const.local]
         @code << ieee754(node.value)
       end
     end
 
-    # def codeFromAst(ast : Program)
-    def code
+    def codeFromAst(ast : Program)
+      #code = Bytes.new
+      #code << emitExpression
       Bytes[0] + # number of locals
         Bytes[Opcodes::Get_local.value] +
         Bytes[0] + # index 0
@@ -384,28 +435,25 @@ module CrystalRobots
         Bytes[1] + # index 1
         Bytes[Opcodes::F32_add.value] +
         Bytes[Opcodes::End.value]
+      #code
     end
 
     # the code section contains vectors of functions
-    # def codeSection(ast : Program)
-    def codeSection
+    def codeSection(ast : Program)
       createSection(Section::Code,
         Bytes[1] + # number of functions
-        # encodeVector(codeFromAst(ast : Program))
-        encodeVector(code)
+        encodeVector(codeFromAst(ast))
       )
     end
 
     # Helpful tool for exploring - https://webassembly.github.io/wabt/demo/wat2wasm/
-    # def emitter(ast : Program)
-    def emitter
+    def emitter(ast : Program)
       MagicModuleHeader +
         ModuleVersion +
         typeSection +
         funcSection +
         exportSection +
-        # codeSection(ast)
-        codeSection
+        codeSection(ast)
     end
   end
 
@@ -419,21 +467,21 @@ module CrystalRobots
     def initialize
       @matches = 1
       @cycles = 500_000
-      @show_version = false
+      @exit = false
 
       # TODO: http://tpoindex.github.io/crobots/docs/crobots_manual.html#4
       parser = OptionParser.new
       customize_parser(parser)
       parser.parse
 
-      if @show_version
+      if @exit
         return 0
       end
 
       if !@robot_to_compile.nil?
         c = Compiler.new
         # TODO: load file and actually pass it to the compiler
-        STDOUT.write(c.emitter)
+        STDOUT.write(c.emitter(c.program))
         return 0
       end
 
@@ -471,11 +519,12 @@ module CrystalRobots
       parser.banner = "Welcome to Crystal Robots!\nUsage: crystal-robots [options] robot-source-file-1 [..2 [..3 [robot-source-file-4]]] [>file]"
       parser.on "-v", "--version", "Show version" do
         puts CrystalRobots::VERSION
-        @show_version = true
+        @exit = true
         parser.stop
       end
       parser.on "-h", "--help", "Show help" do
         puts parser
+        @exit = true
         parser.stop
       end
       parser.on "-c ROBOT", "--compile=ROBOT", "Compile robot source only and output WebAssembly (WASM)" do |robot|
