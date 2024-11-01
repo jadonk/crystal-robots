@@ -6,6 +6,6 @@ require "wasmer"
 def load_wasm(file)
   engine = Wasmer::Engine.new
   store = Wasmer::Store.new(engine)
-  module_ = Wasmer::Module.new(store,file)
+  module_ = Wasmer::Module.new(store, file)
   Wasmer::Instance.new(module_)
 end
