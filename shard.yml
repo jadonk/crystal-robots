@@ -16,8 +16,6 @@ development_dependencies:
 targets:
   crystal-robots:
     main: src/crystal-robots.cr
-  examples-rabbit:
-    main: src/examples/rabbit.cr
 
 crystal: '>= 1.8.0'
 

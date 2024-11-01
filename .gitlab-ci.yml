@@ -6,6 +6,7 @@ build:
   script:
     - shards update
     - shards build
+    - crystal build --prelude=../prelude.cr src/examples/rabbit.cr -o bin/examples-rabbit
   artifacts:
     paths:
       - bin/crystal-robots
@@ -29,7 +30,7 @@ pages:
   stage: deploy
   script:
     - git config --global --add safe.directory /builds/jkridner/crystal-robots
-    - crystal docs -o public --project-version `git show --format=%h -s` src/crystal-robots.cr
+    - crystal docs -o public --project-version `git show --format=%h -s` src/prelude.cr
   artifacts:
     paths:
       - public
