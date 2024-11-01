@@ -99,8 +99,8 @@ module CrystalRobots
     # Examples:
     #
     # ```
-    # range = scan(45, 0)   # scan 45, with no variance
-    # range = scan(365, 10) # scans the range from 355 to 15 */
+    # range = r.scan(45, 0)   # scan 45, with no variance
+    # range = r.scan(365, 10) # scans the range from 355 to 15
     # ```
     def scan(degree, resolution)
       debug "scan #{degree} #{resolution}"
