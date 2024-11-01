@@ -24,6 +24,7 @@ module CrystalRobots
     TURN_SPEED    =  50 # maximum speed for direction change
     ACCEL         =  10 # acceleration per motion cycle
     @i : Int32
+    @@active_robot : Robot | Nil
 
     def initialize(name : String)
       @name = "#{name}"
@@ -52,6 +53,26 @@ module CrystalRobots
       end
     end
 
+    def self.active_robot
+      @@active_robot
+    end
+
+    def self.num_robots
+      @@num_robots
+    end
+
+    def self.robots
+      @@robots
+    end
+
+    def activate
+      @@active_robot = self
+    end
+
+    def name
+      @name
+    end
+
     def main(&program : Robot -> Nil)
       @@robots << self
       @program = program
@@ -66,18 +87,6 @@ module CrystalRobots
           puts "Stopping robot #{@i}, aka #{@name}: #{ex.message}"
         end
       end
-    end
-
-    def self.num_robots
-      @@num_robots
-    end
-
-    def self.robots
-      @@robots
-    end
-
-    def name
-      @name
     end
 
     def debug(s)

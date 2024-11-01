@@ -54,3 +54,31 @@ end
 private def i2f(n)
   (n/100000).to_f32
 end
+
+def drive(dest_x, dest_y)
+  r = CrystalRobots::Robot.active_robot.not_nil!
+  r.drive(dest_x, dest_y)
+end
+
+def speed
+  r = CrystalRobots::Robot.active_robot.not_nil!
+  r.speed
+end
+
+def loc_x
+  r = CrystalRobots::Robot.active_robot.not_nil!
+  r.loc_x
+end
+
+def loc_y
+  r = CrystalRobots::Robot.active_robot.not_nil!
+  r.loc_x
+end
+
+def main(name, &program)
+  r = CrystalRobots::Robot.new name
+  r.activate
+  r.main do |r|
+    program.call
+  end
+end
