@@ -107,6 +107,19 @@ module CrystalRobots
       0
     end
 
+    # The `cannon` method fires a missile heading a specified range and direction. `cannon` returns 1 (true) if a missile was
+    # fired, or 0 (false) if the cannon is reloading. Degree is forced into the range 0-359 as in `scan`. Range can be 0-700,
+    # with greater ranges truncated to 700.
+    #
+    # Examples:
+    #
+    # ```
+    # degree = 45               # set a direction to scan
+    # range = r.scan(degree, 2) # scan for a target
+    # if range > 0              # if there is a target in range
+    #   r.cannon(degree, range) # fire a missle
+    # end
+    # ```
     def cannon(degree, range)
       r = true
       debug "cannon #{degree} #{range} -> #{r}"
