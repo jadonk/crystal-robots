@@ -99,8 +99,8 @@ module CrystalRobots
     # Examples:
     #
     # ```
-    #   range = scan(45,0)    # scan 45, with no variance
-    #   range = scan(365,10)  # scans the range from 355 to 15 */
+    # range = scan(45, 0)   # scan 45, with no variance
+    # range = scan(365, 10) # scans the range from 355 to 15 */
     # ```
     def scan(degree, resolution)
       debug "scan #{degree} #{resolution}"
@@ -437,8 +437,8 @@ module CrystalRobots
     end
 
     def codeFromAst(ast : Program)
-      #code = Bytes.new
-      #code << emitExpression
+      # code = Bytes.new
+      # code << emitExpression
       Bytes[0] + # number of locals
         Bytes[Opcodes::Get_local.value] +
         Bytes[0] + # index 0
@@ -446,7 +446,7 @@ module CrystalRobots
         Bytes[1] + # index 1
         Bytes[Opcodes::F32_add.value] +
         Bytes[Opcodes::End.value]
-      #code
+      # code
     end
 
     # the code section contains vectors of functions
