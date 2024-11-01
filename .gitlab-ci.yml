@@ -4,6 +4,7 @@ build:
   before_script:
     - sudo apk add shards
   script:
+    - shards update
     - shards build
   artifacts:
     paths:
@@ -15,7 +16,7 @@ test:
   before_script:
     - curl https://get.wasmer.io -sSfL | sh
     - . $HOME/.wasmer/wasmer.sh
-    - shards install
+    - shards update
   script:
     - crystal spec
     - crystal tool format --check
