@@ -58,7 +58,6 @@ module CrystalRobots
     def main(&program : Robot -> Nil)
       @@robots << self
       @program = program
-      run
     end
 
     def run
@@ -460,8 +459,12 @@ module CrystalRobots
       end
 
       # TODO: Call for battle
-      puts "Imagine the robots #{@robots_to_battle} battling here"
-      0
+      puts "Start by running each of #{@robots_to_battle}"
+      Robot.robots.not_nil!
+      Robot.robots.each do |robot|
+        puts "Running #{robot.name}"
+        robot.run
+      end
     end
 
     def customize_parser(parser)
