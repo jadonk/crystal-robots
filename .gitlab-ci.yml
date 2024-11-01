@@ -19,7 +19,7 @@ test:
     - . $HOME/.wasmer/wasmer.sh
     - shards update
   script:
-    - crystal spec
+    - crystal spec -v
     - crystal tool format --check
     - bin/crystal-robots -v
     - bin/crystal-robots
