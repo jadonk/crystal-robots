@@ -31,6 +31,14 @@ describe CrystalRobots do
       tokens[0].type.should eq CrystalRobots::Compiler::TokenType::String
     end
 
+    it "tokenizes builtin followed by string" do
+      c = CrystalRobots::Compiler.new
+      tokens = c.tokenize(" puts \"string\"")
+      tokens.size.should eq 2
+      tokens[0].type.should eq CrystalRobots::Compiler::TokenType::Builtin
+      tokens[1].type.should eq CrystalRobots::Compiler::TokenType::String
+    end
+
     it "throws exception with bad keyword" do
       c = CrystalRobots::Compiler.new
       expect_raises(CrystalRobots::Compiler::TokenizerError, "Unexpected token f") do
