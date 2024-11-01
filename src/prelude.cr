@@ -1,4 +1,4 @@
-# Robot builtin functions
+# Robot builtin methods
 #
 # http://tpoindex.github.io/crobots/docs/crobots_manual.html#8
 #
@@ -66,7 +66,7 @@ def cannon(degree, range)
   r.scan
 end
 
-# The `drive` function activates the robot's drive mechanism, on a specified heading and speed. Degree is forced into the
+# The `drive` method activates the robot's drive mechanism, on a specified heading and speed. Degree is forced into the
 # range 0-359 as in `scan`. Speed is expressed as a percent, with 100 as maximum. A speed of 0 disengages the drive.
 # Changes in direction can be negotiated at speeds of less than 50 percent.
 #
@@ -81,7 +81,7 @@ def drive(dest_x, dest_y)
   r.drive(dest_x, dest_y)
 end
 
-# The `damage` function returns the current amount of damage incurred. damage() takes no arguments, and returns the percent
+# The `damage` method returns the current amount of damage incurred. damage() takes no arguments, and returns the percent
 # of damage, 0-99. (100 percent damage means the robot is completely disabled, thus no longer running!)
 #
 # Examples:
