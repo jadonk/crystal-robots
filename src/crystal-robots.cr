@@ -474,6 +474,7 @@ module CrystalRobots
   class CLI
     @robot_to_compile : String | Nil
     @robots_to_battle : Array(String) | Nil
+    @port : UInt32 | Nil
 
     def initialize
       @matches = 1
@@ -553,6 +554,20 @@ module CrystalRobots
         # TODO: count cycles and enable setting the limit
         puts "Limiting virtual machine cycles to #{cycles}"
         @cycles = cycles.to_i32
+      end
+      parser.on "-p PORT", "--port=PORT", "Serve web interface on port PORT" do |port|
+        # TODO: implement web server
+        puts "Serving Crystal Robots on port #{port}"
+        @port = port.to_u32
+        @exit = true
+        parser.stop
+      end
+      parser.on "-s DIR", "--static=DIR", "Save static web interface files to DIR" do |dir|
+        # TODO: implement web server
+        puts "Writing static web interface files to #{dir}."
+        @static_dir = "#{dir}"
+        @exit = true
+        parser.stop
       end
       parser.unknown_args do |args, _|
         if args.size > 0
