@@ -1,6 +1,8 @@
 image: $CI_REGISTRY/jkridner/crystal
 build:
   stage: build
+  before-script:
+    - apk add shards
   script:
     - shards build
   artifacts:
