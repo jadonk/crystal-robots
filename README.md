@@ -24,8 +24,6 @@ TODO: Write installation instructions here
 
 TODO: Write usage instructions here
 
-Check out the [Manual](Manual).
-
 ## Support
 
 TODO: Write support instructions here
