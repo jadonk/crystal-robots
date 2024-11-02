@@ -30,7 +30,7 @@ pages:
   stage: deploy
   script:
     - git config --global --add safe.directory /builds/jkridner/crystal-robots
-    - crystal docs -o public --project-version `git show --format=%h -s` src/prelude.cr
+    - crystal docs -o public --canonical-base-url=https://jkridner.beagleboard.io/crystal-robots --project-version `git show --format=%h -s` src/prelude.cr
   artifacts:
     paths:
       - public
