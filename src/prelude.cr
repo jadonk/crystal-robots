@@ -137,6 +137,7 @@ def loc_x
   r.loc_x
 end
 
+# See `loc_x`
 def loc_y
   r = CrystalRobots::Robot.active_robot.not_nil!
   r.loc_x
@@ -184,18 +185,21 @@ def sin(degree)
   r
 end
 
+# See `sin`
 def cos(degree)
   r = f2i(Math.cos(d2r(degree)))
   puts "cos #{degree} -> #{r}"
   r
 end
 
+# See `sin`
 def tan(degree)
   r = f2i(Math.tan(d2r(degree)))
   puts "tan #{degree} -> #{r}"
   r
 end
 
+# See `sin`
 def atan(ratio)
   r = r2d(Math.atan(i2f(ratio)))
   puts "tan #{ratio} -> #{r}"
