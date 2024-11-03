@@ -55,10 +55,10 @@ end
 # Examples:
 #
 # ```
-# degree = 45               # set a direction to scan
-# range = r.scan(degree, 2) # scan for a target
-# if range > 0              # if there is a target in range
-#   r.cannon(degree, range) # fire a missle
+# degree = 45             # set a direction to scan
+# range = scan(degree, 2) # scan for a target
+# if range > 0            # if there is a target in range
+#   cannon(degree, range) # fire a missle
 # end
 # ```
 def cannon(degree, range)
