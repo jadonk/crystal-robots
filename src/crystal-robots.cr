@@ -171,58 +171,66 @@ module CrystalRobots
       @ast
     end
 
-    enum TokenType : UInt8
-      Number     = 0x41 # A
-      Keyword    = 0x42 # B
-      Builtin    = 0x43 # C
-      String     = 0x44 # D
-      Whitespace = 0x45 # E
-      OpenParen  = 0x46 # F
-      CloseParen = 0x47 # G
-    end
-
     struct Program
     end
 
     class Token
+      enum Type : UInt8
+        Number     = 0x41 # A
+        Keyword    = 0x42 # B
+        Builtin    = 0x43 # C
+        String     = 0x44 # D
+        Whitespace = 0x45 # E
+        OpenParen  = 0x46 # F
+        CloseParen = 0x47 # G
+      end
+
       @@tokens = [] of Token
       @@num_tokens = 0
-      @@current = Nil : Token | Nil
-      @@previous = Nil : Token | Nil
-      @type : TokenType
+      @@current = -1
+      @type : Type
       @value : String
-      @next : Token | Nil
-      @previous : Token | Nil
+      @next_i : UInt32
+      @prev_i : UInt32
 
       def initialize(@type : TokenType, @value : String)
+        @next_i = -1
+        if @@num_tokens > 0
+          @prev_i = @@num_tokens-1
+          @@tokens[@prev_i].next_i = @@num_tokens+1
+        else
+          @@current = 0
+          @prev_i = -1
+        end
         @@num_tokens += 1
       end
 
       def self.new
         @@tokens << self
-        @@current = self
-        if @@previous.not_nil?
-          p = @@previous.not_nil!
-          p.set_next = @@current
-          @previous = @@previous
+      end
+
+      def self.restart
+        if @@num_tokens > 0
+          @@current = 0
+        else
+          @@current = -1
         end
-        @@previous = self
+      end
+
+      def self.current
+        @@tokens[@@current]
       end
 
       def eat
         if @@num_tokens < 1
           raise "You already ate them all"
+          return nil
         end
         @@num_tokens -= 1
-        @@current = @next
-        if @@curr_token.next.next
-          @next = Nil
-        
-        end
-      end
-
-      def set_next(t)
-        @next = t
+        if @prev_i
+        @@tokens[@prev_i].next_i = @@current + 1
+        @@current += 1
+        @@tokens[@@current]
       end
 
       def get_next
@@ -233,7 +241,7 @@ module CrystalRobots
         if @next.is_nil?
           stop
         end
-        @@cur_token.@next
+        @@cur_token.get_next
       end
 
       def self.size
