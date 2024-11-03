@@ -184,10 +184,60 @@ module CrystalRobots
     struct Program
     end
 
-    struct Token
-      property type, value
+    class Token
+      @@tokens = [] of Token
+      @@num_tokens = 0
+      @@current = Nil : Token | Nil
+      @@previous = Nil : Token | Nil
+      @type : TokenType
+      @value : String
+      @next : Token | Nil
+      @previous : Token | Nil
 
       def initialize(@type : TokenType, @value : String)
+        @@num_tokens += 1
+      end
+
+      def self.new
+        @@tokens << self
+        @@current = self
+        if @@previous.not_nil?
+          p = @@previous.not_nil!
+          p.set_next = @@current
+          @previous = @@previous
+        end
+        @@previous = self
+      end
+
+      def eat
+        if @@num_tokens < 1
+          raise "You already ate them all"
+        end
+        @@num_tokens -= 1
+        @@current = @next
+        if @@curr_token.next.next
+          @next = Nil
+        
+        end
+      end
+
+      def set_next(t)
+        @next = t
+      end
+
+      def get_next
+        @next
+      end
+
+      def next
+        if @next.is_nil?
+          stop
+        end
+        @@cur_token.@next
+      end
+
+      def self.size
+        @@num_tokens
       end
     end
 
@@ -257,6 +307,7 @@ module CrystalRobots
     def tokenize(src : String)
       tokens = Array(Token).new
       index = 0
+      i = 0
       while index < src.size
         matches = @@matchers.compact_map do |regex, type|
           m = regex.match(src[(index..)])
@@ -271,7 +322,8 @@ module CrystalRobots
         if !matches[0].nil? && !matches[0][:m][0].nil?
           # puts "Found #{matches[0][:m][0]} as #{matches[0][:type]}"
           if matches[0][:type] != TokenType::Whitespace
-            t = Token.new(type: matches[0][:type], value: matches[0][:m][0])
+            i += 1
+            t = Token.new(type: matches[0][:type], value: matches[0][:m][0], next_: i)
             tokens << t
           end
           index += matches[0][:m][0].size
@@ -283,7 +335,8 @@ module CrystalRobots
     end
 
     def parser(tokens)
-      tokens.map { |token| token.type.value.chr }.join
+      tokens[-1].next_ = 0
+      tokens.map { |token| token.next_ }.join
     end
 
     # https://en.wikipedia.org/wiki/LEB128
