@@ -24,9 +24,9 @@ module CrystalRobots::Compiler
       Keyword    = 0x2325 # ⌥
       Builtin    = 0x2208 # ∈
       String     = 0x3030 # 〰
-      Whitespace = 0x45 # E
-      OpenParen  = 0x46 # F
-      CloseParen = 0x47 # G
+      Whitespace =   0x45 # E
+      OpenParen  =   0x46 # F
+      CloseParen =   0x47 # G
     end
 
     # These are language keywords that generate various statement types
