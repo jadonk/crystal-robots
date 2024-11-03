@@ -19,7 +19,7 @@ module CrystalRobots::Compiler
       end
     end
 
-    enum Type : UInt8
+    enum Type : Int32
       Number     = 0x41 # A
       Keyword    = 0x42 # B
       Builtin    = 0x43 # C
