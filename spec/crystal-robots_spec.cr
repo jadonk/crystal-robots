@@ -45,7 +45,7 @@ describe CrystalRobots do
 
     it "can produce token strings" do
       t = CrystalRobots::Compiler::Tokenizer.new(" puts \"string\"")
-      t.to_s.should eq "CD"
+      t.to_s.should eq "∈〰"
     end
   end
 

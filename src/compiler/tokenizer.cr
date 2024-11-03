@@ -20,10 +20,10 @@ module CrystalRobots::Compiler
     end
 
     enum Type : Int32
-      Number     = 0x41 # A
-      Keyword    = 0x42 # B
-      Builtin    = 0x43 # C
-      String     = 0x44 # D
+      Number     = 0x211C # ℜ
+      Keyword    = 0x2325 # ⌥
+      Builtin    = 0x2208 # ∈
+      String     = 0x3030 # 〰
       Whitespace = 0x45 # E
       OpenParen  = 0x46 # F
       CloseParen = 0x47 # G
