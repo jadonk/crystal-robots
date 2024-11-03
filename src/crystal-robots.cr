@@ -171,12 +171,14 @@ module CrystalRobots
       @ast
     end
 
-    enum TokenType
-      Number
-      Keyword
-      Builtin
-      String
-      Whitespace
+    enum TokenType : UInt8
+      Number     = 0x41 # A
+      Keyword    = 0x42 # B
+      Builtin    = 0x43 # C
+      String     = 0x44 # D
+      Whitespace = 0x45 # E
+      OpenParen  = 0x46 # F
+      CloseParen = 0x47 # G
     end
 
     struct Program
@@ -281,8 +283,7 @@ module CrystalRobots
     end
 
     def parser(tokens)
-      tokens.each do |token|
-      end
+      tokens.map { |token| token.type.value.chr }.join
     end
 
     # https://en.wikipedia.org/wiki/LEB128

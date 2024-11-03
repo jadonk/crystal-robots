@@ -81,5 +81,11 @@ describe CrystalRobots do
       run = i.function("run").not_nil!
       run.call(11.1_f32, 22.2_f32).should eq 33.300003_f32
     end
+
+    it "has a parser" do
+      c = CrystalRobots::Compiler.new
+      tokens = c.tokenize(" puts \"string\"")
+      c.parser(tokens).should eq "CD"
+    end
   end
 end
