@@ -19,13 +19,15 @@ module CrystalRobots::Compiler
       end
     end
 
-    # Number     = №
-    # Keyword    = 🔑
-    # Builtin    = ∈
-    # String     = 🐍
-    # Whitespace = ␢
-    # OpenParen  = ⟮
-    # CloseParen = ⟯
+    # | Type       | Value    |
+    # | ---------- | -------- |
+    # | Number     | №    |
+    # | Keyword    | 🔑  |
+    # | Builtin    | ∈    |
+    # | String     | 🐍  |
+    # | Whitespace | ␢     |
+    # | OpenParen  | ⟮     |
+    # | CloseParen | ⟯     |
     enum Type : Int32
       Number     = 0x00002116 # №
       Keyword    = 0x0001F511 # 🔑
