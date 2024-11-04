@@ -19,14 +19,21 @@ module CrystalRobots::Compiler
       end
     end
 
+    # Number     = №
+    # Keyword    = 🔑
+    # Builtin    = ∈
+    # String     = 🐍
+    # Whitespace = ␢
+    # OpenParen  = ⟮
+    # CloseParen = ⟯
     enum Type : Int32
-      Number     = 0x211C # ℜ
-      Keyword    = 0x2325 # ⌥
-      Builtin    = 0x2208 # ∈
-      String     = 0x3030 # 〰
-      Whitespace =   0x45 # E
-      OpenParen  =   0x46 # F
-      CloseParen =   0x47 # G
+      Number     = 0x00002116 # №
+      Keyword    = 0x0001F511 # 🔑
+      Builtin    = 0x00002208 # ∈
+      String     = 0x0001F40D # 🐍
+      Whitespace = 0x00002422 # ␢
+      OpenParen  = 0x000027EE # ⟮
+      CloseParen = 0x000027EF # ⟯
     end
 
     # These are language keywords that generate various statement types
