@@ -4,7 +4,8 @@ module CrystalRobots::Compiler
   class Tokenizer
     @tokens : Array(Token)
 
-    def initialize(string : String)
+    def initialize(string : String, matcher_index)
+      @@matcher = @@matchers[matcher_index]
       @tokens = tokenize(string)
     end
 
@@ -36,6 +37,7 @@ module CrystalRobots::Compiler
       Whitespace = 0x00002422 # ␢
       OpenParen  = 0x000027EE # ⟮
       CloseParen = 0x000027EF # ⟯
+      Statement  = 0x000023F9 # ⏹
     end
 
     # These are language keywords that generate various statement types
@@ -80,11 +82,16 @@ module CrystalRobots::Compiler
     ].join("|")
 
     @@matchers = [
-      {/^\"([^\"]+)\"/, Type::String},
-      {/^([.0-9]+)/, Type::Number},
-      {Regex.new("^(#{@@keywords})"), Type::Keyword},
-      {Regex.new("^(#{@@builtins})"), Type::Builtin},
-      {/^(\s+)/, Type::Whitespace},
+      [
+        {/^\"([^\"]+)\"/, Type::String},
+        {/^([.0-9]+)/, Type::Number},
+        {Regex.new("^(#{@@keywords})"), Type::Keyword},
+        {Regex.new("^(#{@@builtins})"), Type::Builtin},
+        {/^(\s+)/, Type::Whitespace},
+      ],
+      [
+        {/^\"([^\"]+)\"/, Type::Expression},
+      ],
     ]
 
     class Error < Exception
@@ -94,7 +101,7 @@ module CrystalRobots::Compiler
       tokens = Array(Token).new
       index = 0
       while index < src.size
-        matches = @@matchers.compact_map do |regex, type|
+        matches = @@matcher.compact_map do |regex, type|
           m = regex.match(src[(index..)])
           if m.nil?
             next
