@@ -3,10 +3,8 @@
 module CrystalRobots::Compiler
   class Tokenizer
     @tokens : Array(Token)
-    @matcher : Array(Tuple(Regex, Type))
 
     def initialize(string : String)
-      @matcher = @@matchers[0]
       @tokens = tokenize(string)
     end
 
@@ -23,20 +21,20 @@ module CrystalRobots::Compiler
 
     # ## Value
     #
+    # * 🐍  String
     # * №    Number
     # * 🔑  Keyword
     # * ∈    Builtin
-    # * 🐍  String
     # * ␢     Whitespace
     # * ⟮     OpenParen
     # * ⟯     CloseParen
     # * 😑  Expression
     # * ❢     Statement
     enum Type : Int32
+      String     = 0x0001F40D # 🐍
       Number     = 0x00002116 # №
       Keyword    = 0x0001F511 # 🔑
       Builtin    = 0x00002208 # ∈
-      String     = 0x0001F40D # 🐍
       Whitespace = 0x00002422 # ␢
       OpenParen  = 0x000027EE # ⟮
       CloseParen = 0x000027EF # ⟯
@@ -86,17 +84,23 @@ module CrystalRobots::Compiler
     ].join("|")
 
     @@matchers = [
-      [
-        {/^\"([^\"]+)\"/, Type::String},
-        {/^([.0-9]+)/, Type::Number},
-        {Regex.new("^(#{@@keywords})"), Type::Keyword},
-        {Regex.new("^(#{@@builtins})"), Type::Builtin},
-        {/^(\s+)/, Type::Whitespace},
-      ],
-      [
-        {/^\"([^\"]+)\"/, Type::Expression},
-      ],
+      {/^\"([^\"]+)\"/, Type::String},
+      {/^([.0-9]+)/, Type::Number},
+      {Regex.new("^(#{@@keywords})"), Type::Keyword},
+      {Regex.new("^(#{@@builtins})"), Type::Builtin},
+      {/^(\s+)/, Type::Whitespace},
+      {/^\"([^\"]+)\"/, Type::Expression},
     ]
+
+    class Matcher
+      property r, t, f
+
+      def initialize(@r : Regex, @t : Type)
+      end
+
+      def initialize(@r : Regex, @t : Type, &@f : )
+      end
+    end
 
     class Error < Exception
     end
@@ -105,7 +109,7 @@ module CrystalRobots::Compiler
       tokens = Array(Token).new
       index = 0
       while index < src.size
-        matches = @matcher.compact_map do |r, t|
+        matches = @@matchers.compact_map do |r, t|
           m = r.match(src[(index..)])
           if m.nil?
             next
