@@ -3,14 +3,22 @@
 module CrystalRobots::Compiler
   class Tokenizer
     @tokens : Array(Token)
+    @matcher : Array(Tuple(Regex, Type))
 
-    def initialize(string : String, matcher_index)
-      @@matcher = @@matchers[matcher_index]
+    def initialize(string : String)
+      @matcher = @@matchers[0]
       @tokens = tokenize(string)
     end
 
     def tokens
       @tokens
+    end
+
+    struct TokenMatcher
+      property m, type
+
+      def initialize(@m : Regex, @type : Type)
+      end
     end
 
     struct Token
@@ -29,6 +37,7 @@ module CrystalRobots::Compiler
     # * ␢     Whitespace
     # * ⟮     OpenParen
     # * ⟯     CloseParen
+    # * 😑  Expression
     enum Type : Int32
       Number     = 0x00002116 # №
       Keyword    = 0x0001F511 # 🔑
@@ -38,6 +47,7 @@ module CrystalRobots::Compiler
       OpenParen  = 0x000027EE # ⟮
       CloseParen = 0x000027EF # ⟯
       Statement  = 0x000023F9 # ⏹
+      Expression = 0x0001f611 # 😑
     end
 
     # These are language keywords that generate various statement types
@@ -101,12 +111,12 @@ module CrystalRobots::Compiler
       tokens = Array(Token).new
       index = 0
       while index < src.size
-        matches = @@matcher.compact_map do |regex, type|
-          m = regex.match(src[(index..)])
+        matches = @matcher.compact_map do |r, t|
+          m = r.match(src[(index..)])
           if m.nil?
             next
           end
-          {"m": m, "type": type}
+          {"m": m, "type": t}
         end
         if matches.size == 0
           raise Error.new("Unexpected token #{src[index..index + 1]}")
