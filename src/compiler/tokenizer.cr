@@ -14,13 +14,6 @@ module CrystalRobots::Compiler
       @tokens
     end
 
-    struct TokenMatcher
-      property m, type
-
-      def initialize(@m : Regex, @type : Type)
-      end
-    end
-
     struct Token
       property type, value
 
