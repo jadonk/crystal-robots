@@ -38,6 +38,7 @@ module CrystalRobots::Compiler
     # * ⟮     OpenParen
     # * ⟯     CloseParen
     # * 😑  Expression
+    # * ❢     Statement
     enum Type : Int32
       Number     = 0x00002116 # №
       Keyword    = 0x0001F511 # 🔑
@@ -48,6 +49,7 @@ module CrystalRobots::Compiler
       CloseParen = 0x000027EF # ⟯
       Statement  = 0x000023F9 # ⏹
       Expression = 0x0001f611 # 😑
+      Statement  = 0x00027621 # ❢
     end
 
     # These are language keywords that generate various statement types
