@@ -5,6 +5,14 @@
 # I ultimately want to end up with an array of statments. Statements will typically have
 # arguments at previous levels.
 #
+# OK, I think I've figured out what the difference between a parser and a tokenizer is. A
+# parser is just going to call the tokenizer repeatedly, but after the first time, you need
+# a function to determine something looking back at the token array from the earlier pass.
+#
+# I don't think I can express a grammar with my regex match thingy though unless I make
+# the tokens unique. I think that means I need to make my token types utilize an index
+# offset.
+#
 # https://en.wikipedia.org/wiki/Abstract_syntax_tree
 #
 # ```
