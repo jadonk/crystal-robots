@@ -40,7 +40,6 @@ module CrystalRobots::Compiler
       Whitespace = 0x00002422 # ␢
       OpenParen  = 0x000027EE # ⟮
       CloseParen = 0x000027EF # ⟯
-      Statement  = 0x000023F9 # ⏹
       Expression = 0x0001f611 # 😑
       Statement  = 0x00027621 # ❢
     end
