@@ -155,8 +155,8 @@ module CrystalRobots::Compiler
       @tokens.map { |token| token.type.value.chr }.join
     end
 
+    # TODO: Implement to_json
     def to_json
-      # TODO: Implement to_json
     end
   end
 end
