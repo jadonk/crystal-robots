@@ -33,10 +33,6 @@ module CrystalRobots::Compiler
       @code = WASM_Emitter.new(@ast).to_wasm
       @code
     end
-
-    def parser(tokens)
-      tokens.map { |token| token.type.value.chr }.join
-    end
   end
 
   struct Program

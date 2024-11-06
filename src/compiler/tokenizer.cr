@@ -4,8 +4,7 @@ module CrystalRobots::Compiler
   class Tokenizer
     @tokens : Array(Token)
 
-    def initialize(string : String, matcher_index)
-      @@matcher = @@matchers[matcher_index]
+    def initialize(string : String)
       @tokens = tokenize(string)
     end
 
@@ -22,22 +21,27 @@ module CrystalRobots::Compiler
 
     # ## Value
     #
-    # * №    Number
-    # * 🔑  Keyword
-    # * ∈    Builtin
-    # * 🐍  String
-    # * ␢     Whitespace
-    # * ⟮     OpenParen
-    # * ⟯     CloseParen
+    # * 🐍 - String
+    # * № - Number
+    # * 🔑 - Keyword
+    # * ∈ - Builtin
+    # * ␢ - Whitespace
+    # * 💬 - Comment
+    # * ⟮ - OpenParen
+    # * ⟯ - CloseParen
+    # * 😑 - Expression
+    # * ❢ - Statement
     enum Type : Int32
+      String     = 0x0001F40D # 🐍
       Number     = 0x00002116 # №
       Keyword    = 0x0001F511 # 🔑
       Builtin    = 0x00002208 # ∈
-      String     = 0x0001F40D # 🐍
       Whitespace = 0x00002422 # ␢
+      Comment    = 0x0001F4AC # 💬
       OpenParen  = 0x000027EE # ⟮
       CloseParen = 0x000027EF # ⟯
-      Statement  = 0x000023F9 # ⏹
+      Expression = 0x0001f611 # 😑
+      Statement  = 0x00027621 # ❢
     end
 
     # These are language keywords that generate various statement types
@@ -82,17 +86,37 @@ module CrystalRobots::Compiler
     ].join("|")
 
     @@matchers = [
-      [
-        {/^\"([^\"]+)\"/, Type::String},
-        {/^([.0-9]+)/, Type::Number},
-        {Regex.new("^(#{@@keywords})"), Type::Keyword},
-        {Regex.new("^(#{@@builtins})"), Type::Builtin},
-        {/^(\s+)/, Type::Whitespace},
-      ],
-      [
-        {/^\"([^\"]+)\"/, Type::Expression},
-      ],
+      {/^\"([^\"]+)\"/, Type::String},
+      {/^([.0-9]+)/, Type::Number},
+      {Regex.new("^(#{@@keywords})"), Type::Keyword},
+      {Regex.new("^(#{@@builtins})"), Type::Builtin},
+      {/^(\s+)/, Type::Whitespace},
+      {/^\#.*$/, Type::Comment},
+      {/^\"([^\"]+)\"/, Type::Expression},
     ]
+
+    @@mappers = {
+      Type::String     => ->mapperDefault,
+      Type::Number     => ->mapperDefault,
+      Type::Keyword    => ->mapperDefault,
+      Type::Builtin    => ->mapperDefault,
+      Type::Whitespace => nil,
+      Type::Comment    => nil,
+    }
+
+    def mapperDefault(m : NamedTuple)
+      t = Token.new(type: matches[0][:type], value: matches[0][:m][0])
+    end
+
+    class Matcher
+      property r, t, f
+
+      def initialize(@r : Regex, @t : Type)
+      end
+
+      def initialize(@r : Regex, @t : Type, &@f : Array() -> Token)
+      end
+    end
 
     class Error < Exception
     end
@@ -101,21 +125,23 @@ module CrystalRobots::Compiler
       tokens = Array(Token).new
       index = 0
       while index < src.size
-        matches = @@matcher.compact_map do |regex, type|
-          m = regex.match(src[(index..)])
+        matches = @@matchers.compact_map do |r, t|
+          m = r.match(src[(index..)])
           if m.nil?
             next
           end
-          {"m": m, "type": type}
+          {"m": m, "type": t}
         end
         if matches.size == 0
           raise Error.new("Unexpected token #{src[index..index + 1]}")
         end
         if !matches[0].nil? && !matches[0][:m][0].nil?
-          # puts "Found #{matches[0][:m][0]} as #{matches[0][:type]}"
-          if matches[0][:type] != Type::Whitespace
-            t = Token.new(type: matches[0][:type], value: matches[0][:m][0])
-            tokens << t
+          mapper = @@mappers[matches[0][:type]]
+          if mapper.not_nil?
+            t = mapper.call(matches[0])
+            if t.not_nil?
+              tokens << t
+            end
           end
           index += matches[0][:m][0].size
         else
@@ -129,8 +155,8 @@ module CrystalRobots::Compiler
       @tokens.map { |token| token.type.value.chr }.join
     end
 
+    # TODO: Implement to_json
     def to_json
-      # TODO: Implement to_json
     end
   end
 end
