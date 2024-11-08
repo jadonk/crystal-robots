@@ -2,9 +2,12 @@
 
 module CrystalRobots::Compiler
   class Tokenizer
+    @source : String
     @tokens : Array(Token)
+    @ast : Array(Array(Token))
 
     def initialize(string : String)
+      @source = string
       @tokens = tokenize(string)
     end
 
@@ -13,9 +16,9 @@ module CrystalRobots::Compiler
     end
 
     struct Token
-      property type, value
+      property type, value, index
 
-      def initialize(@type : Type, @value : String)
+      def initialize(@type : Type, @value : String, @index : Int32)
       end
     end
 
@@ -92,19 +95,20 @@ module CrystalRobots::Compiler
       {Regex.new("^(#{@@builtins})"), Type::Builtin},
       {/^(\s+)/, Type::Whitespace},
       {/^\#.*$/, Type::Comment},
-      {/^\"([^\"]+)\"/, Type::Expression},
+      {/^(\()/, Type::OpenParen},
+      {/^(\))/, Type::CloseParen},
     ]
 
-    def self.mapperDefault(t : Type, m : Regex::MatchData)
-      t = Token.new(type: t, value: m[0])
+    def self.mapperDefault(t : Type, m : Regex::MatchData, i : Int32)
+      t = Token.new(type: t, value: m[0], index: i)
     end
 
     @@mappers : Hash(Type, Proc(Type, Regex::MatchData, Token) | Nil)
     @@mappers = {
-      Type::String     => ->mapperDefault(Type, Regex::MatchData),
-      Type::Number     => ->mapperDefault(Type, Regex::MatchData),
-      Type::Keyword    => ->mapperDefault(Type, Regex::MatchData),
-      Type::Builtin    => ->mapperDefault(Type, Regex::MatchData),
+      Type::String     => ->mapperDefault(Type, Regex::MatchData, Int32),
+      Type::Number     => ->mapperDefault(Type, Regex::MatchData, Int32),
+      Type::Keyword    => ->mapperDefault(Type, Regex::MatchData, Int32),
+      Type::Builtin    => ->mapperDefault(Type, Regex::MatchData, Int32),
       Type::Whitespace => nil,
       Type::Comment    => nil,
     }
@@ -130,7 +134,7 @@ module CrystalRobots::Compiler
           mapper = @@mappers[matches[0][:type]]
           if !mapper.nil?
             c = mapper.not_nil!
-            t = c.call(matches[0][:type], matches[0][:m])
+            t = c.call(matches[0][:type], matches[0][:m], index)
             if !t.nil?
               tokens << t
             end
@@ -141,6 +145,9 @@ module CrystalRobots::Compiler
         end
       end
       tokens
+    end
+
+    def parse
     end
 
     def to_s

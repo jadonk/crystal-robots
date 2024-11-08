@@ -47,6 +47,11 @@ describe CrystalRobots do
       t = CrystalRobots::Compiler::Tokenizer.new(" puts \"string\"")
       t.to_s.should eq "∈🐍"
     end
+
+    it "can recursively tokenize/parse" do
+      t = CrystalRobots::Compiler::Tokenizer.new(" puts \"string\"")
+      t.parse.to_s.should eq "❢"
+    end
   end
 
   describe "Compiler::WASM_Emitter" do
