@@ -9,6 +9,7 @@ module CrystalRobots::Compiler
     def initialize(string : String)
       @source = string
       @tokens = tokenize(string)
+      @ast = [@tokens]
     end
 
     def tokens
@@ -18,7 +19,7 @@ module CrystalRobots::Compiler
     struct Token
       property type, value, index
 
-      def initialize(@type : Type, @value : String, @index : Int32)
+      def initialize(@type : Type, @value : String, @index : Array(Int32))
       end
     end
 
@@ -34,6 +35,7 @@ module CrystalRobots::Compiler
     # * ⟯ - CloseParen
     # * 😑 - Expression
     # * ❢ - Statement
+    # * ⏹ - Program
     enum Type : Int32
       String     = 0x0001F40D # 🐍
       Number     = 0x00002116 # №
@@ -44,7 +46,8 @@ module CrystalRobots::Compiler
       OpenParen  = 0x000027EE # ⟮
       CloseParen = 0x000027EF # ⟯
       Expression = 0x0001f611 # 😑
-      Statement  = 0x00027621 # ❢
+      Statement  = 0x00002762 # ❢
+      Program    = 0x000023F9 # ⏹
     end
 
     # These are language keywords that generate various statement types
@@ -99,18 +102,20 @@ module CrystalRobots::Compiler
       {/^(\))/, Type::CloseParen},
     ]
 
-    def self.mapperDefault(t : Type, m : Regex::MatchData, i : Int32)
+    def self.mapperDefault(t : Type, m : Regex::MatchData, i : Array(Int32))
       t = Token.new(type: t, value: m[0], index: i)
     end
 
-    @@mappers : Hash(Type, Proc(Type, Regex::MatchData, Token) | Nil)
+    @@mappers : Hash(Type, Proc(Type, Regex::MatchData, Array(Int32), Token) | Nil)
     @@mappers = {
-      Type::String     => ->mapperDefault(Type, Regex::MatchData, Int32),
-      Type::Number     => ->mapperDefault(Type, Regex::MatchData, Int32),
-      Type::Keyword    => ->mapperDefault(Type, Regex::MatchData, Int32),
-      Type::Builtin    => ->mapperDefault(Type, Regex::MatchData, Int32),
+      Type::String     => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
+      Type::Number     => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
+      Type::Keyword    => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
+      Type::Builtin    => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
       Type::Whitespace => nil,
       Type::Comment    => nil,
+      Type::Statement  => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
+      Type::Program    => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
     }
 
     class Error < Exception
@@ -134,7 +139,7 @@ module CrystalRobots::Compiler
           mapper = @@mappers[matches[0][:type]]
           if !mapper.nil?
             c = mapper.not_nil!
-            t = c.call(matches[0][:type], matches[0][:m], index)
+            t = c.call(matches[0][:type], matches[0][:m], [index])
             if !t.nil?
               tokens << t
             end
@@ -148,10 +153,30 @@ module CrystalRobots::Compiler
     end
 
     def parse
+      @@matchers = [
+        {/^(∈🐍)/, Type::Statement},
+        {/^(❢+)$/, Type::Program},
+      ]
+      while true
+        # puts to_s
+        @tokens = tokenize(to_s)
+        @ast << @tokens
+        if to_s == "⏹"
+          # puts to_s
+          break
+        end
+      end
+      @ast
     end
 
     def to_s
       @tokens.map { |token| token.type.value.chr }.join
+    end
+
+    def to_array_s
+      @ast.map do |a|
+        a.map { |token| token.type.value.chr }.join
+      end
     end
 
     # TODO: Implement to_json

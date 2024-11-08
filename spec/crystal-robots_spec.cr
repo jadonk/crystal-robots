@@ -50,7 +50,11 @@ describe CrystalRobots do
 
     it "can recursively tokenize/parse" do
       t = CrystalRobots::Compiler::Tokenizer.new(" puts \"string\"")
-      t.parse.to_s.should eq "❢"
+      ast = t.parse
+      s = t.to_array_s
+      s[0].should eq "∈🐍"
+      s[1].to_s.should eq "❢"
+      s[2].to_s.should eq "⏹"
     end
   end
 
