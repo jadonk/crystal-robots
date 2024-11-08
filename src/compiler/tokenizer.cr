@@ -95,28 +95,19 @@ module CrystalRobots::Compiler
       {/^\"([^\"]+)\"/, Type::Expression},
     ]
 
+    def self.mapperDefault(t : Type, m : Regex::MatchData)
+      t = Token.new(type: t, value: m[0])
+    end
+
+    @@mappers : Hash(Type, Proc(Type, Regex::MatchData, Token) | Nil)
     @@mappers = {
-      Type::String     => ->mapperDefault,
-      Type::Number     => ->mapperDefault,
-      Type::Keyword    => ->mapperDefault,
-      Type::Builtin    => ->mapperDefault,
+      Type::String     => ->mapperDefault(Type, Regex::MatchData),
+      Type::Number     => ->mapperDefault(Type, Regex::MatchData),
+      Type::Keyword    => ->mapperDefault(Type, Regex::MatchData),
+      Type::Builtin    => ->mapperDefault(Type, Regex::MatchData),
       Type::Whitespace => nil,
       Type::Comment    => nil,
     }
-
-    def mapperDefault(m : NamedTuple)
-      t = Token.new(type: matches[0][:type], value: matches[0][:m][0])
-    end
-
-    class Matcher
-      property r, t, f
-
-      def initialize(@r : Regex, @t : Type)
-      end
-
-      def initialize(@r : Regex, @t : Type, &@f : Array() -> Token)
-      end
-    end
 
     class Error < Exception
     end
@@ -137,9 +128,10 @@ module CrystalRobots::Compiler
         end
         if !matches[0].nil? && !matches[0][:m][0].nil?
           mapper = @@mappers[matches[0][:type]]
-          if mapper.not_nil?
-            t = mapper.call(matches[0])
-            if t.not_nil?
+          if !mapper.nil?
+            c = mapper.not_nil!
+            t = c.call(matches[0][:type], matches[0][:m])
+            if !t.nil?
               tokens << t
             end
           end
