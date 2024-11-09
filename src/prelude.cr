@@ -45,7 +45,7 @@ end
 # ```
 def scan(degree, resolution)
   r = CrystalRobots::Robot.active_robot.not_nil!
-  r.scan
+  r.scan(degree, resolution)
 end
 
 # The `cannon` method fires a missile heading a specified range and direction. `cannon` returns 1 (true) if a missile was
@@ -63,7 +63,7 @@ end
 # ```
 def cannon(degree, range)
   r = CrystalRobots::Robot.active_robot.not_nil!
-  r.scan
+  r.cannon(degree, range)
 end
 
 # The `drive` method activates the robot's drive mechanism, on a specified heading and speed. Degree is forced into the
@@ -140,7 +140,7 @@ end
 # See `loc_x`
 def loc_y
   r = CrystalRobots::Robot.active_robot.not_nil!
-  r.loc_x
+  r.loc_y
 end
 
 # The `rand` method returns a random number between 0 and limit, up to 32767.

@@ -7,10 +7,12 @@ build:
     - shards update
     - shards build
     - crystal build --prelude=../prelude.cr src/examples/rabbit.cr -o bin/examples-rabbit
+    - crystal build --prelude=../prelude.cr src/examples/rook.cr -o bin/examples-rook
   artifacts:
     paths:
       - bin/crystal-robots
       - bin/examples-rabbit
+      - bin/examples-rook
 
 test:
   stage: test
