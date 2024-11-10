@@ -32,13 +32,13 @@ end
 main("Rook") do
   # move to center of board
   if loc_y < 500
-    drive(90, 70)                           # start moving down
-    while (loc_y - 500 < 20) && (speed > 0) # stop near center
+    drive(90, 70)                             # start moving down
+    until (loc_y - 500 >= 20) || (speed == 0) # stop near center
       # continue until near halfway top to bottom
     end
   else
-    drive(270, 70)                          # start moving up
-    while (loc_y - 500 > 20) && (speed > 0) # stop near center
+    drive(270, 70)                            # start moving up
+    until (loc_y - 500 <= 20) || (speed == 0) # stop near center
       # continue until near halfway top to bottom
     end
   end

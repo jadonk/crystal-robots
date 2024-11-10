@@ -109,7 +109,7 @@ module CrystalRobots
     end
 
     def speed
-      debug "speed -> #{speed}"
+      debug "speed -> #{@speed}"
       @speed
     end
 
