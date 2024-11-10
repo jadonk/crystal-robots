@@ -3,33 +3,11 @@
 # degrees from a corner, sniper can scan the field quickly.
 
 # global variables, that can be used by any function
-class G
-  @@corner = 1 # current corner 1, 2, 3 or 4
-  @@sc = 0     # current scan start
-  @@d = 0      # last damage check
-  def self.corner=(@@corner)
-  end
+global(corner, 1) # current corner 1, 2, 3 or 4
+global(sc, 0)     # current scan start
+global(d, 0)      # last damage check
 
-  def self.corner
-    @@corner
-  end
-
-  def self.sc=(@@sc)
-  end
-
-  def self.sc
-    @@sc
-  end
-
-  def self.d=(@@d)
-  end
-
-  def self.d
-    @@d
-  end
-end
-
-# Corner n : x, y, and starting scan direction
+# Corner constants n : x, y, and starting scan direction
 C1X = 10; C1Y = 10; S1  =  0
 C2X = 10; C2Y = 990; S2  = 270
 C3X = 990; C3Y = 990; S3  = 180
@@ -40,38 +18,38 @@ main("Sniper") do
   range = 0      # range to target
   dir = 0        # scan direction
   new_corner     # start at a random corner
-  G.d = damage   # get current damage
-  dir = G.sc     # starting scan direction
+  d = damage     # get current damage
+  dir = sc       # starting scan direction
 
   while true               # loop is executed forever
-    while dir < G.sc + 90  # scan through 90 degree range
+    while dir < sc + 90    # scan through 90 degree range
       range = scan(dir, 1) # look at a direction
       if range <= 700 && range > 0
         while range > 0        # keep firing while in range
           closest = range      # set closest flag
           cannon(dir, range)   # fire!
           range = scan(dir, 1) # check target again
-          if G.d + 15 > damage # sustained several hits,
+          if d + 15 > damage   # sustained several hits,
             range = 0          # goto new corner
           end
         end
         dir -= 10 # back up scan, in case
       end
 
-      dir += 2         # increment scan
-      if G.d != damage # check for damage incurred
-        new_corner     # we're hit, move now
-        G.d = damage
-        dir = G.sc
+      dir += 2       # increment scan
+      if d != damage # check for damage incurred
+        new_corner   # we're hit, move now
+        d = damage
+        dir = sc
       end
     end
 
     if closest == 9999 # check for any targets in range
       new_corner       # nothing, move to new corner
-      G.d = damage
-      dir = G.sc
+      d = damage
+      dir = sc
     else # targets in range, resume
-      dir = G.sc
+      dir = sc
     end
     closest = 9999
   end
@@ -79,29 +57,29 @@ end # end of main
 
 # new corner method to move to a different corner
 def new_corner
-  newc = rand(4)              # pick a random corner
-  if newc == G.corner         # but make it different than the
-    G.corner = (newc % 4) + 1 # current corner
+  newc = rand(4)            # pick a random corner
+  if newc == corner         # but make it different than the
+    corner = (newc % 4) + 1 # current corner
   else
-    G.corner = newc
+    corner = newc
   end
-  case G.corner # set new x,y and scan start
+  case corner # set new x,y and scan start
   when 1
     x = C1X
     y = C1Y
-    G.sc = S1
+    sc = S1
   when 2
     x = C2X
     y = C2Y
-    G.sc = S2
+    sc = S2
   when 3
     x = C3X
     y = C3Y
-    G.sc = S3
+    sc = S3
   else
     x = C4X
     y = C4Y
-    G.sc = S4
+    sc = S4
   end
 
   # find the heading we need to get to the desired corner

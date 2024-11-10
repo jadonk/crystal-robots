@@ -1,33 +1,10 @@
 # rook.r  -  scans the battlefield like a rook, i.e., only 0,90,180,270
 # move horizontally only, but looks horz and vertically
 
-# Globals
-class G
-  @@d = 0
-  @@course = 0
-  @@boundary = 995
-
-  def self.d
-    @@d
-  end
-
-  def self.d=(@@d)
-  end
-
-  def self.course
-    @@course
-  end
-
-  def self.course=(@@course)
-  end
-
-  def self.boundary
-    @@boundary
-  end
-
-  def self.boundary=(@@boundary)
-  end
-end
+# global variables
+global(d, 0)
+global(course, 0)
+global(boundary, 955)
 
 main("Rook") do
   # move to center of board
@@ -44,7 +21,7 @@ main("Rook") do
   end
   drive(0, 0)
 
-  drive(G.course, 30)
+  drive(course, 30)
 
   # main loop
   while true
@@ -55,12 +32,12 @@ main("Rook") do
     look(270)
 
     # if near end of battlefield, change directions
-    if G.course == 0
-      if loc_x > G.boundary || speed == 0
+    if course == 0
+      if loc_x > boundary || speed == 0
         change
       end
     else
-      if loc_x < G.boundary || speed == 0
+      if loc_x < boundary || speed == 0
         change
       end
     end
@@ -74,22 +51,22 @@ def look(deg)
     if range <= 0 || range > 700
       break
     end
-    drive(G.course, 0)
+    drive(course, 0)
     cannon(deg, range)
-    if G.d + 20 != damage
-      G.d = damage
+    if d + 20 != damage
+      d = damage
       change
     end
   end
 end
 
 def change
-  if G.course == 0
-    G.boundary = 5
-    G.course = 180
+  if course == 0
+    boundary = 5
+    course = 180
   else
-    G.boundary = 995
-    G.course = 0
+    boundary = 995
+    course = 0
   end
-  drive(G.course, 30)
+  drive(course, 30)
 end

@@ -13,6 +13,27 @@ require "random"
 require "math"
 require "./crystal-robots"
 
+macro global(varname, initialval)
+  class G
+    @@{{varname}} = {{initialval}}
+
+    def self.{{varname}}
+      @@{{varname}}
+    end
+
+    def self.{{varname}}=(@@{{varname}})
+    end
+  end
+
+  def {{varname}}
+    G.{{varname}}
+  end
+
+  def {{varname}}=(x)
+    G.{{varname}} = x
+  end
+end
+
 # The `main` method provides an entry point for the `crystal-robots` virtual CPU for the robot.
 #
 # TODO: this needs a lot more description
