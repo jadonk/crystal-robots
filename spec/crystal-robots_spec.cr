@@ -16,25 +16,32 @@ describe CrystalRobots do
       t = CrystalRobots::Compiler::Tokenizer.new(" def")
       t.tokens.size.should eq 1
       t.tokens[0].type.should eq CrystalRobots::Compiler::Tokenizer::Type::DefKeyword
+      t.tokens[0].index.should eq [1]
     end
 
     it "tokenizes single builtin" do
       t = CrystalRobots::Compiler::Tokenizer.new(" puts")
       t.tokens.size.should eq 1
       t.tokens[0].type.should eq CrystalRobots::Compiler::Tokenizer::Type::OneArgBuiltin
+      t.tokens[0].index.should eq [1]
     end
 
     it "tokenizes single string" do
-      t = CrystalRobots::Compiler::Tokenizer.new(" \"string\"")
+      t = CrystalRobots::Compiler::Tokenizer.new("  \"string\" ")
       t.tokens.size.should eq 1
       t.tokens[0].type.should eq CrystalRobots::Compiler::Tokenizer::Type::String
+      t.tokens[0].index.should eq [2]
     end
 
     it "tokenizes builtin followed by string" do
       t = CrystalRobots::Compiler::Tokenizer.new(" puts \"string\"")
       t.tokens.size.should eq 2
       t.tokens[0].type.should eq CrystalRobots::Compiler::Tokenizer::Type::OneArgBuiltin
+      t.tokens[0].index.should eq [1]
+      t.tokens[0].value.should eq "puts"
       t.tokens[1].type.should eq CrystalRobots::Compiler::Tokenizer::Type::String
+      t.tokens[1].index.should eq [6]
+      t.tokens[1].value.should eq "\"string\""
     end
 
     it "throws exception with bad keyword" do
