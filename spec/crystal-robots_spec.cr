@@ -15,13 +15,13 @@ describe CrystalRobots do
     it "tokenizes single keyword" do
       t = CrystalRobots::Compiler::Tokenizer.new(" def")
       t.tokens.size.should eq 1
-      t.tokens[0].type.should eq CrystalRobots::Compiler::Tokenizer::Type::Keyword
+      t.tokens[0].type.should eq CrystalRobots::Compiler::Tokenizer::Type::DefKeyword
     end
 
     it "tokenizes single builtin" do
       t = CrystalRobots::Compiler::Tokenizer.new(" puts")
       t.tokens.size.should eq 1
-      t.tokens[0].type.should eq CrystalRobots::Compiler::Tokenizer::Type::Builtin
+      t.tokens[0].type.should eq CrystalRobots::Compiler::Tokenizer::Type::OneArgBuiltin
     end
 
     it "tokenizes single string" do
@@ -33,7 +33,7 @@ describe CrystalRobots do
     it "tokenizes builtin followed by string" do
       t = CrystalRobots::Compiler::Tokenizer.new(" puts \"string\"")
       t.tokens.size.should eq 2
-      t.tokens[0].type.should eq CrystalRobots::Compiler::Tokenizer::Type::Builtin
+      t.tokens[0].type.should eq CrystalRobots::Compiler::Tokenizer::Type::OneArgBuiltin
       t.tokens[1].type.should eq CrystalRobots::Compiler::Tokenizer::Type::String
     end
 
@@ -45,15 +45,15 @@ describe CrystalRobots do
 
     it "can produce token strings" do
       t = CrystalRobots::Compiler::Tokenizer.new(" puts \"string\"")
-      t.to_s.should eq "∈🐍"
+      t.to_s.should eq "∊🐍"
     end
 
     it "can recursively tokenize/parse" do
       t = CrystalRobots::Compiler::Tokenizer.new(" puts \"string\"")
       ast = t.parse
       s = t.to_array_s
-      s[0].should eq "∈🐍"
-      s[1].to_s.should eq "❢"
+      s[0].should eq "∊🐍"
+      s[1].to_s.should eq "❤"
       s[2].to_s.should eq "⏹"
     end
   end
