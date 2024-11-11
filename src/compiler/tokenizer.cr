@@ -111,7 +111,7 @@ module CrystalRobots::Compiler
       [
         {/^(∈🐍)/, Type::Statement},
         {/^(❢+)$/, Type::Program},
-      ]
+      ],
     ]
 
     def self.mapperDefault(t : Type, m : Regex::MatchData, i : Array(Int32))
