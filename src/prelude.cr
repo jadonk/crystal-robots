@@ -14,7 +14,7 @@ require "math"
 require "./crystal-robots"
 
 macro global(varname, initialval)
-  class G
+  class Globals
     @@{{varname}} = {{initialval}}
 
     def self.{{varname}}
@@ -26,11 +26,11 @@ macro global(varname, initialval)
   end
 
   def {{varname}}
-    G.{{varname}}
+    Globals.{{varname}}
   end
 
   def {{varname}}=(x)
-    G.{{varname}} = x
+    Globals.{{varname}} = x
   end
 end
 
@@ -223,7 +223,7 @@ end
 # See `sin`
 def atan(ratio)
   r = r2d(Math.atan(i2f(ratio)))
-  puts "tan #{ratio} -> #{r}"
+  puts "atan #{ratio.to_i32} -> #{r}"
   r
 end
 
