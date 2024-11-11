@@ -40,6 +40,16 @@ module CrystalRobots::Compiler
       String     = 0x0001F40D # 🐍
       Number     = 0x00002116 # №
       Keyword    = 0x0001F511 # 🔑
+      BeginKeyword    = 0x0001F512 # 🔒
+      BreakKeyword    = 0x0001F513 # 🔓
+      CaseKeyword    = 0x0001F514 # 🔔
+      DefKeyword    = 0x0001F515 # 🔕
+      DoKeyword    = 0x0001F516 # 🔖
+      ElseKeyword    = 0x0001F517 # 🔗
+      EndKeyword    = 0x0001F518 # 🔘
+      ElsifKeyword    = 0x0001F519 # 🔙
+      EndKeyword    = 0x0001F51a # 🔚
+      FalseKeyword    = 0x0001F51b # 🔛
       Builtin    = 0x00002208 # ∈
       Whitespace = 0x00002422 # ␢
       Comment    = 0x0001F4AC # 💬
@@ -91,15 +101,22 @@ module CrystalRobots::Compiler
       "atan",
     ].join("|")
 
+    @@a = 0
     @@matchers = [
-      {/^\"([^\"]+)\"/, Type::String},
-      {/^([.0-9]+)/, Type::Number},
-      {Regex.new("^(#{@@keywords})"), Type::Keyword},
-      {Regex.new("^(#{@@builtins})"), Type::Builtin},
-      {/^(\s+)/, Type::Whitespace},
-      {/^\#.*$/, Type::Comment},
-      {/^(\()/, Type::OpenParen},
-      {/^(\))/, Type::CloseParen},
+      [
+        {/^\"([^\"]+)\"/, Type::String},
+        {/^([.0-9]+)/, Type::Number},
+        {Regex.new("^(#{@@keywords})"), Type::Keyword},
+        {Regex.new("^(#{@@builtins})"), Type::Builtin},
+        {/^(\s+)/, Type::Whitespace},
+        {/^\#.*$/, Type::Comment},
+        {/^(\()/, Type::OpenParen},
+        {/^(\))/, Type::CloseParen},
+      ],
+      [
+        {/^(∈🐍)/, Type::Statement},
+        {/^(❢+)$/, Type::Program},
+      ]
     ]
 
     def self.mapperDefault(t : Type, m : Regex::MatchData, i : Array(Int32))
@@ -125,7 +142,7 @@ module CrystalRobots::Compiler
       tokens = Array(Token).new
       index = 0
       while index < src.size
-        matches = @@matchers.compact_map do |r, t|
+        matches = @@matchers[@@a].compact_map do |r, t|
           m = r.match(src[(index..)])
           if m.nil?
             next
@@ -153,10 +170,7 @@ module CrystalRobots::Compiler
     end
 
     def parse
-      @@matchers = [
-        {/^(∈🐍)/, Type::Statement},
-        {/^(❢+)$/, Type::Program},
-      ]
+      @@a = 1
       while true
         # puts to_s
         @tokens = tokenize(to_s)
