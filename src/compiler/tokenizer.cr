@@ -23,41 +23,36 @@ module CrystalRobots::Compiler
       end
     end
 
-    # ## Value
-    #
-    # * 🐍 - String
-    # * № - Number
-    # * 🔑 - Keyword
-    # * ∈ - Builtin
-    # * ␢ - Whitespace
-    # * 💬 - Comment
-    # * ⟮ - OpenParen
-    # * ⟯ - CloseParen
-    # * 😑 - Expression
-    # * ❢ - Statement
-    # * ⏹ - Program
     enum Type : Int32
-      String     = 0x0001F40D # 🐍
-      Number     = 0x00002116 # №
-      Keyword    = 0x0001F511 # 🔑
-      BeginKeyword    = 0x0001F512 # 🔒
-      BreakKeyword    = 0x0001F513 # 🔓
+      String         = 0x0001F40D # 🐍
+      Number         = 0x00002116 # №
+      Keyword        = 0x0001F511 # 🔑
+      BeginKeyword   = 0x0001F512 # 🔒
+      BreakKeyword   = 0x0001F513 # 🔓
       CaseKeyword    = 0x0001F514 # 🔔
-      DefKeyword    = 0x0001F515 # 🔕
-      DoKeyword    = 0x0001F516 # 🔖
+      DefKeyword     = 0x0001F515 # 🔕
+      DoKeyword      = 0x0001F516 # 🔖
       ElseKeyword    = 0x0001F517 # 🔗
-      EndKeyword    = 0x0001F518 # 🔘
-      ElsifKeyword    = 0x0001F519 # 🔙
-      EndKeyword    = 0x0001F51a # 🔚
-      FalseKeyword    = 0x0001F51b # 🔛
-      Builtin    = 0x00002208 # ∈
-      Whitespace = 0x00002422 # ␢
-      Comment    = 0x0001F4AC # 💬
-      OpenParen  = 0x000027EE # ⟮
-      CloseParen = 0x000027EF # ⟯
-      Expression = 0x0001f611 # 😑
-      Statement  = 0x00002762 # ❢
-      Program    = 0x000023F9 # ⏹
+      ElsifKeyword   = 0x0001F518 # 🔘
+      EndKeyword     = 0x0001F519 # 🔙
+      FalseKeyword   = 0x0001F51A # 🔚
+      ForKeyword     = 0x0001F51B # 🔛
+      IfKeyword      = 0x0001F51C # 🔜
+      InKeyword      = 0x0001F51D # 🔝
+      NextKeyword    = 0x0001F51E # 🔞
+      NilKeyword     = 0x0001F51F # 🔟
+      RequireKeyword = 0x0001F520 # 🔠
+      ThenKeyword    = 0x0001F521 # 🔡
+      TrueKeyword    = 0x0001F522 # 🔢
+      WhileKeyword   = 0x0001F523 # 🔣
+      Builtin        = 0x00002208 # ∈
+      Whitespace     = 0x00002422 # ␢
+      Comment        = 0x0001F4AC # 💬
+      OpenParen      = 0x000027EE # ⟮
+      CloseParen     = 0x000027EF # ⟯
+      Expression     = 0x0001F611 # 😑
+      Statement      = 0x00002762 # ❢
+      Program        = 0x000023F9 # ⏹
     end
 
     # These are language keywords that generate various statement types
