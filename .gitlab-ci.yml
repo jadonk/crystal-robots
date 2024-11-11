@@ -13,7 +13,7 @@ build:
     paths:
       - bin/crystal-robots
       - bin/examples-rabbit
-      - bin/examples-root
+      - bin/examples-rook
       - bin/examples-sniper
 
 test:
