@@ -124,6 +124,10 @@ module CrystalRobots
       debug "loc_y -> #{r}"
       r
     end
+
+    def sleep
+      debug "sleep"
+    end
   end
 
   class Missile

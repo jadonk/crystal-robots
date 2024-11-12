@@ -164,6 +164,12 @@ def loc_y
   r.loc_y
 end
 
+# Just yield
+def sleep
+  r = CrystalRobots::Robot.active_robot.not_nil!
+  r.sleep
+end
+
 # The `rand` method returns a random number between 0 and limit, up to 32767.
 #
 # Examples:

@@ -9,12 +9,14 @@ build:
     - crystal build --prelude=../prelude.cr src/examples/rabbit.cr -o bin/examples-rabbit
     - crystal build --prelude=../prelude.cr src/examples/rook.cr -o bin/examples-rook
     - crystal build --prelude=../prelude.cr src/examples/sniper.cr -o bin/examples-sniper
+    - crystal build --prelude=../prelude.cr src/examples/target.cr -o bin/examples-target
   artifacts:
     paths:
       - bin/crystal-robots
       - bin/examples-rabbit
       - bin/examples-rook
       - bin/examples-sniper
+      - bin/examples-target
 
 test:
   stage: test
@@ -31,6 +33,7 @@ test:
     - bin/examples-rabbit
     - bin/examples-rook
     - bin/examples-sniper
+    - bin/examples-target
 
 pages:
   stage: deploy
