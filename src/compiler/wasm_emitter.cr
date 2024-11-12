@@ -120,23 +120,23 @@ module CrystalRobots::Compiler
 
     # Function types are vectors of parameters and return types. Currently
     # WebAssembly only supports single return values
-    def int32Int32Type
-      Bytes[FunctionType] +
-        encodeVector(Bytes[Valtype::I32.value]) +
-        encodeVector(Bytes[Valtype::I32.value])
-    end
-
-    def voidVoidType
-      Bytes[FunctionType] +
-        Bytes[0] +
-        Bytes[0]
-    end
-
     # the type section is a vector of function types
     def typeSection
       createSection(Section::Type,
-        encodeVector(voidVoidType) +
-        encodeVector(int32Int32Type)
+        Bytes[3] +                                                          # num types = 3
+        Bytes[FunctionType, 0, 1, Valtype::I32] +                           # func type 0, 0 params, 1 result (i32)
+        Bytes[FunctionType, 1, Valtype::I32, 1, Valtype::I32] +             # func type 1, 1 params (i32), 1 result (i32)
+        Bytes[FunctionType, 2, Valtype::I32, Valtype::I32, 1, Valtype::I32] # func type 2, 2 params (i32, i32), 1 result (i32)
+      )
+    end
+
+    def importSection
+      createSection(Section::Import,
+        Bytes[1] + # num imports = 1
+        encodeString("env") +           # import module name = "env"
+        encodeString("puts") +          # import field name = "puts"
+        Bytes[ExportType::Func.value] + # import kind = Func
+        Bytes[1]                        # import signature index = 1
       )
     end
 
@@ -144,34 +144,24 @@ module CrystalRobots::Compiler
     # in the code section
     def funcSection
       createSection(Section::Func,
-        Bytes[1] + # number of functions
-        Bytes[0]   # type index
-      )
-    end
-
-    def importSection
-      createSection(Section::Import,
-        encodeVector(
-          encodeString("env") +
-          encodeString("puts") +
-          Bytes[ExportType::Func.value] +
-          Bytes[0x01]
-        )
+        Bytes[1] + # num functions = 1
+        Bytes[1] + # function 0 signature index = 1
+        Bytes[1]   # type index = type 1 (1 param - i32, 1 result - i32)
       )
     end
 
     # the export section is a vector of exported functions
     def exportSection
       createSection(Section::Export,
-        Bytes[1] + # number of exports
-        encodeString("run") +
-        Bytes[ExportType::Func.value] + # export type
-        Bytes[0x01]                     # function index
+        Bytes[1] +                      # num exports = 1
+        encodeString("run") +           # export name = "run"
+        Bytes[ExportType::Func.value] + # export type = Func
+        Bytes[1]                        # export func index = 1
       )
     end
 
     def codeFromAst(ast : Program)
-      @code = Bytes[]
+      @code = Bytes[0] # local decl count = 0
       ast.ast.each_index(start: -1, count: ast.ast.size) do |i|
         ast.ast[i].each_index do |j|
           case ast.ast[i][j].type
@@ -190,15 +180,17 @@ module CrystalRobots::Compiler
           end
         end
       end
-      @code
+      @code += Bytes[Opcodes::End]
     end
 
     # the code section contains vectors of functions
+    # https://webassembly.github.io/spec/core/binary/modules.html#binary-codesec
     def codeSection(ast : Program)
       createSection(Section::Code,
-        Bytes[1] + # number of functions
-        encodeVector(codeFromAst(ast))
-        Bytes[Opcodes::End]
+        encodeVector(
+          Bytes[1] + # num functions = 1
+          encodeVector(codeFromAst(ast))
+        )
       )
     end
 
