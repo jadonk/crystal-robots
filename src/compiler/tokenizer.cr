@@ -127,7 +127,7 @@ module CrystalRobots::Compiler
     @@matchers = [
       [
         {/^\"([^\"]+)\"/, Type::String},
-        {/^([.0-9]+)/, Type::Number},
+        {/^(-{0,1}[\.0-9]+)/, Type::Number},
         {Regex.new("^(#{@@keywords_s})"), Type::Keyword},
         {Regex.new("^(#{@@builtins_s})"), Type::Builtin},
         {/^(\s+)/, Type::Whitespace},

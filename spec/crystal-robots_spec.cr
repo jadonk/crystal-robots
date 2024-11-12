@@ -44,6 +44,20 @@ describe CrystalRobots do
       t.tokens[1].value.should eq "\"string\""
     end
 
+    it "tokenizes numbers" do
+      t = CrystalRobots::Compiler::Tokenizer.new(" 32 \n  -11 39.5")
+      t.tokens.size.should eq 3
+      t.tokens[0].type.should eq CrystalRobots::Compiler::Tokenizer::Type::Number
+      t.tokens[0].index.should eq [1]
+      t.tokens[0].value.should eq "32"
+      t.tokens[1].type.should eq CrystalRobots::Compiler::Tokenizer::Type::Number
+      t.tokens[1].index.should eq [7]
+      t.tokens[1].value.should eq "-11"
+      t.tokens[2].type.should eq CrystalRobots::Compiler::Tokenizer::Type::Number
+      t.tokens[2].index.should eq [11]
+      t.tokens[2].value.should eq "39.5"
+    end
+
     it "throws exception with bad keyword" do
       expect_raises(CrystalRobots::Compiler::Tokenizer::Error, "Unexpected token f") do
         t = CrystalRobots::Compiler::Tokenizer.new(" def foo")
