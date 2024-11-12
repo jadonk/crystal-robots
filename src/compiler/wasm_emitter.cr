@@ -145,8 +145,7 @@ module CrystalRobots::Compiler
     def funcSection
       createSection(Section::Func,
         Bytes[1] + # num functions = 1
-        Bytes[1] + # function 0 signature index = 1
-        Bytes[1]   # type index = type 1 (1 param - i32, 1 result - i32)
+        Bytes[1]   # function 0 signature index = 1
       )
     end
 
@@ -161,7 +160,7 @@ module CrystalRobots::Compiler
     end
 
     def codeFromAst(ast : Program)
-      @code = Bytes[0] # local decl count = 0
+      code = Bytes[0] # local decl count = 0
       ast.ast.each_index(start: -1, count: ast.ast.size) do |i|
         ast.ast[i].each_index do |j|
           case ast.ast[i][j].type
@@ -170,27 +169,28 @@ module CrystalRobots::Compiler
             t = ast.ast[i - 1][a]
             case t.type
             when Tokenizer::Type::Number
-              @code += Bytes[Opcodes::I32_const.value]
-              @code += signedLEB128(t.value.to_i32)
+              code += Bytes[Opcodes::I32_const.value]
+              code += signedLEB128(t.value.to_i32)
             else
               raise "Unsupported argument type"
             end
-            @code += Bytes[Opcodes::Call.value]
-            @code += unsignedLEB128(0)
+            code += Bytes[Opcodes::Call.value]
+            code += unsignedLEB128(0)
+          else
+            raise "Unhandled statement type"
           end
         end
       end
-      @code += Bytes[Opcodes::End]
+      code += Bytes[Opcodes::End]
+      code
     end
 
     # the code section contains vectors of functions
     # https://webassembly.github.io/spec/core/binary/modules.html#binary-codesec
     def codeSection(ast : Program)
       createSection(Section::Code,
-        encodeVector(
-          Bytes[1] + # num functions = 1
-          encodeVector(codeFromAst(ast))
-        )
+        Bytes[1] + # num functions = 1
+        encodeVector(codeFromAst(ast))
       )
     end
 

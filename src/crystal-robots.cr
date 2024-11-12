@@ -180,7 +180,7 @@ module CrystalRobots
       if !@robot_to_compile.nil?
         c = Compiler::Compiler.new
         # TODO: load file and actually pass it to the compiler
-        STDOUT.write(c.compile_to_wasm("puts 0"))
+        STDOUT.write(c.compile_to_wasm("puts 42"))
         return 0
       end
 
