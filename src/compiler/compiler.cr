@@ -12,14 +12,17 @@ module CrystalRobots::Compiler
   # ## Features missing
   #
   class Compiler
-    @src : String | Nil
+    @src : String
     @code : Bytes
     @ast : Program
-    @tokens : Array(Tokenizer::Token) | Nil
+    @tokenizer : Tokenizer
 
     def initialize
+      @src = ""
       @code = Bytes[]
-      @ast = Program.new
+      @tokenizer = Tokenizer.new(@src)
+      x = [] of Tokenizer::Token
+      @ast = Program.new([x])
     end
 
     def program
@@ -28,13 +31,21 @@ module CrystalRobots::Compiler
 
     def compile_to_wasm(src)
       @src = src
-      @tokens = Tokenizer.new(src).tokens
-      # @ast = parse(@tokens)
+      @tokenizer = Tokenizer.new(src)
+      @ast = @tokenizer.parse
       @code = WASM_Emitter.new(@ast).to_wasm
       @code
     end
   end
 
   struct Program
+    property ast
+
+    def initialize(@ast : Array(Array(Tokenizer::Token)))
+    end
+
+    def <<(tokens : Array(Tokenizer::Token))
+      @ast << tokens
+    end
   end
 end

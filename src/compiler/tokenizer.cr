@@ -4,12 +4,12 @@ module CrystalRobots::Compiler
   class Tokenizer
     @source : String
     @tokens : Array(Token)
-    @ast : Array(Array(Token))
+    @ast : Program
 
     def initialize(string : String)
       @source = string
       @tokens = tokenize(string)
-      @ast = [@tokens]
+      @ast = Program.new([@tokens])
     end
 
     def tokens
@@ -233,7 +233,7 @@ module CrystalRobots::Compiler
     end
 
     def to_array_s
-      @ast.map do |a|
+      @ast.ast.map do |a|
         a.map { |token| token.type.value.chr }.join
       end
     end
