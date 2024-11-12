@@ -34,6 +34,10 @@ test:
     - bin/examples-rook
     - bin/examples-sniper
     - bin/examples-target
+    - bin/crystal-robots -c asdf > test.wasm
+  artifacts:
+    paths:
+      - test.wasm
 
 pages:
   stage: deploy
