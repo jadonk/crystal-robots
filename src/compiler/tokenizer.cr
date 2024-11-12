@@ -156,9 +156,9 @@ module CrystalRobots::Compiler
     def self.mapperStatement(t : Type, m : Regex::MatchData, i : Array(Int32))
       value = m[0]
       case t
-      when Type::OneArgBuiltin
+      when Type::OneArgStatement
         a = [i[0], i[0] + 1]
-      when Type::TwoArgBuiltin
+      when Type::TwoArgStatement
         a = [i[0], i[0] + 1, i[0] + 2]
       else
         a = [i[0]]
