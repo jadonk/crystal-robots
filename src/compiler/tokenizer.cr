@@ -150,7 +150,20 @@ module CrystalRobots::Compiler
       elsif t == Type::Builtin
         t += (@@builtins_h[value] + 1)
       end
-      t = Token.new(type: t, value: value, index: i)
+      Token.new(type: t, value: value, index: i)
+    end
+
+    def self.mapperStatement(t : Type, m : Regex::MatchData, i : Array(Int32))
+      value = m[0]
+      case t
+      when Type::OneArgBuiltin
+        a = [i[0], i[0] + 1]
+      when Type::TwoArgBuiltin
+        a = [i[0], i[0] + 1, i[0] + 2]
+      else
+        a = [i[0]]
+      end
+      Token.new(type: t, value: value, index: a)
     end
 
     @@mappers : Hash(Type, Proc(Type, Regex::MatchData, Array(Int32), Token) | Nil)
@@ -161,9 +174,9 @@ module CrystalRobots::Compiler
       Type::Builtin          => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
       Type::Whitespace       => nil,
       Type::Comment          => nil,
-      Type::ZeroArgStatement => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
-      Type::OneArgStatement  => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
-      Type::TwoArgStatement  => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
+      Type::ZeroArgStatement => ->mapperStatement(Type, Regex::MatchData, Array(Int32)),
+      Type::OneArgStatement  => ->mapperStatement(Type, Regex::MatchData, Array(Int32)),
+      Type::TwoArgStatement  => ->mapperStatement(Type, Regex::MatchData, Array(Int32)),
       Type::Program          => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
     }
 

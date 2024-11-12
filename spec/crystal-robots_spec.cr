@@ -59,9 +59,8 @@ describe CrystalRobots do
       t = CrystalRobots::Compiler::Tokenizer.new(" puts \"string\"")
       ast = t.parse
       s = t.to_array_s
-      s[0].should eq "∊🐍"
-      s[1].to_s.should eq "❤"
-      s[2].to_s.should eq "⏹"
+      s.should eq ["∊🐍", "❤", "⏹"]
+      "#{ast}".should eq "[[CrystalRobots::Compiler::Tokenizer::Token(@type=CrystalRobots::Compiler::Tokenizer::Type::OneArgBuiltin, @value=\"puts\", @index=[1]), CrystalRobots::Compiler::Tokenizer::Token(@type=CrystalRobots::Compiler::Tokenizer::Type::String, @value=\"\\\"string\\\"\", @index=[6])], [CrystalRobots::Compiler::Tokenizer::Token(@type=CrystalRobots::Compiler::Tokenizer::Type::OneArgStatement, @value=\"∊🐍\", @index=[0])], [CrystalRobots::Compiler::Tokenizer::Token(@type=CrystalRobots::Compiler::Tokenizer::Type::Program, @value=\"❤\", @index=[0])]]"
     end
   end
 
