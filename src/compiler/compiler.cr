@@ -31,6 +31,7 @@ module CrystalRobots::Compiler
 
     def compile_to_wasm(src)
       @src = src
+      puts "Tokenizing #{src}"
       @tokenizer = Tokenizer.new(src)
       @ast = @tokenizer.parse
       @code = WASM_Emitter.new(@ast).to_wasm

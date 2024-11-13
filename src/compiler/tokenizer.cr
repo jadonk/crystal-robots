@@ -8,8 +8,8 @@ module CrystalRobots::Compiler
 
     def initialize(string : String)
       @source = string
-      @tokens = tokenize(string)
-      @ast = Program.new([@tokens])
+      #@tokens = tokenize(string)
+      #@ast = Program.new([@tokens])
     end
 
     def tokens
@@ -148,8 +148,9 @@ module CrystalRobots::Compiler
       if t == Type::Keyword
         t += @@keywords_h[value]
       elsif t == Type::Builtin
-        t += (@@builtins_h[value] + 1)
+        t += @@builtins_h[value] + 1
       end
+      puts "#{t} #{value} #{i}"
       Token.new(type: t, value: value, index: i)
     end
 
@@ -163,6 +164,7 @@ module CrystalRobots::Compiler
       else
         a = [i[0]]
       end
+      puts "#{t} #{value} #{a}"
       Token.new(type: t, value: value, index: a)
     end
 
@@ -195,7 +197,7 @@ module CrystalRobots::Compiler
           {"m": m, "type": t}
         end
         if matches.size == 0
-          raise Error.new("Unexpected token #{src[index..index + 1]}")
+          raise Error.new("Unexpected token #{src[index..index + 1]} @ #{index}")
         end
         if !matches[0].nil? && !matches[0][:m][0].nil?
           mapper = @@mappers[matches[0][:type]]
@@ -215,15 +217,18 @@ module CrystalRobots::Compiler
     end
 
     def parse
-      @@a = 1
+      @@a = 0
+      src = @source
       while true
-        # puts to_s
-        @tokens = tokenize(to_s)
+        puts "tokenize(#{src})"
+        @tokens = tokenize(src)
         @ast << @tokens
-        if to_s == "⏹"
-          # puts to_s
+        src = to_s
+        if src == "⏹"
+          puts src
           break
         end
+        @@a = 1
       end
       @ast
     end

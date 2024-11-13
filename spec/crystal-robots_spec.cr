@@ -81,9 +81,9 @@ describe CrystalRobots do
   describe "Compiler::WASM_Emitter" do
     it "has an emitter" do
       c = CrystalRobots::Compiler::Compiler.new
-      e = CrystalRobots::Compiler::WASM_Emitter.new(c.program)
+      f = c.compile_to_wasm(" puts 42")
       # https://webassembly.github.io/wabt/demo/wat2wasm/
-      e.to_wasm.should eq Bytes[
+      f.should eq Bytes[
         0, 0x61, 0x73, 0x6d,                        # WASM_BINARY_MAGIC
         1, 0, 0, 0,                                 # WASM_BINARY_VERSION
         1, 7, 1, 0x60, 2, 0x7d, 0x7d, 1, 0x7d,      # Section "Type"
@@ -95,26 +95,26 @@ describe CrystalRobots do
 
     it "test function should load the emited WASM" do
       c = CrystalRobots::Compiler::Compiler.new
-      e = CrystalRobots::Compiler::WASM_Emitter.new(c.program)
-      file = e.to_wasm
-      i = load_wasm(file)
+      file = c.compile_to_wasm(" puts 42")
+      w = WASMSpec.new("")
+      i = w.load_wasm(file)
       i.should_not be_nil
     end
 
     it "test function should find exported function" do
       c = CrystalRobots::Compiler::Compiler.new
-      e = CrystalRobots::Compiler::WASM_Emitter.new(c.program)
-      file = e.to_wasm
-      i = load_wasm(file)
+      file = c.compile_to_wasm(" puts 128 ")
+      w = WASMSpec.new("")
+      i = w.load_wasm(file)
       run = i.function("run")
       run.should_not be_nil
     end
 
     it "emitted function should run" do
       c = CrystalRobots::Compiler::Compiler.new
-      e = CrystalRobots::Compiler::WASM_Emitter.new(c.program)
-      file = e.to_wasm
-      i = load_wasm(file)
+      file = c.compile_to_wasm("puts 42")
+      w = WASMSpec.new("")
+      i = w.load_wasm(file)
       run = i.function("run").not_nil!
       run.call(11.1_f32, 22.2_f32).should eq 33.300003_f32
     end
