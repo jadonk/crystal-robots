@@ -166,11 +166,11 @@ module CrystalRobots::Compiler
         ast.ast[i].each_index do |j|
           p = ast.ast[i][j].type
           case p
-          when Tokenizer::Type::OneArgStatement
+          when Type::OneArgStatement
             a = ast.ast[i][j].index[1]
             t = ast.ast[i - 1][a]
             case t.type
-            when Tokenizer::Type::Number
+            when Type::Number
               code += Bytes[Opcodes::I32_const.value]
               code += signedLEB128(t.value.to_i32)
             else

@@ -4,84 +4,81 @@ describe CrystalRobots do
   describe "Robot" do
   end
 
-  describe "Compiler" do
+  describe "Parser" do
     it "can be instantiated" do
-      c = CrystalRobots::Compiler::Compiler.new
-      c.should_not eq nil
+      p = CrystalRobots::Compiler::Parser.new("")
+      p.should_not eq nil
     end
-  end
 
-  describe "Compiler::Tokenizer" do
     it "tokenizes single keyword" do
-      t = CrystalRobots::Compiler::Tokenizer.new(" def")
-      t.tokens.size.should eq 1
-      t.tokens[0].type.should eq CrystalRobots::Compiler::Tokenizer::Type::DefKeyword
-      t.tokens[0].index.should eq [1]
+      p = CrystalRobots::Compiler::Parser.new(" def")
+      p.program[0].size.should eq 1
+      p.program[0][0].type.should eq 0
+      p.program[0][0].index.should eq [1]
     end
 
     it "tokenizes single builtin" do
-      t = CrystalRobots::Compiler::Tokenizer.new(" puts")
-      t.tokens.size.should eq 1
-      t.tokens[0].type.should eq CrystalRobots::Compiler::Tokenizer::Type::OneArgBuiltin
-      t.tokens[0].index.should eq [1]
+      p = CrystalRobots::Compiler::Parser.new(" puts")
+      p.program[0].size.should eq 1
+      p.program[0][0].type.should eq 0
+      p.program[0][0].index.should eq [1]
     end
 
     it "tokenizes single string" do
-      t = CrystalRobots::Compiler::Tokenizer.new("  \"string\" ")
-      t.tokens.size.should eq 1
-      t.tokens[0].type.should eq CrystalRobots::Compiler::Tokenizer::Type::String
-      t.tokens[0].index.should eq [2]
+      p = CrystalRobots::Compiler::Parser.new("  \"string\" ")
+      p.program[0].size.should eq 1
+      p.program[0][0].type.should eq 0
+      p.program[0][0].index.should eq [2]
     end
 
     it "tokenizes builtin followed by string" do
-      t = CrystalRobots::Compiler::Tokenizer.new(" puts \"string\"")
-      t.tokens.size.should eq 2
-      t.tokens[0].type.should eq CrystalRobots::Compiler::Tokenizer::Type::OneArgBuiltin
-      t.tokens[0].index.should eq [1]
-      t.tokens[0].value.should eq "puts"
-      t.tokens[1].type.should eq CrystalRobots::Compiler::Tokenizer::Type::String
-      t.tokens[1].index.should eq [6]
-      t.tokens[1].value.should eq "\"string\""
+      p = CrystalRobots::Compiler::Parser.new(" puts \"string\"")
+      p.program[0].size.should eq 2
+      p.program[0][0].type.should eq 0
+      p.program[0][0].index.should eq [1]
+      p.program[0][0].value.should eq "puts"
+      p.program[0][1].type.should eq 0
+      p.program[0][1].index.should eq [6]
+      p.program[0][1].value.should eq "\"string\""
     end
 
     it "tokenizes numbers" do
-      t = CrystalRobots::Compiler::Tokenizer.new(" 32 \n  -11 39.5")
-      t.tokens.size.should eq 3
-      t.tokens[0].type.should eq CrystalRobots::Compiler::Tokenizer::Type::Number
-      t.tokens[0].index.should eq [1]
-      t.tokens[0].value.should eq "32"
-      t.tokens[1].type.should eq CrystalRobots::Compiler::Tokenizer::Type::Number
-      t.tokens[1].index.should eq [7]
-      t.tokens[1].value.should eq "-11"
-      t.tokens[2].type.should eq CrystalRobots::Compiler::Tokenizer::Type::Number
-      t.tokens[2].index.should eq [11]
-      t.tokens[2].value.should eq "39.5"
+      p = CrystalRobots::Compiler::Parser.new(" 32 \n  -11 39.5")
+      p.program[0].size.should eq 3
+      p.program[0][0].type.should eq 0
+      p.program[0][0].index.should eq [1]
+      p.program[0][0].value.should eq "32"
+      p.program[0][1].type.should eq 0
+      p.program[0][1].index.should eq [7]
+      p.program[0][1].value.should eq "-11"
+      p.program[0][2].type.should eq 0
+      p.program[0][2].index.should eq [11]
+      p.program[0][2].value.should eq "39.5"
     end
 
     it "throws exception with bad keyword" do
-      expect_raises(CrystalRobots::Compiler::Tokenizer::Error, "Unexpected token f") do
-        t = CrystalRobots::Compiler::Tokenizer.new(" def foo")
+      expect_raises(CrystalRobots::Compiler::Parser::Error, "Unexpected token f") do
+        p = CrystalRobots::Compiler::Parser.new(" def foo")
       end
     end
 
     it "can produce token strings" do
-      t = CrystalRobots::Compiler::Tokenizer.new(" puts \"string\"")
-      t.to_s.should eq "∊🐍"
+      p = CrystalRobots::Compiler::Parser.new(" puts \"string\"")
+      p.to_s.should eq "∊🐍"
     end
 
     it "can recursively tokenize/parse" do
-      t = CrystalRobots::Compiler::Tokenizer.new(" puts \"string\"")
-      ast = t.parse
-      s = t.to_array_s
-      s.should eq ["∊🐍", "❤", "⏹"]
+      p = CrystalRobots::Compiler::Parser.new(" puts \"string\"")
+      ast = p.program
+      s = p.to_s
+      s.should eq "∊🐍\n❤\n⏹"
       "#{ast}".should eq "CrystalRobots::Compiler::Program(@ast=[[CrystalRobots::Compiler::Tokenizer::Token(@type=CrystalRobots::Compiler::Tokenizer::Type::OneArgBuiltin, @value=\"puts\", @index=[1]), CrystalRobots::Compiler::Tokenizer::Token(@type=CrystalRobots::Compiler::Tokenizer::Type::String, @value=\"\\\"string\\\"\", @index=[6])], [CrystalRobots::Compiler::Tokenizer::Token(@type=CrystalRobots::Compiler::Tokenizer::Type::OneArgStatement, @value=\"∊🐍\", @index=[0, 1])], [CrystalRobots::Compiler::Tokenizer::Token(@type=CrystalRobots::Compiler::Tokenizer::Type::Program, @value=\"❤\", @index=[0])]])"
     end
   end
 
   describe "Compiler::WASM_Emitter" do
     it "has an emitter" do
-      c = CrystalRobots::Compiler::Compiler.new
-      f = c.compile_to_wasm(" puts 42")
+      f = CrystalRobots::Compiler.compile_to_wasm(" puts 42")
       # https://webassembly.github.io/wabt/demo/wat2wasm/
       f.should eq Bytes[
         0, 0x61, 0x73, 0x6d,                        # WASM_BINARY_MAGIC
@@ -94,16 +91,14 @@ describe CrystalRobots do
     end
 
     it "test function should load the emited WASM" do
-      c = CrystalRobots::Compiler::Compiler.new
-      file = c.compile_to_wasm(" puts 42")
+      file = CrystalRobots::Compiler.compile_to_wasm(" puts 42")
       w = WASMSpec.new("")
       i = w.load_wasm(file)
       i.should_not be_nil
     end
 
     it "test function should find exported function" do
-      c = CrystalRobots::Compiler::Compiler.new
-      file = c.compile_to_wasm(" puts 128 ")
+      file = CrystalRobots::Compiler.compile_to_wasm(" puts 128 ")
       w = WASMSpec.new("")
       i = w.load_wasm(file)
       run = i.function("run")
@@ -111,8 +106,7 @@ describe CrystalRobots do
     end
 
     it "emitted function should run" do
-      c = CrystalRobots::Compiler::Compiler.new
-      file = c.compile_to_wasm("puts 42")
+      file = CrystalRobots::Compiler.compile_to_wasm("puts 42")
       w = WASMSpec.new("")
       i = w.load_wasm(file)
       run = i.function("run").not_nil!
