@@ -4,7 +4,7 @@
   (type (func (param i32 i32) (result i32)))
   (import "env" "puts" (func (type 1)))
   (export "run" (func 1))
-  (func (type 1)
+  (func (type 0)
     (i32.const 42)
     (call 0)
   )

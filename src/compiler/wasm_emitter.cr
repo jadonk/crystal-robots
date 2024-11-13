@@ -123,7 +123,8 @@ module CrystalRobots::Compiler
     # the type section is a vector of function types
     def typeSection
       createSection(Section::Type,
-        Bytes[3] +                                                          # num types = 3
+        Bytes[4] +                                                          # num types = 4
+        Bytes[FunctionType, 0, 0] +                                         # func type 0, 0 params, 0 results
         Bytes[FunctionType, 0, 1, Valtype::I32] +                           # func type 0, 0 params, 1 result (i32)
         Bytes[FunctionType, 1, Valtype::I32, 1, Valtype::I32] +             # func type 1, 1 params (i32), 1 result (i32)
         Bytes[FunctionType, 2, Valtype::I32, Valtype::I32, 1, Valtype::I32] # func type 2, 2 params (i32, i32), 1 result (i32)
@@ -132,7 +133,7 @@ module CrystalRobots::Compiler
 
     def importSection
       createSection(Section::Import,
-        Bytes[1] + # num imports = 1
+        Bytes[1] +                      # num imports = 1
         encodeString("env") +           # import module name = "env"
         encodeString("puts") +          # import field name = "puts"
         Bytes[ExportType::Func.value] + # import kind = Func
@@ -145,7 +146,7 @@ module CrystalRobots::Compiler
     def funcSection
       createSection(Section::Func,
         Bytes[1] + # num functions = 1
-        Bytes[1]   # function 0 signature index = 1
+        Bytes[0]   # function 0 signature index = 0
       )
     end
 
@@ -161,7 +162,7 @@ module CrystalRobots::Compiler
 
     def codeFromAst(ast : Program)
       code = Bytes[0] # local decl count = 0
-      Range.new(0,ast.ast.size,exclusive=true).reverse_each do |i|
+      Range.new(0, ast.ast.size, exclusive = true).reverse_each do |i|
         ast.ast[i].each_index do |j|
           p = ast.ast[i][j].type
           case p
