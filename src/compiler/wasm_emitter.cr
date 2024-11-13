@@ -161,9 +161,10 @@ module CrystalRobots::Compiler
 
     def codeFromAst(ast : Program)
       code = Bytes[0] # local decl count = 0
-      ast.ast.each_index(start: -1, count: ast.ast.size) do |i|
+      Range.new(0,ast.ast.size,exclusive=true).reverse_each do |i|
         ast.ast[i].each_index do |j|
-          case ast.ast[i][j].type
+          p = ast.ast[i][j].type
+          case p
           when Tokenizer::Type::OneArgStatement
             a = ast.ast[i][j].index[1]
             t = ast.ast[i - 1][a]
@@ -172,12 +173,10 @@ module CrystalRobots::Compiler
               code += Bytes[Opcodes::I32_const.value]
               code += signedLEB128(t.value.to_i32)
             else
-              raise "Unsupported argument type"
+              raise "Unsupported argument type: #{t.type} at #{a}"
             end
             code += Bytes[Opcodes::Call.value]
             code += unsignedLEB128(0)
-          else
-            raise "Unhandled statement type"
           end
         end
       end
