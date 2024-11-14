@@ -11,14 +11,14 @@ require "./wasm_emitter.cr"
 
 module CrystalRobots::Compiler
   def self.parse(src)
-    puts "Parsing #{src}"
+    #puts "Parsing #{src}"
     Parser.new(src)
   end
 
   def self.compile_to_wasm(src)
-    puts "Parsing #{src}"
+    #puts "Parsing #{src}"
     p = Parser.new(src)
-    puts "Emitting WASM from #{p}"
+    #puts "Emitting WASM from #{p}"
     WASM_Emitter.new(p.program).to_wasm
   end
 

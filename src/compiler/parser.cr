@@ -31,7 +31,7 @@ module CrystalRobots::Compiler
       a = 0
       ast = Program.new
       while src != "⏹" && src != ""
-        puts "tokenize(#{a}, #{src})"
+        #puts "tokenize(#{a}, #{src})"
         nodes = tokenize(a, src)
         ast << nodes
         src = tokens_to_s(nodes)
@@ -138,7 +138,7 @@ module CrystalRobots::Compiler
       elsif t == Type::Builtin
         t += @@builtins_h[value] + 1
       end
-      puts "#{t} #{value} #{i}"
+      #puts "#{t} #{value} #{i}"
       Node.new(type: t, value: value, index: i)
     end
 
@@ -152,7 +152,7 @@ module CrystalRobots::Compiler
       else
         a = [i[0]]
       end
-      puts "#{t} #{value} #{a}"
+      #puts "#{t} #{value} #{a}"
       Node.new(type: t, value: value, index: a)
     end
 

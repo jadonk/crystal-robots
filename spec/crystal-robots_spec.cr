@@ -81,12 +81,13 @@ describe CrystalRobots do
       f = CrystalRobots::Compiler.compile_to_wasm(" puts 42")
       # https://webassembly.github.io/wabt/demo/wat2wasm/
       f.should eq Bytes[
-        0, 0x61, 0x73, 0x6d,                        # WASM_BINARY_MAGIC
-        1, 0, 0, 0,                                 # WASM_BINARY_VERSION
-        1, 7, 1, 0x60, 2, 0x7d, 0x7d, 1, 0x7d,      # Section "Type"
-        3, 2, 1, 0,                                 # Section "Function"
-        7, 7, 1, 3, 0x72, 0x75, 0x6e, 0, 0,         # Section "Export"
-        10, 9, 1, 7, 0, 0x20, 0, 0x20, 1, 0x92, 0xb # Section "Code"
+        0, 0x61, 0x73, 0x6d,                                                            # WASM_BINARY_MAGIC
+        1, 0, 0, 0,                                                                     # WASM_BINARY_VERSION
+        1, 19, 4, 96, 0, 0, 96, 0, 1, 127, 96, 1, 127, 1, 127, 96, 2, 127, 127, 1, 127, # Section "Type"
+        2, 12, 1, 3, 101, 110, 118, 4, 112, 117, 116, 115, 0, 1,                        # Section "Import"
+        3, 2, 1, 0,                                                                     # Section "Function"
+        7, 7, 1, 3, 0x72, 0x75, 0x6e, 0, 1,                                             # Section "Export"
+        10, 8, 1, 6, 0, 65, 42, 16, 0, 0xb                                              # Section "Code"
       ]
     end
 
