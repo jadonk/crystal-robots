@@ -91,6 +91,7 @@ module CrystalRobots::Compiler
     enum Opcodes : UInt8
       End       = 0x0b
       Call      = 0x10
+      Drop      = 0x1a
       Get_local = 0x20
       I32_const = 0x41
       F32_const = 0x43
@@ -137,7 +138,7 @@ module CrystalRobots::Compiler
         encodeString("env") +           # import module name = "env"
         encodeString("puts") +          # import field name = "puts"
         Bytes[ExportType::Func.value] + # import kind = Func
-        Bytes[1]                        # import signature index = 1
+        Bytes[2]                        # import signature index = 2
       )
     end
 
@@ -146,7 +147,7 @@ module CrystalRobots::Compiler
     def funcSection
       createSection(Section::Func,
         Bytes[1] + # num functions = 1
-        Bytes[0]   # function 0 signature index = 0
+        Bytes[1]   # function 0 signature index = 1
       )
     end
 
