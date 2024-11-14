@@ -168,7 +168,8 @@ describe CrystalRobots do
       w = WASMSpec.new("")
       i = w.load_wasm(file)
       run = i.function("run").not_nil!
-      run.call(11.1_f32, 22.2_f32).should eq 33.300003_f32
+      run.call().should eq 0
+      w.last_puts.should eq "42"
     end
   end
 end
