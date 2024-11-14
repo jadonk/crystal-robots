@@ -24,26 +24,32 @@
 module CrystalRobots::Compiler
   class Parser
     def initialize(source : String)
-      a = 0
-      src = source
       @ast = Program.new
-      while true
+    end
+
+    def self.new(src : String)
+      a = 0
+      ast = Program.new
+      while src != "⏹" && src != ""
         puts "tokenize(#{a}, #{src})"
         nodes = tokenize(a, src)
-        @ast << nodes
+        ast << nodes
         src = tokens_to_s(nodes)
-        if src == "⏹" || src == ""
-          puts src
-          break
-        end
         a = 1
       end
+      i = Parser.allocate
+      i.initialize(src)
+      i.program = ast
+      i
     end
 
     def program
       @ast
     end
-    
+
+    protected def program=(@ast : Program)
+    end
+
     # These are language keywords that generate various statement types
     @@keywords = [
       "begin",
@@ -169,7 +175,7 @@ module CrystalRobots::Compiler
 
     # matcher is the matcher selection
     # src is the string to tokenize
-    def tokenize(matcher : Number, src : String)
+    def self.tokenize(matcher : Number, src : String)
       tokens = Array(Node).new
       index = 0
       while index < src.size
@@ -204,8 +210,12 @@ module CrystalRobots::Compiler
       tokens.map { |token| token.type.value.chr }.join
     end
 
+    def self.tokens_to_s(tokens)
+      tokens.map { |token| token.type.value.chr }.join
+    end
+
     def to_s
-      @ast.map { |a| tokens_to_s(a) }.join("\n")
+      @ast.map { |a| tokens_to_s(a) }.join('\n')
     end
 
     # TODO: Implement to_json

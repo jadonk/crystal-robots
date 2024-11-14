@@ -11,49 +11,49 @@ describe CrystalRobots do
     end
 
     it "tokenizes single keyword" do
-      p = CrystalRobots::Compiler::Parser.new(" def")
-      p.program[0].size.should eq 1
-      p.program[0][0].type.should eq 0
-      p.program[0][0].index.should eq [1]
+      t = CrystalRobots::Compiler::Parser.tokenize(0, " def")
+      t.size.should eq 1
+      t[0].type.should eq CrystalRobots::Compiler::Type::DefKeyword
+      t[0].index.should eq [1]
     end
 
     it "tokenizes single builtin" do
-      p = CrystalRobots::Compiler::Parser.new(" puts")
-      p.program[0].size.should eq 1
-      p.program[0][0].type.should eq 0
-      p.program[0][0].index.should eq [1]
+      t = CrystalRobots::Compiler::Parser.tokenize(0, " puts")
+      t.size.should eq 1
+      t[0].type.should eq CrystalRobots::Compiler::Type::OneArgBuiltin
+      t[0].index.should eq [1]
     end
 
     it "tokenizes single string" do
-      p = CrystalRobots::Compiler::Parser.new("  \"string\" ")
-      p.program[0].size.should eq 1
-      p.program[0][0].type.should eq 0
-      p.program[0][0].index.should eq [2]
+      t = CrystalRobots::Compiler::Parser.tokenize(0, "  \"string\" ")
+      t.size.should eq 1
+      t[0].type.should eq CrystalRobots::Compiler::Type::String
+      t[0].index.should eq [2]
     end
 
     it "tokenizes builtin followed by string" do
       p = CrystalRobots::Compiler::Parser.new(" puts \"string\"")
       p.program[0].size.should eq 2
-      p.program[0][0].type.should eq 0
+      p.program[0][0].type.should eq CrystalRobots::Compiler::Type::OneArgBuiltin
       p.program[0][0].index.should eq [1]
       p.program[0][0].value.should eq "puts"
-      p.program[0][1].type.should eq 0
+      p.program[0][1].type.should eq CrystalRobots::Compiler::Type::String
       p.program[0][1].index.should eq [6]
       p.program[0][1].value.should eq "\"string\""
     end
 
     it "tokenizes numbers" do
-      p = CrystalRobots::Compiler::Parser.new(" 32 \n  -11 39.5")
-      p.program[0].size.should eq 3
-      p.program[0][0].type.should eq 0
-      p.program[0][0].index.should eq [1]
-      p.program[0][0].value.should eq "32"
-      p.program[0][1].type.should eq 0
-      p.program[0][1].index.should eq [7]
-      p.program[0][1].value.should eq "-11"
-      p.program[0][2].type.should eq 0
-      p.program[0][2].index.should eq [11]
-      p.program[0][2].value.should eq "39.5"
+      t = CrystalRobots::Compiler::Parser.tokenize(0, " 32 \n  -11 39.5")
+      t.size.should eq 3
+      t[0].type.should eq CrystalRobots::Compiler::Type::Number
+      t[0].index.should eq [1]
+      t[0].value.should eq "32"
+      t[1].type.should eq CrystalRobots::Compiler::Type::Number
+      t[1].index.should eq [7]
+      t[1].value.should eq "-11"
+      t[2].type.should eq CrystalRobots::Compiler::Type::Number
+      t[2].index.should eq [11]
+      t[2].value.should eq "39.5"
     end
 
     it "throws exception with bad keyword" do
@@ -64,7 +64,7 @@ describe CrystalRobots do
 
     it "can produce token strings" do
       p = CrystalRobots::Compiler::Parser.new(" puts \"string\"")
-      p.to_s.should eq "∊🐍"
+      p.to_s.should eq "∊🐍\n" + "❤\n" + "⏹"
     end
 
     it "can recursively tokenize/parse" do
@@ -72,7 +72,7 @@ describe CrystalRobots do
       ast = p.program
       s = p.to_s
       s.should eq "∊🐍\n❤\n⏹"
-      "#{ast}".should eq "CrystalRobots::Compiler::Program(@ast=[[CrystalRobots::Compiler::Tokenizer::Token(@type=CrystalRobots::Compiler::Tokenizer::Type::OneArgBuiltin, @value=\"puts\", @index=[1]), CrystalRobots::Compiler::Tokenizer::Token(@type=CrystalRobots::Compiler::Tokenizer::Type::String, @value=\"\\\"string\\\"\", @index=[6])], [CrystalRobots::Compiler::Tokenizer::Token(@type=CrystalRobots::Compiler::Tokenizer::Type::OneArgStatement, @value=\"∊🐍\", @index=[0, 1])], [CrystalRobots::Compiler::Tokenizer::Token(@type=CrystalRobots::Compiler::Tokenizer::Type::Program, @value=\"❤\", @index=[0])]])"
+      "#{ast}".should eq "CrystalRobots::Compiler::Program(@ast=[[CrystalRobots::Compiler::Node(@type=CrystalRobots::Compiler::Type::OneArgBuiltin, @value=\"puts\", @index=[1]), CrystalRobots::Compiler::Node(@type=CrystalRobots::Compiler::Type::String, @value=\"\\\"string\\\"\", @index=[6])], [CrystalRobots::Compiler::Node(@type=CrystalRobots::Compiler::Type::OneArgStatement, @value=\"∊🐍\", @index=[0, 1])], [CrystalRobots::Compiler::Node(@type=CrystalRobots::Compiler::Type::Program, @value=\"❤\", @index=[0])]])"
     end
   end
 
