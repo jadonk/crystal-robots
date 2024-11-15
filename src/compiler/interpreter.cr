@@ -24,8 +24,8 @@ module CrystalRobots::Compiler
       stmt_t = stmt.type
       case stmt_t
       when Type::OneArgStatement
-        cmd = p[i-1][stmt.index[0]]
-        arg = p[i-1][stmt.index[1]]
+        cmd = p[i - 1][stmt.index[0]]
+        arg = p[i - 1][stmt.index[1]]
         puts "calling #{cmd.value}(#{arg.value})"
       end
       {"i": 0, "j": 0, "ret": "success", "exit": true}
