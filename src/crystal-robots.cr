@@ -167,6 +167,7 @@ module CrystalRobots
       @matches = 1
       @cycles = 500_000
       @exit = false
+      @interpreter = false
 
       # TODO: http://tpoindex.github.io/crobots/docs/crobots_manual.html#4
       parser = OptionParser.new
@@ -224,6 +225,9 @@ module CrystalRobots
         puts parser
         @exit = true
         parser.stop
+      end
+      parser.on "-i", "--interpret", "Run robots in interpreter" do
+        @interpreter = true
       end
       parser.on "-c ROBOT", "--compile=ROBOT", "Compile robot source only and output WebAssembly (WASM)" do |robot|
         # TODO: call the compiler and output .WASM with symbol tables
