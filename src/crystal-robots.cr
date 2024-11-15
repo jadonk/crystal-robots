@@ -70,12 +70,14 @@ module CrystalRobots
     end
 
     def run
-      if program = @program
-        puts "Running robot #{@i}, aka '#{@name}'"
+      if !@program.nil?
+        puts "Running robot '#{@name}.#{@i}'"
         begin
-          program.call(self)
+          program = @program.not_nil!
+          p = ->{ program.call(self) }
+          Fiber.new(name: "#{@name}.#{@i}", proc: p)
         rescue ex
-          puts "Stopping robot #{@i}, aka #{@name}: #{ex.message}"
+          puts "Stopping robot '#{@name}.#{@i}' : #{ex.message}"
         end
       end
     end
