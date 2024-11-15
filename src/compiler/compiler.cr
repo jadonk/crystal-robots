@@ -94,5 +94,9 @@ module CrystalRobots::Compiler
     def map(& : Array(Node) -> String) : Array(String)
       Array(String).new(@ast.size) { |i| yield @ast[i] }
     end
+
+    def size
+      @ast.size
+    end
   end
 end
