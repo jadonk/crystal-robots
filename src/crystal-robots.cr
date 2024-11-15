@@ -84,6 +84,7 @@ module CrystalRobots
 
     def debug(s)
       sleep 0.second
+      self.activate
       @calls += 1
       puts "#{@calls}: #{@name}.#{@i} #{s}"
       if @calls >= MAX_CALLS
