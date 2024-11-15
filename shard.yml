@@ -15,7 +15,7 @@ development_dependencies:
 
 targets:
   crystal-robots:
-    main: src/crystal-robots.cr
+    main: src/cli.cr
 
 crystal: '>= 1.8.0'
 

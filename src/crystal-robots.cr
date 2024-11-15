@@ -273,7 +273,3 @@ module CrystalRobots
     end
   end
 end
-
-at_exit do
-  CrystalRobots::CLI.new
-end
