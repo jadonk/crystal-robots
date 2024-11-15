@@ -83,7 +83,7 @@ module CrystalRobots
     end
 
     def debug(s)
-      Fiber.yield
+      sleep 0.second
       @calls += 1
       puts "#{@calls}: #{@name}.#{@i} #{s}"
       if @calls >= MAX_CALLS
