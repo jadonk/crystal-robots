@@ -76,7 +76,7 @@ describe CrystalRobots do
     end
   end
 
-  describe "Compiler::WASM_Emitter" do
+  describe "WASM_Emitter" do
     it "has an emitter" do
       f = CrystalRobots::Compiler.compile_to_wasm(" puts 42")
       # https://webassembly.github.io/wabt/demo/wat2wasm/
@@ -170,6 +170,12 @@ describe CrystalRobots do
       run = i.function("run").not_nil!
       run.call().should eq 0
       w.last_puts.should eq "42"
+    end
+  end
+
+  describe "Interpreter" do
+    it "returns success" do
+      CrystalRobots::Compiler.interpret("puts 42").should eq "success"
     end
   end
 end
