@@ -93,10 +93,40 @@ module CrystalRobots::Compiler
       Call      = 0x10
       Drop      = 0x1a
       Get_local = 0x20
-      I32_const = 0x41
+      I32_const = 0x41 # constants
       F32_const = 0x43
-      I32_add   = 0x6a
-      F32_add   = 0x92
+      I32_eqz   = 0x45 # I32 compare
+      I32_eq    = 0x46
+      I32_neq   = 0x47
+      I32_lt_s  = 0x48
+      I32_lt_u  = 0x49
+      I32_gt_s  = 0x4a
+      I32_gt_u  = 0x4b
+      I32_le_s  = 0x4c
+      I32_le_u  = 0x4d
+      I32_ge_s  = 0x4e
+      I32_ge_u  = 0x4f
+      F32_eq    = 0x5b # F32 compare
+      F32_ne    = 0x5c
+      F32_lt    = 0x5d
+      F32_gt    = 0x5e
+      F32_le    = 0x5f
+      F32_ge    = 0x60
+      I32_add   = 0x6a # I32 arithmatic
+      I32_sub   = 0x6b
+      I32_mul   = 0x6c
+      I32_div_s = 0x6d
+      I32_div_u = 0x63
+      I32_and   = 0x71
+      I32_or    = 0x72
+      I32_xor   = 0x73
+      I32_shl   = 0x74
+      I32_shr_s = 0x75
+      I32_shr_u = 0x76
+      F32_add   = 0x92 # F32 arithmatic
+      F32_sub   = 0x93
+      F32_mul   = 0x94
+      F32_div   = 0x95
     end
 
     # http://webassembly.github.io/spec/core/binary/modules.html#export-section

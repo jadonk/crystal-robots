@@ -31,7 +31,7 @@ module CrystalRobots::Compiler
       a = 0
       ast = Program.new
       while src != "⏹" && src != ""
-        # puts "tokenize(#{a}, #{src})"
+        puts "tokenize(#{a}, #{src})"
         nodes = tokenize(a, src)
         ast << nodes
         src = tokens_to_s(nodes)
@@ -78,7 +78,8 @@ module CrystalRobots::Compiler
       @@keywords_h[@@keywords[i][0]] = @@keywords[i][1]
     end
 
-    # These are methods already defined
+    # Builtins are methods already defined that can be combined with
+    # optional arguments to make a statement
     @@builtins = [
       {"main", Type::TwoArgBuiltin},
       {"puts", Type::OneArgBuiltin},
@@ -103,6 +104,28 @@ module CrystalRobots::Compiler
       @@builtins_h[@@builtins[i][0]] = @@builtins[i][1]
     end
 
+    # Operators used to make expressions
+    @@operators = [
+      {"+", Type::AddOperator},
+      {"-", Type::SubOperator},
+      {"*", Type::MulOperator},
+      {"//", Type::FloorDivOperator},
+      {"==", Type::EqOperator},
+      {"!=", Type::NeOperator},
+      {">", Type::GtOperator},
+      {"<", Type::LtOperator},
+      {"&", Type::AndOperator},
+      {"|", Type::OrOperator},
+      {"^", Type::XorOperator},
+    ]
+    @@operators_s : String
+    @@operators_s = (@@operators.map { |s, n| Regex.escape(s) }).join("|")
+    @@operators_h = Hash(String, Type).new
+    @@operators.each_index do |i|
+      @@operators_h[@@operators[i][0]] = @@operators[i][1]
+    end
+
+    # Statements are the top-level building blocks of a program
     @@statements : Array(Type)
     @@statements = [
       Type::ZeroArgStatement,
@@ -118,15 +141,17 @@ module CrystalRobots::Compiler
         {/^(-{0,1}[\.0-9]+)/, Type::Number},
         {Regex.new("^(#{@@keywords_s})"), Type::Keyword},
         {Regex.new("^(#{@@builtins_s})"), Type::Builtin},
+        {Regex.new("^(#{@@operators_s})"), Type::Operator},
         {/^(\s+)/, Type::Whitespace},
         {/^\#.*$/, Type::Comment},
         {/^(\()/, Type::OpenParen},
         {/^(\))/, Type::CloseParen},
       ],
       [
-        {/^(∉)/, Type::ZeroArgStatement},
-        {/^(∊(№|🐍))/, Type::OneArgStatement},
-        {/^(∋(№|🐍)(№|🐍))/, Type::TwoArgStatement},
+        {/(№⊚№)/, Type::Expression},
+        {/(∉)/, Type::ZeroArgStatement},
+        {/(∊(№|🐍|😑))/, Type::OneArgStatement},
+        {/(∋(№|🐍|😑)(№|🐍|😑))/, Type::TwoArgStatement},
         {Regex.new("^(#{@@statements_s})+"), Type::Program},
       ],
     ]
@@ -138,7 +163,7 @@ module CrystalRobots::Compiler
       elsif t == Type::Builtin
         t = @@builtins_h[value]
       end
-      # puts "#{t} #{value} #{i}"
+      puts "#{t} #{value} #{i}"
       Node.new(type: t, value: value, index: i)
     end
 
@@ -152,7 +177,15 @@ module CrystalRobots::Compiler
       else
         a = [i[0]]
       end
-      # puts "#{t} #{value} #{a}"
+      puts "#{t} #{value} #{a}"
+      Node.new(type: t, value: value, index: a)
+    end
+
+    def self.mapperExpression(t : Type, m : Regex::MatchData, i : Array(Int32))
+      n = i[0]
+      a = [n+1, n, n+2]
+      value = m[0]
+      puts "#{t} #{value} #{i}"
       Node.new(type: t, value: value, index: a)
     end
 
@@ -162,8 +195,10 @@ module CrystalRobots::Compiler
       Type::Number           => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
       Type::Keyword          => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
       Type::Builtin          => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
+      Type::Operator         => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
       Type::Whitespace       => nil,
       Type::Comment          => nil,
+      Type::Expression       => ->mapperExpression(Type, Regex::MatchData, Array(Int32)),
       Type::ZeroArgStatement => ->mapperStatement(Type, Regex::MatchData, Array(Int32)),
       Type::OneArgStatement  => ->mapperStatement(Type, Regex::MatchData, Array(Int32)),
       Type::TwoArgStatement  => ->mapperStatement(Type, Regex::MatchData, Array(Int32)),

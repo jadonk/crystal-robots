@@ -185,6 +185,12 @@ describe CrystalRobots do
         CrystalRobots::Compiler.interpret("puts 1 puts 2 puts 3")
         CrystalRobots::Compiler::Interpreter.puts_out.should eq "1\n" + "2\n" + "3"
       end
+
+      it "evaluates simple expressions without parentheses" do
+        CrystalRobots::Compiler::Interpreter.puts_clear
+        CrystalRobots::Compiler.interpret("puts 1+2")
+        CrystalRobots::Compiler::Interpreter.puts_out.should eq "3"
+      end
     end
   end
 end

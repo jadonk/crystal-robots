@@ -29,37 +29,53 @@ module CrystalRobots::Compiler
   end
 
   enum Type : Int32
-    String           = 0x0001F40D # 🐍
-    Number           = 0x00002116 # №
-    Keyword          = 0x0001F511 # 🔑 <--
-    BeginKeyword     = 0x0001F512 # 🔒
-    BreakKeyword     = 0x0001F513 # 🔓
-    CaseKeyword      = 0x0001F514 # 🔔
-    DefKeyword       = 0x0001F515 # 🔕
-    DoKeyword        = 0x0001F516 # 🔖
-    ElseKeyword      = 0x0001F517 # 🔗
-    ElsifKeyword     = 0x0001F518 # 🔘
-    EndKeyword       = 0x0001F519 # 🔙
-    FalseKeyword     = 0x0001F51A # 🔚
-    ForKeyword       = 0x0001F51B # 🔛
-    IfKeyword        = 0x0001F51C # 🔜
-    InKeyword        = 0x0001F51D # 🔝
-    NextKeyword      = 0x0001F51E # 🔞
-    NilKeyword       = 0x0001F51F # 🔟
-    RequireKeyword   = 0x0001F520 # 🔠
-    ThenKeyword      = 0x0001F521 # 🔡
-    TrueKeyword      = 0x0001F522 # 🔢
-    WhileKeyword     = 0x0001F523 # 🔣
-    Builtin          = 0x00002208 # ∈ <--
-    ZeroArgBuiltin   = 0x00002209 # ∉
-    OneArgBuiltin    = 0x0000220A # ∊
-    TwoArgBuiltin    = 0x0000220B # ∋
-    Whitespace       = 0x00002422 # ␢
-    Comment          = 0x0001F4AC # 💬
-    OpenParen        = 0x000027EE # ⟮
-    CloseParen       = 0x000027EF # ⟯
-    Expression       = 0x0001F611 # 😑
-    Statement        = 0x00002762 # ❢ <--
+    String = 0x0001F40D # 🐍
+    Number = 0x00002116 # №
+
+    Operator         = 0x0000229A # ⊚
+    AddOperator      = 0x00002295 # ⊕
+    SubOperator      = 0x00002296 # ⊖
+    MulOperator      = 0x00002297 # ⊗
+    FloorDivOperator = 0x00002298 # ⊘
+    EqOperator       = 0x0000225F # ≟
+    NeOperator       = 0x00002260 # ≠
+    GtOperator       = 0x0000227B # ≻
+    LtOperator       = 0x0000227A # ≺
+    AndOperator      = 0x00002227 # ∧
+    OrOperator       = 0x00002228 # ∨
+    XorOperator      = 0x000022BB # ⊻
+
+    Keyword        = 0x0001F511 # 🔑
+    BeginKeyword   = 0x0001F512 # 🔒
+    BreakKeyword   = 0x0001F513 # 🔓
+    CaseKeyword    = 0x0001F514 # 🔔
+    DefKeyword     = 0x0001F515 # 🔕
+    DoKeyword      = 0x0001F516 # 🔖
+    ElseKeyword    = 0x0001F517 # 🔗
+    ElsifKeyword   = 0x0001F518 # 🔘
+    EndKeyword     = 0x0001F519 # 🔙
+    FalseKeyword   = 0x0001F51A # 🔚
+    ForKeyword     = 0x0001F51B # 🔛
+    IfKeyword      = 0x0001F51C # 🔜
+    InKeyword      = 0x0001F51D # 🔝
+    NextKeyword    = 0x0001F51E # 🔞
+    NilKeyword     = 0x0001F51F # 🔟
+    RequireKeyword = 0x0001F520 # 🔠
+    ThenKeyword    = 0x0001F521 # 🔡
+    TrueKeyword    = 0x0001F522 # 🔢
+    WhileKeyword   = 0x0001F523 # 🔣
+
+    Builtin        = 0x00002208 # ∈
+    ZeroArgBuiltin = 0x00002209 # ∉
+    OneArgBuiltin  = 0x0000220A # ∊
+    TwoArgBuiltin  = 0x0000220B # ∋
+    Whitespace     = 0x00002422 # ␢
+    Comment        = 0x0001F4AC # 💬
+    OpenParen      = 0x000027EE # ⟮
+    CloseParen     = 0x000027EF # ⟯
+    Expression = 0x0001F611 # 😑
+
+    Statement        = 0x00002762 # ❢
     ZeroArgStatement = 0x00002763 # ❣
     OneArgStatement  = 0x00002764 # ❤
     TwoArgStatement  = 0x00002765 # ❥
