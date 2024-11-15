@@ -37,7 +37,7 @@ test:
     - bin/examples-rook
     - bin/examples-sniper
     - bin/examples-target
-    - bin/crystal-robots -c examples/test -o examples/test.wasm
+    - bin/crystal-robots -c examples/test.cr -o examples/test.wasm
   artifacts:
     paths:
       - test.wasm
