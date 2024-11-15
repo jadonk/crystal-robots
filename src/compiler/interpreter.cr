@@ -3,17 +3,17 @@ module CrystalRobots::Compiler
     def self.execute(p : Program)
       retval = Nil
       if p.size > 2
+        i = p.size - 2
+        j = 0
         while true
-          i = p.size - 2
-          j = 0
           r = executeStatement(p, i, j)
-          puts "#{p[i][j].type.value.chr} -> #{r[:ret]}"
-          i = r[:i]
-          j = r[:j]
+          # puts "#{p[i][j].type.value.chr} -> ret: #{retval}, i: #{r[:i]}, j: #{r[:j]}, exit: #{r[:exit]}}"
+          retval = r[:ret]
           if r[:exit]
-            retval = r[:ret]
             break
           end
+          i = r[:i]
+          j = r[:j]
         end
       end
       retval
@@ -28,7 +28,7 @@ module CrystalRobots::Compiler
       when Type::OneArgStatement
         cmd = p[i - 1][stmt.index[0]]
         arg = p[i - 1][stmt.index[1]]
-        puts "calling #{cmd.value}(#{arg.value})"
+        # puts "calling #{cmd.value}(#{arg.value})"
         retval = oneArgCall(cmd.value, arg.value)
         j += 1
         if j < p[i].size

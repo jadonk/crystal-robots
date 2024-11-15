@@ -175,6 +175,10 @@ describe CrystalRobots do
       it "returns success" do
         CrystalRobots::Compiler.interpret("puts 42").should eq 0
       end
+
+      it "performs multiple statments" do
+        CrystalRobots::Compiler.interpret("puts 42 puts 11 puts 19").should eq 0
+      end
     end
   end
 end
