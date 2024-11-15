@@ -179,6 +179,12 @@ describe CrystalRobots do
       it "performs multiple statments" do
         CrystalRobots::Compiler.interpret("puts 42 puts 11 puts 19").should eq 0
       end
+
+      it "captures output from puts" do
+        CrystalRobots::Compiler::Interpreter.puts_clear
+        CrystalRobots::Compiler.interpret("puts 1 puts 2 puts 3")
+        CrystalRobots::Compiler::Interpreter.puts_out.should eq "1\n" + "2\n" + "3"
+      end
     end
   end
 end

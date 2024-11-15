@@ -1,5 +1,7 @@
 module CrystalRobots::Compiler
   class Interpreter
+    @@puts_out = Array(String).new
+
     def self.execute(p : Program)
       retval = Nil
       if p.size > 2
@@ -41,13 +43,26 @@ module CrystalRobots::Compiler
     def self.oneArgCall(name, arg0)
       case name
       when "puts"
-        r = puts arg0
+        r = i_puts arg0
         if r.nil?
           r = 0_i32
         else
           r = r.to_i32
         end
       end
+    end
+
+    def self.i_puts(x)
+      @@puts_out << "#{x}"
+      0_i32
+    end
+
+    def self.puts_clear
+      @@puts_out = Array(String).new
+    end
+
+    def self.puts_out
+      @@puts_out.join("\n")
     end
   end
 end
