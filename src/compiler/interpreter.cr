@@ -43,12 +43,7 @@ module CrystalRobots::Compiler
     def self.oneArgCall(name, arg0)
       case name
       when "puts"
-        r = i_puts arg0
-        if r.nil?
-          r = 0_i32
-        else
-          r = r.to_i32
-        end
+        i_puts arg0
       end
     end
 
