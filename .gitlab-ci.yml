@@ -12,6 +12,7 @@ build:
     - crystal build --prelude=../src/prelude.cr examples/rook.cr -o bin/examples-rook
     - crystal build --prelude=../src/prelude.cr examples/sniper.cr -o bin/examples-sniper
     - crystal build --prelude=../src/prelude.cr examples/target.cr -o bin/examples-target
+    - crystal build --prelude=../src/prelude.cr examples/counter.cr examples/rabbit.cr examples/rook.cr examples/sniper.cr -o bin/examples
   artifacts:
     paths:
       - bin/crystal-robots
@@ -21,6 +22,7 @@ build:
       - bin/examples-rook
       - bin/examples-sniper
       - bin/examples-target
+      - bin/examples
 
 test:
   stage: test
@@ -40,6 +42,7 @@ test:
     - bin/examples-rook
     - bin/examples-sniper
     - bin/examples-target
+    - bin/examples
     - bin/crystal-robots -c examples/test.cr -o examples/test.wasm
   artifacts:
     paths:

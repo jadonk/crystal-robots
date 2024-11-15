@@ -17,6 +17,6 @@ targets:
   crystal-robots:
     main: src/cli.cr
 
-crystal: '>= 1.8.0'
+crystal: '>= 1.14.0'
 
 license: GPLv2

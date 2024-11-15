@@ -1,6 +1,7 @@
 # TODO: Write documentation for `CrystalRobots`
 require "./compiler"
 require "option_parser"
+require "wait_group"
 
 module CrystalRobots
   VERSION = "0.0.1"
@@ -71,11 +72,10 @@ module CrystalRobots
 
     def run
       if !@program.nil?
-        puts "Running robot '#{@name}.#{@i}'"
+        puts "Starting robot '#{@name}.#{@i}'"
         begin
-          program = @program.not_nil!
-          p = ->{ program.call(self) }
-          Fiber.new(name: "#{@name}.#{@i}", proc: p)
+          p = @program.not_nil!
+          p.call(self)
         rescue ex
           puts "Stopping robot '#{@name}.#{@i}' : #{ex.message}"
         end
@@ -83,8 +83,9 @@ module CrystalRobots
     end
 
     def debug(s)
+      Fiber.yield
       @calls += 1
-      puts "#{@calls}: #{s}"
+      puts "#{@calls}: #{@name}.#{@i} #{s}"
       if @calls >= MAX_CALLS
         raise "Maximum number of calls reached"
       end
@@ -217,9 +218,13 @@ module CrystalRobots
       # TODO: Call for battle
       puts "Start by running each of #{@robots_to_battle}"
       Robot.robots.not_nil!
-      Robot.robots.each do |robot|
-        puts "Running #{robot.name}"
-        robot.run
+      WaitGroup.wait do |wg|
+        Robot.robots.each do |robot|
+          wg.spawn do
+            puts "Running #{robot.name}"
+            robot.run
+          end
+        end
       end
     end
 
