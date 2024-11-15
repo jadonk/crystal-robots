@@ -7,6 +7,7 @@
 #
 # ## Features missing
 require "./parser.cr"
+require "./interpreter.cr"
 require "./wasm_emitter.cr"
 
 module CrystalRobots::Compiler
@@ -20,6 +21,11 @@ module CrystalRobots::Compiler
     p = Parser.new(src)
     # puts "Emitting WASM from #{p}"
     WASM_Emitter.new(p.program).to_wasm
+  end
+
+  def self.interpret(src)
+    p = Parser.new(src)
+    Interpreter.execute(p.program)
   end
 
   enum Type : Int32
@@ -87,6 +93,10 @@ module CrystalRobots::Compiler
 
     def map(& : Array(Node) -> String) : Array(String)
       Array(String).new(@ast.size) { |i| yield @ast[i] }
+    end
+
+    def size
+      @ast.size
     end
   end
 end

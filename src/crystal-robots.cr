@@ -162,6 +162,7 @@ module CrystalRobots
     @robot_to_compile : String | Nil
     @robots_to_battle : Array(String) | Nil
     @port : UInt32 | Nil
+    @outfile : String | Nil
 
     def initialize
       @matches = 1
@@ -179,8 +180,14 @@ module CrystalRobots
       end
 
       if !@robot_to_compile.nil?
-        # TODO: load file and actually pass it to the compiler
-        STDOUT.write(Compiler.compile_to_wasm("puts 42"))
+        STDERR.puts "Compiling #{@robot_to_compile}"
+        source = File.read("#{@robot_to_compile}")
+        binfile = Compiler.compile_to_wasm(source)
+        if @outfile.nil?
+          STDOUT.write(binfile)
+        else
+          File.write("#{@outfile}", binfile)
+        end
         return 0
       end
 
@@ -230,10 +237,11 @@ module CrystalRobots
         @interpreter = true
       end
       parser.on "-c ROBOT", "--compile=ROBOT", "Compile robot source only and output WebAssembly (WASM)" do |robot|
-        # TODO: call the compiler and output .WASM with symbol tables
-        STDERR.puts "Compiling #{robot}"
         @robot_to_compile = robot
         parser.stop
+      end
+      parser.on "-o OUTFILE", "--output=OUTFILE", "Write compiled robot to OUTFILE" do |outfile|
+        @outfile = outfile
       end
       parser.on "-m MATCHES", "--matches=MATCHES", "Run MATCHES matches" do |matches|
         # TODO: run the battlefield simulator repeatedly
@@ -268,8 +276,4 @@ module CrystalRobots
       end
     end
   end
-end
-
-at_exit do
-  CrystalRobots::CLI.new
 end
