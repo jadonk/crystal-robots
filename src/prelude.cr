@@ -12,6 +12,7 @@ require "prelude"
 require "random"
 require "math"
 require "./crystal-robots"
+require "./cli"
 
 macro global(varname, initialval)
   class Globals

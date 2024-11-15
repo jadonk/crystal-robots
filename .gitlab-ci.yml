@@ -7,6 +7,7 @@ build:
     - shards update
     - shards build
     - crystal build --prelude=../src/prelude.cr examples/test.cr -o bin/examples-test
+    - crystal build --prelude=../src/prelude.cr examples/counter.cr -o bin/examples-counter
     - crystal build --prelude=../src/prelude.cr examples/rabbit.cr -o bin/examples-rabbit
     - crystal build --prelude=../src/prelude.cr examples/rook.cr -o bin/examples-rook
     - crystal build --prelude=../src/prelude.cr examples/sniper.cr -o bin/examples-sniper
@@ -15,6 +16,7 @@ build:
     paths:
       - bin/crystal-robots
       - bin/examples-test
+      - bin/examples-counter
       - bin/examples-rabbit
       - bin/examples-rook
       - bin/examples-sniper
@@ -33,6 +35,7 @@ test:
     - bin/crystal-robots -v
     - bin/crystal-robots
     - bin/examples-test
+    - bin/examples-counter
     - bin/examples-rabbit
     - bin/examples-rook
     - bin/examples-sniper
