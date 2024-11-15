@@ -52,53 +52,53 @@ module CrystalRobots::Compiler
 
     # These are language keywords that generate various statement types
     @@keywords = [
-      "begin",
-      "break",
-      "case",
-      "def",
-      "do",
-      "else",
-      "elsif",
-      "end",
-      "false",
-      "for",
-      "if",
-      "in",
-      "next",
-      "nil",
-      "require",
-      "then",
-      "true",
-      "while",
+      {"begin", Type::BeginKeyword},
+      {"break", Type::BreakKeyword},
+      {"case", Type::CaseKeyword},
+      {"def", Type::DefKeyword},
+      {"do", Type::DoKeyword},
+      {"else", Type::ElseKeyword},
+      {"elsif", Type::ElsifKeyword},
+      {"end", Type::EndKeyword},
+      {"false", Type::FalseKeyword},
+      {"for", Type::ForKeyword},
+      {"if", Type::IfKeyword},
+      {"in", Type::InKeyword},
+      {"next", Type::NextKeyword},
+      {"nil", Type::NilKeyword},
+      {"require", Type::RequireKeyword},
+      {"then", Type::ThenKeyword},
+      {"true", Type::TrueKeyword},
+      {"while", Type::WhileKeyword},
     ]
     @@keywords_s : String
-    @@keywords_s = @@keywords.join("|")
-    @@keywords_h = Hash(String, Int32).new(0)
+    @@keywords_s = (@@keywords.map { |s, n| s }).join("|")
+    @@keywords_h = Hash(String, Type).new
     @@keywords.each_index do |i|
-      @@keywords_h[@@keywords[i]] = i + 1
+      @@keywords_h[@@keywords[i][0]] = @@keywords[i][1]
     end
 
     # These are methods already defined
     @@builtins = [
-      {"main", 2},
-      {"puts", 1},
-      {"scan", 2},
-      {"cannon", 2},
-      {"drive", 2},
-      {"damage", 0},
-      {"speed", 0},
-      {"loc_x", 0},
-      {"loc_y", 0},
-      {"rand", 1},
-      {"sqrt", 1},
-      {"sin", 1},
-      {"cos", 1},
-      {"tan", 1},
-      {"atan", 1},
+      {"main", Type::TwoArgBuiltin},
+      {"puts", Type::OneArgBuiltin},
+      {"scan", Type::TwoArgBuiltin},
+      {"cannon", Type::TwoArgBuiltin},
+      {"drive", Type::TwoArgBuiltin},
+      {"damage", Type::ZeroArgBuiltin},
+      {"speed", Type::ZeroArgBuiltin},
+      {"loc_x", Type::ZeroArgBuiltin},
+      {"loc_y", Type::ZeroArgBuiltin},
+      {"rand", Type::OneArgBuiltin},
+      {"sqrt", Type::OneArgBuiltin},
+      {"sin", Type::OneArgBuiltin},
+      {"cos", Type::OneArgBuiltin},
+      {"tan", Type::OneArgBuiltin},
+      {"atan", Type::OneArgBuiltin},
     ]
     @@builtins_s : String
     @@builtins_s = (@@builtins.map { |s, n| s }).join("|")
-    @@builtins_h = Hash(String, Int32).new(0)
+    @@builtins_h = Hash(String, Type).new
     @@builtins.each_index do |i|
       @@builtins_h[@@builtins[i][0]] = @@builtins[i][1]
     end
@@ -134,9 +134,9 @@ module CrystalRobots::Compiler
     def self.mapperDefault(t : Type, m : Regex::MatchData, i : Array(Int32))
       value = m[0]
       if t == Type::Keyword
-        t += @@keywords_h[value]
+        t = @@keywords_h[value]
       elsif t == Type::Builtin
-        t += @@builtins_h[value] + 1
+        t = @@builtins_h[value]
       end
       # puts "#{t} #{value} #{i}"
       Node.new(type: t, value: value, index: i)
