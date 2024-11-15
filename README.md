@@ -24,6 +24,42 @@ TODO: Write installation instructions here
 
 TODO: Write usage instructions here
 
+The primary method for using `crystal-robots` is by using my hosted server. The compiler is built into the web page. You can provide sources for the various robots and watch them battle it out.
+
+There are a lot of other methods to battle your `crystal-robots` and each peels back a layer to teach you more about full-stack programming.
+
+### My hosted server
+
+Browse to https://jkridner.beagleboard.io/crystal-robots and ...
+
+### Self-hosted server
+
+Start your own server by invoking `crystal-robots` and specifying a port ...
+
+```
+bin/crystal-robots -p 8080
+```
+
+### Compiled to native code with `crystal`
+
+To setup the environment for your robots, use `prelude.cr` ...
+
+```
+crystal run --prelude=../src/prelude robot1.cr robot2.cr robot3.cr robot4.cr -- -m 500
+```
+
+### Command-line interpretation by `crystal-robots`
+
+Using the `crystal-robots` compiler, you can perform battles by running the built-in interpreter ...
+
+```
+bin/crystal-robots -i -m 5 robot1.cr robot2.cr robot3.cr robot4.cr
+```
+
+### Compiled to WASM by `crystal-robots` and executed with `wasmer`
+
+
+
 ## Support
 
 TODO: Write support instructions here
