@@ -1,6 +1,13 @@
 require "./spec_helper"
 
 describe CrystalRobots do
+  it "has a valid version" do
+    SemanticVersion.parse(CrystalRobots::VERSION)
+  end
+
+  describe "CLI" do
+  end
+
   describe "Robot" do
   end
 

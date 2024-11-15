@@ -1,6 +1,7 @@
 require "spec"
 require "../src/crystal-robots"
 require "wasmer"
+require "semantic_version"
 
 class WASMSpec
   getter last_puts : String
