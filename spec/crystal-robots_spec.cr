@@ -164,7 +164,7 @@ describe CrystalRobots do
 
   describe "Interpreter" do
     it "returns success" do
-      CrystalRobots::Compiler.interpret("puts 42").should eq "success"
+      CrystalRobots::Compiler.interpret("puts 42").should eq 0
     end
   end
 end
