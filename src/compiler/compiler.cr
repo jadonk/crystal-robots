@@ -115,4 +115,11 @@ module CrystalRobots::Compiler
       @ast.size
     end
   end
+
+  # PC stands for ProgramCounter. I want to keep it short as it might show
+  # up in a fair bit of code.
+  # My plan is to use this as a way to better work with pointing into the AST
+  struct PC
+    property pass, index
+  end
 end
