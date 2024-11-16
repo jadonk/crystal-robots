@@ -77,6 +77,8 @@ module CrystalRobots::Compiler
       case name
       when "puts"
         i_puts arg0
+      else
+        raise "unknown method: #{name}"
       end
     end
 

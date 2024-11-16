@@ -148,7 +148,7 @@ module CrystalRobots::Compiler
         {/^(\))/, Type::CloseParen},
       ],
       [
-        {/^[^№🐍]*(№⊚№)/, Type::Expression},
+        {/(№⊚№)/, Type::Expression},
         {/^(∉)/, Type::ZeroArgStatement},
         {/^(∊(№|🐍|😑))/, Type::OneArgStatement},
         {/^(∋(№|🐍|😑)(№|🐍|😑))/, Type::TwoArgStatement},
@@ -164,7 +164,7 @@ module CrystalRobots::Compiler
         t = @@builtins_h[value]
       end
       puts "default: #{t} #{value} #{i}"
-      Node.new(type: t, value: value, index: i)
+      [ Node.new(type: t, value: value, index: i) ]
     end
 
     def self.mapperStatement(t : Type, m : Regex::MatchData, i : Array(Int32))
@@ -178,26 +178,24 @@ module CrystalRobots::Compiler
         a = [i[0]]
       end
       puts "statment: #{t} #{value} #{a}"
-      Node.new(type: t, value: value, index: a)
+      [ Node.new(type: t, value: value, index: a) ]
     end
 
     def self.mapperExpression(t : Type, m : Regex::MatchData, i : Array(Int32))
       n = i[0]
       a = [n+1, n, n+2]
       value = m[0]
-      puts "expression: #{t} #{value} #{i}"
-      Node.new(type: t, value: value, index: a)
+      puts "expression: #{t} #{value} #{i} @ #{m.begin(0)}"
+      tokens = Array(Node).new
+      m.begin(0).times do |j|
+        puts "need to push #{m.string[j]}"
+        n_off = n - m.begin(0) + j
+        tokens << Node.new(type: Type.new(m.string[j].ord), value: "passthrough", index: [n_off])
+      end
+      tokens << Node.new(type: t, value: value, index: a)
     end
 
-    def self.mapperPassthrough(t : Type, m : Regex::MatchData, i : Array(Int32))
-      n = i[0]
-      a = [n]
-      value = m[0]
-      puts "passthrough: #{t} #{value} #{i}"
-      Node.new(type: t, value: value, index: a)
-    end
-
-    @@mappers : Hash(Type, Proc(Type, Regex::MatchData, Array(Int32), Node) | Nil)
+    @@mappers : Hash(Type, Proc(Type, Regex::MatchData, Array(Int32), Array(Node)) | Nil)
     @@mappers = {
       Type::String           => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
       Type::Number           => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
@@ -207,8 +205,6 @@ module CrystalRobots::Compiler
       Type::Whitespace       => nil,
       Type::Comment          => nil,
       Type::Expression       => ->mapperExpression(Type, Regex::MatchData, Array(Int32)),
-      Type::OneArgBuiltin => ->mapperPassthrough(Type, Regex::MatchData, Array(Int32)),
-      Type::TwoArgBuiltin  => ->mapperPassthrough(Type, Regex::MatchData, Array(Int32)),
       Type::ZeroArgStatement => ->mapperStatement(Type, Regex::MatchData, Array(Int32)),
       Type::OneArgStatement  => ->mapperStatement(Type, Regex::MatchData, Array(Int32)),
       Type::TwoArgStatement  => ->mapperStatement(Type, Regex::MatchData, Array(Int32)),
@@ -240,10 +236,10 @@ module CrystalRobots::Compiler
             c = mapper.not_nil!
             t = c.call(matches[0][:type], matches[0][:m], [index])
             if !t.nil?
-              tokens << t
+              tokens.concat(t)
             end
           end
-          index += matches[0][:m][0].begin + matches[0][:m][0].size
+          index += matches[0][:m].begin(0) + matches[0][:m][0].size
         else
           raise Error.new("Unexpected match in token array #{src[index..index + 1]}")
         end
