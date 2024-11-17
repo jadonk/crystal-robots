@@ -6,6 +6,16 @@ require "wait_group"
 module CrystalRobots
   VERSION = "0.0.1"
 
+  class Log
+    @@loglevel = 1
+
+    def self.d(s)
+      if @@loglevel > 0
+        puts s
+      end
+    end
+  end
+
   class Robot
     @@num_robots = 0
     @@robots = [] of Robot

@@ -7,7 +7,7 @@ module CrystalRobots::Compiler
       retval = Nil
       while true
         r = executeStatement(p)
-        # puts "#{p.node.type.value.chr} -> ret: #{retval}, i: #{r[:pc]}, exit: #{r[:exit]}}"
+        Log.d "#{p.node.type.value.chr} -> ret: #{retval}, i: #{r[:pc]}, exit: #{r[:exit]}"
         retval = r[:ret]
         if r[:exit]
           break
@@ -33,7 +33,7 @@ module CrystalRobots::Compiler
       when Type::OneArgStatement
         cmd = p.arg(0)
         arg = p.arg(1)
-        # puts "calling #{cmd.value}(#{arg.value})"
+        Log.d "calling #{cmd.value}(#{arg.value})"
         retval = oneArgCall(cmd.value, arg.value)
         pc = pc.inc(2)
       end

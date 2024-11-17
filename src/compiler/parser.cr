@@ -31,7 +31,7 @@ module CrystalRobots::Compiler
       program = Program.new
       src = source
       while src != "⏹" && src != ""
-        puts "tokenize(#{program.pc.pass}, #{src})"
+        Log.d "tokenize(#{program.pc.pass}, #{src})"
         t = tokenize(program, src)
         program.add_pass(t)
         src = tokens_to_s(t)
