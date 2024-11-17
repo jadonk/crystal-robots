@@ -164,7 +164,7 @@ module CrystalRobots::Compiler
         t = @@builtins_h[value]
       end
       puts "default: #{t} #{value} #{i}"
-      [ Node.new(type: t, value: value, index: i) ]
+      [Node.new(type: t, value: value, index: i)]
     end
 
     def self.mapperStatement(t : Type, m : Regex::MatchData, i : Array(Int32))
@@ -178,12 +178,12 @@ module CrystalRobots::Compiler
         a = [i[0]]
       end
       puts "statment: #{t} #{value} #{a}"
-      [ Node.new(type: t, value: value, index: a) ]
+      [Node.new(type: t, value: value, index: a)]
     end
 
     def self.mapperExpression(t : Type, m : Regex::MatchData, i : Array(Int32))
       n = i[0]
-      a = [n+1, n, n+2]
+      a = [n + 1, n, n + 2]
       value = m[0]
       puts "expression: #{t} #{value} #{i} @ #{m.begin(0)}"
       tokens = Array(Node).new

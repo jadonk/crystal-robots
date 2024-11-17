@@ -73,7 +73,7 @@ module CrystalRobots::Compiler
     Comment        = 0x0001F4AC # 💬
     OpenParen      = 0x000027EE # ⟮
     CloseParen     = 0x000027EF # ⟯
-    Expression = 0x0001F611 # 😑
+    Expression     = 0x0001F611 # 😑
 
     Statement        = 0x00002762 # ❢
     ZeroArgStatement = 0x00002763 # ❣
@@ -121,5 +121,16 @@ module CrystalRobots::Compiler
   # My plan is to use this as a way to better work with pointing into the AST
   struct PC
     property pass, index
+
+    def initizlize(@pass : Int32, @index : Int32)
+    end
+
+    def node
+      @ast[pass][index]
+    end
+
+    def inc
+      @index += 1
+    end
   end
 end
