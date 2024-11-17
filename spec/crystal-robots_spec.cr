@@ -81,7 +81,7 @@ describe CrystalRobots do
         ast = p.program
         s = p.to_s
         s.should eq "∊🐍\n❤\n⏹"
-        "#{ast}".should eq "CrystalRobots::Compiler::Program(@ast=[[CrystalRobots::Compiler::Node(@type=CrystalRobots::Compiler::Type::OneArgBuiltin, @value=\"puts\", @index=[1]), CrystalRobots::Compiler::Node(@type=CrystalRobots::Compiler::Type::String, @value=\"\\\"string\\\"\", @index=[6])], [CrystalRobots::Compiler::Node(@type=CrystalRobots::Compiler::Type::OneArgStatement, @value=\"∊🐍\", @index=[0, 1])], [CrystalRobots::Compiler::Node(@type=CrystalRobots::Compiler::Type::Program, @value=\"❤\", @index=[0])]])"
+        "#{ast}".should eq "CrystalRobots::Compiler::Program(@ast=[[CrystalRobots::Compiler::Node(@type=CrystalRobots::Compiler::Type::OneArgBuiltin, @value=\"puts\", @index=[1]), CrystalRobots::Compiler::Node(@type=CrystalRobots::Compiler::Type::String, @value=\"\\\"string\\\"\", @index=[6])], [CrystalRobots::Compiler::Node(@type=CrystalRobots::Compiler::Type::OneArgStatement, @value=\"∊🐍\", @index=[0, 1])], [CrystalRobots::Compiler::Node(@type=CrystalRobots::Compiler::Type::Program, @value=\"❤\", @index=[0])]], @pass=3, @index=0)"
       end
     end
 

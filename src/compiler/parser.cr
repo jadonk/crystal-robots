@@ -24,30 +24,30 @@
 module CrystalRobots::Compiler
   class Parser
     def initialize(source : String)
-      @ast = Program.new
+      @program = Program.new
     end
 
     def self.new(src : String)
       a = 0
-      ast = Program.new
+      program = Program.new
       while src != "⏹" && src != ""
         puts "tokenize(#{a}, #{src})"
         nodes = tokenize(a, src)
-        ast << nodes
+        program.pass(nodes)
         src = tokens_to_s(nodes)
         a = 1
       end
       i = Parser.allocate
       i.initialize(src)
-      i.program = ast
+      i.program = program
       i
     end
 
     def program
-      @ast
+      @program
     end
 
-    protected def program=(@ast : Program)
+    protected def program=(@program : Program)
     end
 
     # These are language keywords that generate various statement types
@@ -190,7 +190,9 @@ module CrystalRobots::Compiler
       m.begin(0).times do |j|
         puts "need to push #{m.string[j]}"
         n_off = n - m.begin(0) + j
-        tokens << Node.new(type: Type.new(m.string[j].ord), value: "passthrough", index: [n_off])
+        pc = PC.new(@program.pass - 1, n_off)
+        node = @program.node(pc)
+        tokens << Node.new(type: Type.new(m.string[j].ord), value: node.value, index: [n_off])
       end
       tokens << Node.new(type: t, value: value, index: a)
     end
@@ -256,7 +258,7 @@ module CrystalRobots::Compiler
     end
 
     def to_s
-      @ast.map { |a| tokens_to_s(a) }.join('\n')
+      @program.map { |a| tokens_to_s(a) }.join('\n')
     end
 
     # TODO: Implement to_json

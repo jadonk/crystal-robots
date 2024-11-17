@@ -89,18 +89,46 @@ module CrystalRobots::Compiler
     end
   end
 
+  struct PC
+    property pass, index
+
+    def initialize(@pass : Int32, @index : Int32)
+    end
+
+    def inc
+      @index += 1
+    end
+
+    def inc(i : Int32)
+      @index += i
+    end
+  end
+
   struct Program
-    property ast
+    property ast, pc
 
     def initialize
       @ast = [] of Array(Node)
+      @pc = PC.new(0, 0)
     end
 
-    def initialize(@ast : Array(Array(Node)))
+    def initialize(@ast : Array(Array(Node)), @pc : PC)
+    end
+
+    def <<(token : Node)
+      @index += 1
+      @ast[@pc.pass] << token
     end
 
     def <<(tokens : Array(Node))
+      @index += tokens.size
+      @ast[@pc.@pass].concat(tokens)
+    end
+
+    def pass(tokens : Array(Node))
       @ast << tokens
+      @pc.index = 0
+      @pc.pass += 1
     end
 
     def [](i)
@@ -111,26 +139,57 @@ module CrystalRobots::Compiler
       Array(String).new(@ast.size) { |i| yield @ast[i] }
     end
 
+    def node
+      @ast[@pc.pass][@pc.index]
+    end
+
+    def node(pc : PC)
+      @ast[pc.pass][pc.index]
+    end
+
     def size
       @ast.size
     end
-  end
-
-  # PC stands for ProgramCounter. I want to keep it short as it might show
-  # up in a fair bit of code.
-  # My plan is to use this as a way to better work with pointing into the AST
-  struct PC
-    property pass, index
-
-    def initizlize(@pass : Int32, @index : Int32)
-    end
-
-    def node
-      @ast[pass][index]
-    end
 
     def inc
-      @index += 1
+      @pc.inc
+    end
+
+    def inc(i : Int32)
+      @pc.inc(i)
+    end
+
+    def start
+      @pc.pass = @ast.size - 1
+      @pc.index = 0
+    end
+
+    def next_pass
+      @pc.pass += 1
+      @pc.index = 0
+    end
+
+    def jump(pc : PC)
+      @pc = pc
+    end
+
+    def test_pc(pc : PC)
+      pc.pass >= 0 && pc.index >= 0 && pc.pass < @ast.size && pc.index < @ast[pass].size
+    end
+
+    def arg(pc : PC, n : Int32)
+      if pc.pass <= 0
+        raise "I need to add handling of indexes into the source string"
+      end
+      if n >= node.index.size
+        raise "Not enough arguments"
+      end
+      @ast[pc.pass - 1][node.index[n]]
+    end
+
+    # Program#arg(0) should return the first Node pointed to by the current Node
+    def arg(n : Int32)
+      arg(@pc, n)
     end
   end
 end
