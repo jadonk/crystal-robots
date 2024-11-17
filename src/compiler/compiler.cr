@@ -162,7 +162,10 @@ module CrystalRobots::Compiler
     end
 
     def start
-      @pc.pass = @ast.size - 1
+      if @ast.size < 3
+        raise "not enough passes running tokenize"
+      end
+      @pc.pass = @ast.size - 2
       @pc.index = 0
     end
 
@@ -192,6 +195,16 @@ module CrystalRobots::Compiler
     # Program#arg(0) should return the first Node pointed to by the current Node
     def arg(n : Int32)
       arg(@pc, n)
+    end
+
+    def tokens_to_s(tokens)
+      tokens.map { |token| token.type.value.chr }.join
+    end
+
+    def to_s
+      s = @ast.map { |a| tokens_to_s(a) }.join('\n')
+      t = s
+      "#{t}\n @ #{@pc.pass} , #{@pc.index}"
     end
   end
 end

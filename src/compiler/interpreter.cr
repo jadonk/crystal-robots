@@ -3,6 +3,7 @@ module CrystalRobots::Compiler
     @@puts_out = Array(String).new
 
     def self.execute(p : Program)
+      Log.d("executing #{p.to_s}")
       p.start
       retval = Nil
       while true
@@ -29,13 +30,13 @@ module CrystalRobots::Compiler
         larg = p.arg(0)
         rarg = p.arg(2)
         retval = expression(cmd.type, larg.value, rarg.value)
-        pc = pc.inc(3)
+        pc = pc.inc(1)
       when Type::OneArgStatement
         cmd = p.arg(0)
         arg = p.arg(1)
         Log.d "calling #{cmd.value}(#{arg.value})"
         retval = oneArgCall(cmd.value, arg.value)
-        pc = pc.inc(2)
+        pc = pc.inc(1)
       end
       if p.test_pc(pc)
         do_exit = false
