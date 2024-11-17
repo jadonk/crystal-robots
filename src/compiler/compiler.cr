@@ -97,10 +97,12 @@ module CrystalRobots::Compiler
 
     def inc
       @index += 1
+      self
     end
 
     def inc(i : Int32)
       @index += i
+      self
     end
   end
 
@@ -125,7 +127,7 @@ module CrystalRobots::Compiler
       @ast[@pc.@pass].concat(tokens)
     end
 
-    def pass(tokens : Array(Node))
+    def add_pass(tokens : Array(Node))
       @ast << tokens
       @pc.index = 0
       @pc.pass += 1
@@ -174,7 +176,7 @@ module CrystalRobots::Compiler
     end
 
     def test_pc(pc : PC)
-      pc.pass >= 0 && pc.index >= 0 && pc.pass < @ast.size && pc.index < @ast[pass].size
+      pc.pass >= 0 && pc.index >= 0 && pc.pass < @ast.size && pc.index < @ast[pc.pass].size
     end
 
     def arg(pc : PC, n : Int32)

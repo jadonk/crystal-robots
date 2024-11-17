@@ -27,18 +27,16 @@ module CrystalRobots::Compiler
       @program = Program.new
     end
 
-    def self.new(src : String)
-      a = 0
+    def self.new(source : String)
       program = Program.new
+      src = source
       while src != "⏹" && src != ""
-        puts "tokenize(#{a}, #{src})"
-        nodes = tokenize(a, src)
-        program.pass(nodes)
-        src = tokens_to_s(nodes)
-        a = 1
+        puts "tokenize(#{program.pc.pass}, #{src})"
+        t = tokenize(program, src)
+        program.add_pass(t)
+        src = tokens_to_s(t)
       end
       i = Parser.allocate
-      i.initialize(src)
       i.program = program
       i
     end
@@ -47,7 +45,7 @@ module CrystalRobots::Compiler
       @program
     end
 
-    protected def program=(@program : Program)
+    def program=(@program : Program)
     end
 
     # These are language keywords that generate various statement types
@@ -156,7 +154,7 @@ module CrystalRobots::Compiler
       ],
     ]
 
-    def self.mapperDefault(t : Type, m : Regex::MatchData, i : Array(Int32))
+    def self.mapperDefault(p : Program, t : Type, m : Regex::MatchData, i : Array(Int32))
       value = m[0]
       if t == Type::Keyword
         t = @@keywords_h[value]
@@ -167,7 +165,7 @@ module CrystalRobots::Compiler
       [Node.new(type: t, value: value, index: i)]
     end
 
-    def self.mapperStatement(t : Type, m : Regex::MatchData, i : Array(Int32))
+    def self.mapperStatement(p : Program, t : Type, m : Regex::MatchData, i : Array(Int32))
       value = m[0]
       case t
       when Type::OneArgStatement
@@ -181,7 +179,7 @@ module CrystalRobots::Compiler
       [Node.new(type: t, value: value, index: a)]
     end
 
-    def self.mapperExpression(t : Type, m : Regex::MatchData, i : Array(Int32))
+    def self.mapperExpression(p : Program, t : Type, m : Regex::MatchData, i : Array(Int32))
       n = i[0]
       a = [n + 1, n, n + 2]
       value = m[0]
@@ -190,27 +188,27 @@ module CrystalRobots::Compiler
       m.begin(0).times do |j|
         puts "need to push #{m.string[j]}"
         n_off = n - m.begin(0) + j
-        pc = PC.new(@program.pass - 1, n_off)
-        node = @program.node(pc)
+        pc = PC.new(p.pc.pass - 1, n_off)
+        node = p.node(pc)
         tokens << Node.new(type: Type.new(m.string[j].ord), value: node.value, index: [n_off])
       end
       tokens << Node.new(type: t, value: value, index: a)
     end
 
-    @@mappers : Hash(Type, Proc(Type, Regex::MatchData, Array(Int32), Array(Node)) | Nil)
+    @@mappers : Hash(Type, Proc(Program, Type, Regex::MatchData, Array(Int32), Array(Node)) | Nil)
     @@mappers = {
-      Type::String           => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
-      Type::Number           => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
-      Type::Keyword          => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
-      Type::Builtin          => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
-      Type::Operator         => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
+      Type::String           => ->mapperDefault(Program, Type, Regex::MatchData, Array(Int32)),
+      Type::Number           => ->mapperDefault(Program, Type, Regex::MatchData, Array(Int32)),
+      Type::Keyword          => ->mapperDefault(Program, Type, Regex::MatchData, Array(Int32)),
+      Type::Builtin          => ->mapperDefault(Program, Type, Regex::MatchData, Array(Int32)),
+      Type::Operator         => ->mapperDefault(Program, Type, Regex::MatchData, Array(Int32)),
       Type::Whitespace       => nil,
       Type::Comment          => nil,
-      Type::Expression       => ->mapperExpression(Type, Regex::MatchData, Array(Int32)),
-      Type::ZeroArgStatement => ->mapperStatement(Type, Regex::MatchData, Array(Int32)),
-      Type::OneArgStatement  => ->mapperStatement(Type, Regex::MatchData, Array(Int32)),
-      Type::TwoArgStatement  => ->mapperStatement(Type, Regex::MatchData, Array(Int32)),
-      Type::Program          => ->mapperDefault(Type, Regex::MatchData, Array(Int32)),
+      Type::Expression       => ->mapperExpression(Program, Type, Regex::MatchData, Array(Int32)),
+      Type::ZeroArgStatement => ->mapperStatement(Program, Type, Regex::MatchData, Array(Int32)),
+      Type::OneArgStatement  => ->mapperStatement(Program, Type, Regex::MatchData, Array(Int32)),
+      Type::TwoArgStatement  => ->mapperStatement(Program, Type, Regex::MatchData, Array(Int32)),
+      Type::Program          => ->mapperDefault(Program, Type, Regex::MatchData, Array(Int32)),
     }
 
     class Error < Exception
@@ -218,9 +216,14 @@ module CrystalRobots::Compiler
 
     # matcher is the matcher selection
     # src is the string to tokenize
-    def self.tokenize(matcher : Number, src : String)
+    def self.tokenize(p : Program, src : String)
       tokens = Array(Node).new
       index = 0
+      if p.pc.pass > 0
+        matcher = 1
+      else
+        matcher = 0
+      end
       while index < src.size
         matches = @@matchers[matcher].compact_map do |r, t|
           m = r.match(src[(index..)])
@@ -236,12 +239,13 @@ module CrystalRobots::Compiler
           mapper = @@mappers[matches[0][:type]]
           if !mapper.nil?
             c = mapper.not_nil!
-            t = c.call(matches[0][:type], matches[0][:m], [index])
+            t = c.call(p, matches[0][:type], matches[0][:m], [index])
             if !t.nil?
               tokens.concat(t)
             end
           end
           index += matches[0][:m].begin(0) + matches[0][:m][0].size
+          p.pc.inc
         else
           raise Error.new("Unexpected match in token array #{src[index..index + 1]}")
         end
