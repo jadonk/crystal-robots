@@ -104,6 +104,10 @@ module CrystalRobots::Compiler
       @index += i
       self
     end
+    
+    def to_s
+      "@(#{@pass},#{@index})"
+    end
   end
 
   struct Program
@@ -142,10 +146,12 @@ module CrystalRobots::Compiler
     end
 
     def node
+      Log.d "Fetching node #{@pc}"
       @ast[@pc.pass][@pc.index]
     end
 
     def node(pc : PC)
+      Log.d "Fetching node #{pc}"
       @ast[pc.pass][pc.index]
     end
 
@@ -204,7 +210,7 @@ module CrystalRobots::Compiler
     def to_s
       s = @ast.map { |a| tokens_to_s(a) }.join('\n')
       t = s
-      "#{t}\n @ #{@pc.pass} , #{@pc.index}"
+      "#{t}\n @ #{@pc.pass},#{@pc.index}"
     end
   end
 end

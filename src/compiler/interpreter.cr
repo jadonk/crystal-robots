@@ -26,8 +26,8 @@ module CrystalRobots::Compiler
       do_exit = true
       case stmt_t
       when Type::Expression
-        cmd = p.arg(1)
-        larg = p.arg(0)
+        cmd = p.arg(0)
+        larg = p.arg(1)
         rarg = p.arg(2)
         retval = expression(cmd.type, larg.value, rarg.value)
         pc = pc.inc(1)

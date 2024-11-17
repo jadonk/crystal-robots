@@ -161,7 +161,7 @@ module CrystalRobots::Compiler
       elsif t == Type::Builtin
         t = @@builtins_h[value]
       end
-      puts "default: #{t} #{value} #{i}"
+      Log.d "default: #{t} #{value} #{i}"
       [Node.new(type: t, value: value, index: i)]
     end
 
@@ -175,7 +175,7 @@ module CrystalRobots::Compiler
       else
         a = [i[0]]
       end
-      puts "statment: #{t} #{value} #{a}"
+      Log.d "statment: #{t} #{value} #{a}"
       [Node.new(type: t, value: value, index: a)]
     end
 
@@ -183,13 +183,14 @@ module CrystalRobots::Compiler
       n = i[0]
       a = [n + 1, n, n + 2]
       value = m[0]
-      puts "expression: #{t} #{value} #{i} @ #{m.begin(0)}"
+      Log.d "expression: #{t} #{value} #{i} @ #{m.begin(0)}"
       tokens = Array(Node).new
       m.begin(0).times do |j|
-        puts "need to push #{m.string[j]}"
+        Log.d "need to push #{m.string[j]} #{n} #{m.begin(0)} #{j}"
         n_off = n - m.begin(0) + j
-        pc = PC.new(p.pc.pass - 1, n_off)
+        pc = PC.new(p.pc.pass-1, n_off)
         node = p.node(pc)
+        Log.d "node #{node} @ #{pc}"
         tokens << Node.new(type: Type.new(m.string[j].ord), value: node.value, index: [n_off])
       end
       tokens << Node.new(type: t, value: value, index: a)
@@ -225,6 +226,7 @@ module CrystalRobots::Compiler
         matcher = 0
       end
       while index < src.size
+        m_off = 0
         matches = @@matchers[matcher].compact_map do |r, t|
           m = r.match(src[(index..)])
           if m.nil?
@@ -239,12 +241,13 @@ module CrystalRobots::Compiler
           mapper = @@mappers[matches[0][:type]]
           if !mapper.nil?
             c = mapper.not_nil!
-            t = c.call(p, matches[0][:type], matches[0][:m], [index])
+            m_off = matches[0][:m].begin(0)
+            t = c.call(p, matches[0][:type], matches[0][:m], [index+m_off])
             if !t.nil?
               tokens.concat(t)
             end
           end
-          index += matches[0][:m].begin(0) + matches[0][:m][0].size
+          index += m_off + matches[0][:m][0].size
           p.pc.inc
         else
           raise Error.new("Unexpected match in token array #{src[index..index + 1]}")
@@ -259,10 +262,6 @@ module CrystalRobots::Compiler
 
     def self.tokens_to_s(tokens)
       tokens.map { |token| token.type.value.chr }.join
-    end
-
-    def to_s
-      @program.map { |a| tokens_to_s(a) }.join('\n')
     end
 
     # TODO: Implement to_json

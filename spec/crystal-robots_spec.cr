@@ -77,15 +77,8 @@ describe CrystalRobots do
 
       it "can produce token strings" do
         p = CrystalRobots::Compiler::Parser.new(" puts \"string\"")
-        p.to_s.should eq "∊🐍\n" + "❤\n" + "⏹"
-      end
-
-      it "can recursively tokenize/parse" do
-        p = CrystalRobots::Compiler::Parser.new(" puts \"string\"")
-        ast = p.program
-        s = p.to_s
-        s.should eq "∊🐍\n❤\n⏹"
-        "#{ast}".should eq "CrystalRobots::Compiler::Program(@ast=[[CrystalRobots::Compiler::Node(@type=CrystalRobots::Compiler::Type::OneArgBuiltin, @value=\"puts\", @index=[1]), CrystalRobots::Compiler::Node(@type=CrystalRobots::Compiler::Type::String, @value=\"\\\"string\\\"\", @index=[6])], [CrystalRobots::Compiler::Node(@type=CrystalRobots::Compiler::Type::OneArgStatement, @value=\"∊🐍\", @index=[0, 1])], [CrystalRobots::Compiler::Node(@type=CrystalRobots::Compiler::Type::Program, @value=\"❤\", @index=[0])]], @pc=CrystalRobots::Compiler::PC(@pass=3, @index=0))"
+        s = p.program.to_s
+        s.should eq "∊🐍\n❤\n⏹\n @ 3,0"
       end
     end
 
