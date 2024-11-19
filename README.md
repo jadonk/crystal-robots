@@ -4,36 +4,93 @@ A great way to learn about programming with a simple Ruby-like syntax. Write pro
 it out with other programs on a virtual battlefield. Then, learn about how programming languages
 turn your code into instructions a machine can understand.
 
-Inspired by [CROBOTS - a programming game, for programmers, or aspiring programmers](http://tpoindex.github.io/crobots/),
-the [Crystal Programming Language - A language for humans and computers](https://crystal-lang.org/),
-and [chasm - a simple compile-to-WASM language](https://github.com/ColinEberhardt/chasm),
-`crystal-robots` is my exploration of depending on my own programming tools.
+`crystal-robots` is inspired and derived from:
+*  [CROBOTS - a programming game, for programmers, or aspiring programmers](http://tpoindex.github.io/crobots/),
+* the [Crystal Programming Language - A language for humans and computers](https://crystal-lang.org/),
+* and [chasm - a simple compile-to-WASM language](https://github.com/ColinEberhardt/chasm).
+
+`crystal-robots` is my exploration of depending on my own programming tools, taking control over a programming
+language itself.
+
+* [Source Code](https://openbeagle.org/jkridner/crystal-robots)
+* [Github Mirror](https://github.com/jadonk/crystal-robots)
+* [Documentation and online hosting](https://jkridner.beagleboard.io/crystal-robots)
 
 ## Installation
 
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+TODO: Write installation instructions here
 
 ## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+
+TODO: Write usage instructions here
+
+The primary method for using `crystal-robots` is by using my hosted server. The compiler is built into the web page. You can provide sources for the various robots and watch them battle it out.
+
+There are a lot of other methods to battle your `crystal-robots` and each peels back a layer to teach you more about full-stack programming.
+
+### My hosted server
+
+Browse to https://jkridner.beagleboard.io/crystal-robots and ...
+
+### Self-hosted server
+
+Start your own server by invoking `crystal-robots` and specifying a port ...
+
+```
+bin/crystal-robots -p 8080
+```
+
+### Compiled to native code with `crystal`
+
+To setup the environment for your robots, use `prelude.cr` ...
+
+```
+crystal run --prelude=../src/prelude robot1.cr robot2.cr robot3.cr robot4.cr -- -m 500
+```
+
+### Command-line interpretation by `crystal-robots`
+
+Using the `crystal-robots` compiler, you can perform battles by running the built-in interpreter ...
+
+```
+bin/crystal-robots -i -m 5 robot1.cr robot2.cr robot3.cr robot4.cr
+```
+
+### Compiled to WASM by `crystal-robots` and executed with `wasmer`
+
+
 
 ## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+
+TODO: Write support instructions here
 
 ## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+
+TODO: Describe the development roadmap here
+
+## Development
+
+TODO: Write development instructions here
 
 ## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+1. Fork it (<https://openbeagle.org/jkridner/crystal-robots/-/forks/new>)
+2. Create your feature branch (`git checkout -b my-new-feature`)
+3. Commit your changes (`git commit -am 'Add some feature'`)
+4. Push to the branch (`git push origin my-new-feature`)
+5. Create a new Merge Request
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+`crystal-robots` is distributed under terms of the GNU General Public License, version 2.
+
+This is in line with Tom Poindexter's release of `CROBOTS`. While more restrictive than
+Colin Eberhardt's release of `chasm` under an MIT license, it seems to me to be better
+to follow the more restrictive license. I hope that Colin agrees and if I ever complete
+this, I'll be sure to engage to find a suitable compromise.
+
+## Contributors
+
+- [Tom Poindexter](https://github.com/tpoindex) - creator of `CROBOTS`
+- [Colin Eberhardt](https://github.com/ColinEberhardt) - creator of `chasm`
+- [Jason Kridner](https://github.com/jadonk) - creator and maintainer of `crystal-robots`
