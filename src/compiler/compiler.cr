@@ -111,14 +111,15 @@ module CrystalRobots::Compiler
   end
 
   struct Program
-    property ast, pc
+    property ast, pc, call_stack
 
     def initialize
       @ast = [] of Array(Node)
       @pc = PC.new(0, 0)
+      @call_stack = [] of Int32
     end
 
-    def initialize(@ast : Array(Array(Node)), @pc : PC)
+    def initialize(@ast : Array(Array(Node)), @pc : PC, @call_stack : Array(Int32))
     end
 
     def <<(token : Node)
@@ -182,6 +183,21 @@ module CrystalRobots::Compiler
 
     def jump(pc : PC)
       @pc = pc
+    end
+
+    # We know for every call, pass is reduced by 1
+    def call(i : Int32)
+      if pc.pass <= 1
+        raise "Call pass maximum depth"
+      end
+      @call_stack << @pc.index
+      @pc.pass -= 1
+      @pc.index = i
+    end
+
+    def return
+      @pc.pass += 1
+      @pc.index = @call_stack.pop
     end
 
     def test_pc(pc : PC)

@@ -27,9 +27,10 @@ module CrystalRobots::Compiler
       case stmt_t
       when Type::Expression
         cmd = p.arg(0)
-        larg = p.arg(1)
-        rarg = p.arg(2)
-        retval = expression(cmd.type, larg.value, rarg.value)
+        larg_val = get_val(p, 1)
+        rarg_val = get_val(p, 2)
+        Log.d "evaluating #{larg_val} #{cmd.value} ${rarg_val}"
+        retval = expression(cmd.type, larg_val, rarg_val)
         pc = pc.inc(1)
       when Type::OneArgStatement
         cmd = p.arg(0)
@@ -42,6 +43,24 @@ module CrystalRobots::Compiler
         do_exit = false
       end
       {"pc": pc, "ret": retval, "exit": do_exit}
+    end
+
+    def self.get_val(p, n)
+      case p.arg(n).type
+      when Type::Number
+        p.arg(n).value
+      when Type::String
+        p.arg(n).value
+      when Type::Expression
+        call(p, n)
+      end
+    end
+
+    def self.call(p, n)
+      p.call(n)
+      r = executeStatement(p)
+      p.return
+      r.retval
     end
 
     def self.expression(op, l, r)
