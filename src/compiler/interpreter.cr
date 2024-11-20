@@ -29,14 +29,15 @@ module CrystalRobots::Compiler
         cmd = p.arg(0)
         larg_val = get_val(p, 1)
         rarg_val = get_val(p, 2)
-        Log.d "evaluating #{larg_val} #{cmd.value} ${rarg_val}"
-        retval = expression(cmd.type, larg_val, rarg_val)
+        Log.d "evaluating #{larg_val} #{cmd.value} #{rarg_val}"
+        retval = expression(cmd, larg_val, rarg_val)
+        Log.d "result #{larg_val} #{cmd.value} #{rarg_val} -> #{retval}"
         pc = pc.inc(1)
       when Type::OneArgStatement
         cmd = p.arg(0)
-        arg = p.arg(1)
-        Log.d "calling #{cmd.value}(#{arg.value})"
-        retval = oneArgCall(cmd.value, arg.value)
+        arg_val = get_val(p, 1)
+        Log.d "calling #{cmd.value}(#{arg_val})"
+        retval = oneArgCall(cmd.value, arg_val)
         pc = pc.inc(1)
       end
       if p.test_pc(pc)
@@ -65,28 +66,28 @@ module CrystalRobots::Compiler
 
     def self.expression(op, l, r)
       if l.nil? || r.nil?
-        raise "Argument was nil: #{l} #{op} #{r}"
+        raise "Argument was nil: #{l} #{op.value} #{r}"
       end
-      case op
-      when Type::AddOperator
+      case op.value
+      when "+"
         l.to_i32 + r.to_i32
-      when Type::SubOperator
+      when "-"
         l.to_i32 - r.to_i32
-      when Type::MulOperator
+      when "*"
         l.to_i32 * r.to_i32
-      when Type::FloorDivOperator
+      when "//"
         l.to_i32 // r.to_i32
-      when Type::EqOperator
+      when "=="
         l.to_i32 == r.to_i32 ? 1_i32 : 0_i32
-      when Type::GtOperator
+      when ">"
         l.to_i32 > r.to_i32 ? 1_i32 : 0_i32
-      when Type::LtOperator
+      when "<"
         l.to_i32 < r.to_i32 ? 1_i32 : 0_i32
-      when Type::AndOperator
+      when "&"
         l.to_i32 & r.to_i32
-      when Type::OrOperator
+      when "|"
         l.to_i32 | r.to_i32
-      when Type::XorOperator
+      when "^"
         l.to_i32 ^ r.to_i32
       else
         raise "Invalid operator: #{op}"
