@@ -104,7 +104,7 @@ module CrystalRobots::Compiler
       @index += i
       self
     end
-    
+
     def to_s
       "@(#{@pass},#{@index})"
     end

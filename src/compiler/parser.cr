@@ -188,7 +188,7 @@ module CrystalRobots::Compiler
       m.begin(0).times do |j|
         Log.d "need to push #{m.string[j]} #{n} #{m.begin(0)} #{j}"
         n_off = n - m.begin(0) + j
-        pc = PC.new(p.pc.pass-1, n_off)
+        pc = PC.new(p.pc.pass - 1, n_off)
         node = p.node(pc)
         Log.d "node #{node} @ #{pc}"
         tokens << Node.new(type: Type.new(m.string[j].ord), value: node.value, index: [n_off])
@@ -242,7 +242,7 @@ module CrystalRobots::Compiler
           if !mapper.nil?
             c = mapper.not_nil!
             m_off = matches[0][:m].begin(0)
-            t = c.call(p, matches[0][:type], matches[0][:m], [index+m_off])
+            t = c.call(p, matches[0][:type], matches[0][:m], [index + m_off])
             if !t.nil?
               tokens.concat(t)
             end
