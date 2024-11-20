@@ -60,10 +60,13 @@ module CrystalRobots::Compiler
       p.call(n)
       r = executeStatement(p)
       p.return
-      r.retval
+      r[:ret]
     end
 
     def self.expression(op, l, r)
+      if l.nil? || r.nil?
+        raise "Argument was nil: #{l} #{op} #{r}"
+      end
       case op
       when Type::AddOperator
         l.to_i32 + r.to_i32
