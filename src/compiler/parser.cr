@@ -87,7 +87,7 @@ module CrystalRobots::Compiler
     # These are language keywords that generate various statement types
     @@grammar = Grammar.new(
       [
-        {/^\"([^\"]+)\"/, Type::String}, # NOTE: the parser should be protected from the random UTF-8 characters I as long as I disallow their use in identifiers and this will allow them to still be used in strings
+        {/^\"([^\"]+)\"/, Type::String}, # NOTE: the parser should be protected from the random UTF-8 characters I use as long as I disallow their use in identifiers and this will allow them to still be used in strings
         {/^(-{0,1}[\.0-9]+)/, Type::Number},
       ],
       [
