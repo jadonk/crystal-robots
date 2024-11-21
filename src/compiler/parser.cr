@@ -235,6 +235,7 @@ module CrystalRobots::Compiler
           {"m": m, "type": t}
         end
         if matches.size == 0
+          # TODO: Perhaps the right way is to pass one on at a time and then fail when there are no longer any reductions?
           raise Error.new("Unexpected token #{src[index..index + 1]} @ #{index}")
         end
         if !matches[0].nil? && !matches[0][:m][0].nil?
