@@ -48,37 +48,77 @@ module CrystalRobots::Compiler
     def program=(@program : Program)
     end
 
-    # These are language keywords that generate various statement types
-    @@keywords = [
-      {"begin", Type::BeginKeyword},
-      {"break", Type::BreakKeyword},
-      {"case", Type::CaseKeyword},
-      {"def", Type::DefKeyword},
-      {"do", Type::DoKeyword},
-      {"else", Type::ElseKeyword},
-      {"elsif", Type::ElsifKeyword},
-      {"end", Type::EndKeyword},
-      {"false", Type::FalseKeyword},
-      {"for", Type::ForKeyword},
-      {"if", Type::IfKeyword},
-      {"in", Type::InKeyword},
-      {"next", Type::NextKeyword},
-      {"nil", Type::NilKeyword},
-      {"require", Type::RequireKeyword},
-      {"then", Type::ThenKeyword},
-      {"true", Type::TrueKeyword},
-      {"while", Type::WhileKeyword},
-    ]
-    @@keywords_s : String
-    @@keywords_s = (@@keywords.map { |s, n| s }).join("|")
-    @@keywords_h = Hash(String, Type).new
-    @@keywords.each_index do |i|
-      @@keywords_h[@@keywords[i][0]] = @@keywords[i][1]
+    struct Matcher
+      property r, t, phase
+
+      def initialize(@r : Regex, @t : Type, @phase : Int32)
+      end
     end
+
+    struct TokenDef
+      property v, s, h, r
+
+      def initialize(@v : Array(Tuple(String,Type)), @s : String, @h : Hash(String, Type), @r : Regex)
+      end
+
+      def self.new(values : Array(Tuple(String,Type)))
+        @v = values
+        @s = (values.map { |s, t| Regex.escape(s) }).join("|")
+        @h = Hash(String, Type).new
+        @v.each_index do |i|
+          @h[values[i][0]] = values[i][1]
+        end
+        @r = Regex.new("^(#{@s})")
+        @m = {@r, }
+      end
+
+      # All tokens are the same type
+      def self.new(type : Type, values : Array(String))
+        @v = values
+        @s = (values.map { |s, t| Regex.escape(s) }).join("|")
+        @h = Hash(String, Type).new
+        @v.each_index do |i|
+          @h[values[i]] = type
+        end
+        @r = Regex.new("^(#{@s})")
+      end
+    end
+
+    # These are language keywords that generate various statement types
+    @@grammar = Grammar.new(
+      [
+        {/^\"([^\"]+)\"/, Type::String},
+        {/^(-{0,1}[\.0-9]+)/, Type::Number},
+      ],
+      [
+        {"begin", Type::BeginKeyword},
+        {"break", Type::BreakKeyword},
+        {"case", Type::CaseKeyword},
+        {"def", Type::DefKeyword},
+        {"do", Type::DoKeyword},
+        {"else", Type::ElseKeyword},
+        {"elsif", Type::ElsifKeyword},
+        {"end", Type::EndKeyword},
+        {"false", Type::FalseKeyword},
+        {"for", Type::ForKeyword},
+        {"if", Type::IfKeyword},
+        {"in", Type::InKeyword},
+        {"next", Type::NextKeyword},
+        {"nil", Type::NilKeyword},
+        {"require", Type::RequireKeyword},
+        {"then", Type::ThenKeyword},
+        {"true", Type::TrueKeyword},
+        {"while", Type::WhileKeyword},
+      ],
+      [
+        {/^(\s+)/, Type::Whitespace, nil},
+        {/^\#.*$/, Type::Comment, nil},
+      ],
+    )
 
     # Builtins are methods already defined that can be combined with
     # optional arguments to make a statement
-    @@builtins = [
+    @@builtins = TokenDef.new([
       {"main", Type::TwoArgBuiltin},
       {"puts", Type::OneArgBuiltin},
       {"scan", Type::TwoArgBuiltin},
@@ -94,34 +134,15 @@ module CrystalRobots::Compiler
       {"cos", Type::OneArgBuiltin},
       {"tan", Type::OneArgBuiltin},
       {"atan", Type::OneArgBuiltin},
-    ]
-    @@builtins_s : String
-    @@builtins_s = (@@builtins.map { |s, n| s }).join("|")
-    @@builtins_h = Hash(String, Type).new
-    @@builtins.each_index do |i|
-      @@builtins_h[@@builtins[i][0]] = @@builtins[i][1]
-    end
+    ])
 
     # Operators used to make expressions
-    @@operators = [
-      {"+", Type::AddOperator},
-      {"-", Type::SubOperator},
-      {"*", Type::MulOperator},
-      {"//", Type::FloorDivOperator},
-      {"==", Type::EqOperator},
-      {"!=", Type::NeOperator},
-      {">", Type::GtOperator},
-      {"<", Type::LtOperator},
-      {"&", Type::AndOperator},
-      {"|", Type::OrOperator},
-      {"^", Type::XorOperator},
-    ]
-    @@operators_s : String
-    @@operators_s = (@@operators.map { |s, n| Regex.escape(s) }).join("|")
-    @@operators_h = Hash(String, Type).new
-    @@operators.each_index do |i|
-      @@operators_h[@@operators[i][0]] = @@operators[i][1]
-    end
+    @@mul_op = TokenDef.new(Type::Operator, ["*", "//"])
+    @@add_op = TokenDef.new(Type::Operator, ["+", "-"])
+    @@eq_op = TokenDef.new(Type::Operator, ["==", "!="])
+    @@comp_op = TokenDef.new(Type::Operator, ["<", ">", "<=", ">="])
+    @@bin_and_op = TokenDef.new(Type::Operator, ["&"])
+    @@bin_or_op = TokenDef.new(Type::Operator, ["|", "^"])
 
     # Statements are the top-level building blocks of a program
     @@statements : Array(Type)
@@ -147,10 +168,13 @@ module CrystalRobots::Compiler
       ],
       [
         {/(№⊚№)/, Type::Expression},
+        {/(№⊚№)/, Type::Expression},
         {/^(∉)/, Type::ZeroArgStatement},
         {/^(∊(№|🐍|😑))/, Type::OneArgStatement},
         {/^(∋(№|🐍|😑)(№|🐍|😑))/, Type::TwoArgStatement},
-        {Regex.new("^(#{@@statements_s})+"), Type::Program},
+      ],
+      [
+        {Regex.new("^(#{@@statements_s})+$"), Type::Program},
       ],
     ]
 
