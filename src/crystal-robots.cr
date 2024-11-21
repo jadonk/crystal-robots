@@ -7,7 +7,7 @@ module CrystalRobots
   VERSION = "0.0.1"
 
   class Log
-    @@loglevel = 1
+    @@loglevel = 0
 
     def self.d(s)
       if @@loglevel > 0
