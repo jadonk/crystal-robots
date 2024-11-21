@@ -87,6 +87,10 @@ module CrystalRobots::Compiler
 
     def initialize(@type : Type, @value : String, @index : Array(Int32))
     end
+
+    def to_s(io : IO)
+      io << "'#{@type.value.chr}' #{@value}(#{@index})"
+    end
   end
 
   struct PC
@@ -105,8 +109,8 @@ module CrystalRobots::Compiler
       self
     end
 
-    def to_s
-      "@(#{@pass},#{@index})"
+    def to_s(io : IO)
+      io << "@(#{@pass},#{@index})"
     end
   end
 
@@ -223,10 +227,10 @@ module CrystalRobots::Compiler
       tokens.map { |token| token.type.value.chr }.join
     end
 
-    def to_s
+    def to_s(io : IO)
       s = @ast.map { |a| tokens_to_s(a) }.join('\n')
       t = s
-      "#{t}\n @ #{@pc.pass},#{@pc.index}"
+      io << "#{t}\n @ #{@pc.pass},#{@pc.index}"
     end
   end
 end
