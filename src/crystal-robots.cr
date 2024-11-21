@@ -3,14 +3,16 @@ require "./compiler"
 require "option_parser"
 require "wait_group"
 
+ENV["DEBUG"] ||= "0"
+
 module CrystalRobots
   VERSION = "0.0.1"
 
   class Log
-    @@loglevel = 0
+    @@loglevel = ENV["DEBUG"]
 
     def self.d(s)
-      if @@loglevel > 0
+      if @@loglevel.to_i > 0
         puts s
       end
     end
