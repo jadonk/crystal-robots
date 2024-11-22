@@ -58,10 +58,10 @@ module CrystalRobots::Compiler
     struct TokenDef
       property v, s, h, r
 
-      def initialize(@v : Array(Tuple(String,Type)), @s : String, @h : Hash(String, Type), @r : Regex)
+      def initialize(@v : Array(Tuple(String, Type)), @s : String, @h : Hash(String, Type), @r : Regex)
       end
 
-      def initialize(values : Array(Tuple(String,Type)))
+      def initialize(values : Array(Tuple(String, Type)))
         @v = values
         @s = (values.map { |s, t| Regex.escape(s) }).join("|")
         @h = Hash(String, Type).new
@@ -71,15 +71,13 @@ module CrystalRobots::Compiler
         @r = Regex.new("^(#{@s})")
       end
 
-      # All tokens are the same type
+      # All tokens are the same type, so copy to each
       def initialize(type : Type, values : Array(String))
-        @v = values
-        @s = (values.map { |s, t| Regex.escape(s) }).join("|")
-        @h = Hash(String, Type).new
-        @v.each_index do |i|
-          @h[values[i]] = type
+        t_values = [] of Tuple(String, Type)
+        values.each_index do |i|
+          t_values.push({values[i], type})
         end
-        @r = Regex.new("^(#{@s})")
+        initialize(t_values)
       end
     end
 
@@ -90,16 +88,16 @@ module CrystalRobots::Compiler
     end
 
     struct GrammarRule
-      property r
+      property rule
 
-      def initialize(@r : Tuple(Regex, Array(Tuple(String,Type)), Type, MappingType))
+      def initialize(@rule : Tuple(Regex | Nil, Array(Tuple(String, Type)) | Nil, Type, MappingType))
       end
     end
 
     class Grammar
       property grammar
 
-      def initialize(rules : Array(GrammarRule))
+      def initialize(@grammar : Array(GrammarRule))
       end
 
       def self.new
@@ -108,13 +106,13 @@ module CrystalRobots::Compiler
         i
       end
 
-      #def <<(r : Tuple(Regex, Array(Tuple(String,Type)), Type, MappingType)) : self
-      #  @grammar << GrammarRule(r)
-      #end
-    end 
+      def <<(r : GrammarRule) : self # Tuple(Regex | Nil, Array(Tuple(String, Type)) | Nil, Type, MappingType)) : self
+        @grammar << r
+      end
+    end
 
     # These are language keywords that generate various statement types
-    # I think there are 2 mechanisms for getting a token type assigned, there can 
+    # I think there are 2 mechanisms for getting a token type assigned, there can
     # either be a simple pattern match, or there can be a match with a hash
     # lookup to find the token type. And then there is the matter of the mapping
     # function, but it might be possible to combine into a single mapper. I
@@ -124,99 +122,99 @@ module CrystalRobots::Compiler
     # primary reason it *should* be so, except that in several cases I simply
     # haven't thought of how to make the right unifying regex.
     #
-    # NOTE: the parser should be protected from the random UTF-8 characters I 
+    # NOTE: the parser should be protected from the random UTF-8 characters I
     # use as long as I disallow their use in identifiers and this will allow them to
     # still be used in strings
-    # 
+    #
     @@grammar = Grammar.new
-    @@grammar << {/^\"([^\"]+)\"/, [] of Tuple(String,Type), Type::String, MappingType::Default}
-    @@grammar << {/^(-{0,1}[\.0-9]+)/, [] of Tuple(String,Type), Type::Number, MappingType::Default}
-    @@grammar << {/^(\()|\)), [
-        { "(", Type::OpenParen },
-        { ")", Type::CloseParen },
-      ], nil, MappingType::Default
-    }
-    @@grammar << {nil, [
-        {"*", Type::Operator},
-        {"//", Type::Operator},
-      ], Type::Operator, MappingType::Default
+    @@grammar << {/^\"([^\"]+)\"/, nil, Type::String, MappingType::Default}
+    @@grammar << {/^(-{0,1}[\.0-9]+)/, nil, Type::Number, MappingType::Default}
+    @@grammar << {/^(\(|\))/,
+                  [
+                    {"(", Type::OpenParen},
+                    {")", Type::CloseParen},
+                  ], nil, MappingType::Default}
+    @@grammar << {nil,
+                  [
+                    {"*", Type::Operator},
+                    {"//", Type::Operator},
+                  ], Type::Operator, MappingType::Default}
+    @@grammar << {nil,
+                  [
+                    {"+", Type::Operator},
+                    {"-", Type::Operator},
+                  ], Type::Operator, MappingType::Default,
     }
     @@grammar << {nil,
-      [
-        {"+", Type::Operator},
-        {"-", Type::Operator},
-      ], Type::Operator, MappingType::Default
+                  [
+                    {"==", Type::Operator},
+                    {"!=", Type::Operator},
+                  ], Type::Operator, MappingType::Default,
     }
     @@grammar << {nil,
-      [
-        {"==", Type::Operator},
-        {"!=", Type::Operator},
-      ], Type::Operator, MappingType::Default
+                  [
+                    {"<", Type::Operator},
+                    {">", Type::Operator},
+                    {"<=", Type::Operator},
+                    {">=", Type::Operator},
+                  ], Type::Operator, MappingType::Default,
     }
     @@grammar << {nil,
-      [
-        {"<", Type::Operator},
-        {">", Type::Operator},
-        {"<=", Type::Operator},
-        {">=", Type::Operator},
-      ], Type::Operator, MappingType::Default
+                  [
+                    {"&", Type::Operator},
+                  ], Type::Operator, MappingType::Default,
     }
     @@grammar << {nil,
-      [
-        {"&", Type::Operator},
-      ], Type::Operator, MappingType::Default
+                  [
+                    {"|", Type::Operator},
+                    {"^", Type::Operator},
+                  ], Type::Operator, MappingType::Default,
     }
-    @@grammar << {nil,
-      [
-        {"|", Type::Operator},
-        {"^", Type::Operator},
-      ], Type::Operator, MappingType::Default
+    @@grammar << {/^([a-z]+)\b/,
+                  [
+                    {"begin", Type::BeginKeyword},
+                    {"break", Type::BreakKeyword},
+                    {"case", Type::CaseKeyword},
+                    {"def", Type::DefKeyword},
+                    {"do", Type::DoKeyword},
+                    {"else", Type::ElseKeyword},
+                    {"elsif", Type::ElsifKeyword},
+                    {"end", Type::EndKeyword},
+                    {"false", Type::FalseKeyword},
+                    {"for", Type::ForKeyword},
+                    {"if", Type::IfKeyword},
+                    {"in", Type::InKeyword},
+                    {"next", Type::NextKeyword},
+                    {"nil", Type::NilKeyword},
+                    {"require", Type::RequireKeyword},
+                    {"then", Type::ThenKeyword},
+                    {"true", Type::TrueKeyword},
+                    {"while", Type::WhileKeyword},
+                    {"main", Type::TwoArgMethod},
+                    {"puts", Type::OneArgMethod},
+                    {"scan", Type::TwoArgMethod},
+                    {"cannon", Type::TwoArgMethod},
+                    {"drive", Type::TwoArgMethod},
+                    {"damage", Type::ZeroArgMethod},
+                    {"speed", Type::ZeroArgMethod},
+                    {"loc_x", Type::ZeroArgMethod},
+                    {"loc_y", Type::ZeroArgMethod},
+                    {"rand", Type::OneArgMethod},
+                    {"sqrt", Type::OneArgMethod},
+                    {"sin", Type::OneArgMethod},
+                    {"cos", Type::OneArgMethod},
+                    {"tan", Type::OneArgMethod},
+                    {"atan", Type::OneArgMethod},
+                  ],
+                  nil, MappingType::Default,
     }
-    @@grammar << {{/^([a-z]+)\b/, 
-          [
-            {"begin", Type::BeginKeyword},
-            {"break", Type::BreakKeyword},
-            {"case", Type::CaseKeyword},
-            {"def", Type::DefKeyword},
-            {"do", Type::DoKeyword},
-            {"else", Type::ElseKeyword},
-            {"elsif", Type::ElsifKeyword},
-            {"end", Type::EndKeyword},
-            {"false", Type::FalseKeyword},
-            {"for", Type::ForKeyword},
-            {"if", Type::IfKeyword},
-            {"in", Type::InKeyword},
-            {"next", Type::NextKeyword},
-            {"nil", Type::NilKeyword},
-            {"require", Type::RequireKeyword},
-            {"then", Type::ThenKeyword},
-            {"true", Type::TrueKeyword},
-            {"while", Type::WhileKeyword},
-            {"main", Type::TwoArgMethod},
-            {"puts", Type::OneArgMethod},
-            {"scan", Type::TwoArgMethod},
-            {"cannon", Type::TwoArgMethod},
-            {"drive", Type::TwoArgMethod},
-            {"damage", Type::ZeroArgMethod},
-            {"speed", Type::ZeroArgMethod},
-            {"loc_x", Type::ZeroArgMethod},
-            {"loc_y", Type::ZeroArgMethod},
-            {"rand", Type::OneArgMethod},
-            {"sqrt", Type::OneArgMethod},
-            {"sin", Type::OneArgMethod},
-            {"cos", Type::OneArgMethod},
-            {"tan", Type::OneArgMethod},
-            {"atan", Type::OneArgMethod},
-          ],
-          nil, MappingType::Default
-        }
-        @@grammar << {/^(\s+)/, [] of TokenDef, Type::Whitespace, nil}
-        @@grammar << {/^\#.*$/, [] of TokenDef, Type::Comment, nil}
-        @@grammar << {/(№⊚№)/, [] of TokenDef, Type::Expression, MappingType::Default}
-        @@grammar << {/^(∉)/, [] of TokenDef, Type::ZeroArgStatement, MappingType::Default}
-        @@grammar << {/^(∊(№|🐍|😑))/, [] of TokenDef, Type::OneArgStatement, MappingType::Default}
-        @@grammar << {/^(∋(№|🐍|😑)(№|🐍|😑))/, [] of TokenDef, Type::TwoArgStatement, MappingType::Default}
-        @@grammar << {/^[❣❤❥/]+$/, [] of TokenDef, Type::Program, MappingType::Program}
+    @@grammar << {/^(\s+)/, nil, Type::Whitespace, nil}
+    @@grammar << {/^\#.*$/, nil, Type::Comment, nil}
+    @@grammar << {/(№⊚№)/, nil, Type::Expression, MappingType::Default}
+    @@grammar << {/^(∉)/, nil, Type::ZeroArgStatement, MappingType::Default}
+    @@grammar << {/^(∊(№|🐍|😑))/, nil, Type::OneArgStatement, MappingType::Default}
+    @@grammar << {/^(∋(№|🐍|😑)(№|🐍|😑))/, nil, Type::TwoArgStatement, MappingType::Default}
+    @@grammar << {/^[❣❤❥]+$/, nil, Type::Program, MappingType::Program}
 
     def self.mapperDefault(p : Program, t : Type, m : Regex::MatchData, i : Array(Int32))
       value = m[0]
