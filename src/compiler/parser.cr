@@ -85,64 +85,105 @@ module CrystalRobots::Compiler
     end
 
     # These are language keywords that generate various statement types
+    # I think there are 2 mechanisms for getting a token type assigned, there can 
+    # either be a simple pattern match, or there can be a match with a hash
+    # lookup to find the token type. And then there is the matter of the mapping
+    # function, but it might be possible to combine into a single mapper. I
+    # think I might add a more generic regex to help foster lookups.
     @@grammar = Grammar.new(
       [
-        {/^\"([^\"]+)\"/, Type::String}, # NOTE: the parser should be protected from the random UTF-8 characters I use as long as I disallow their use in identifiers and this will allow them to still be used in strings
-        {/^(-{0,1}[\.0-9]+)/, Type::Number},
-      ],
-      [
-        {"begin", Type::BeginKeyword},
-        {"break", Type::BreakKeyword},
-        {"case", Type::CaseKeyword},
-        {"def", Type::DefKeyword},
-        {"do", Type::DoKeyword},
-        {"else", Type::ElseKeyword},
-        {"elsif", Type::ElsifKeyword},
-        {"end", Type::EndKeyword},
-        {"false", Type::FalseKeyword},
-        {"for", Type::ForKeyword},
-        {"if", Type::IfKeyword},
-        {"in", Type::InKeyword},
-        {"next", Type::NextKeyword},
-        {"nil", Type::NilKeyword},
-        {"require", Type::RequireKeyword},
-        {"then", Type::ThenKeyword},
-        {"true", Type::TrueKeyword},
-        {"while", Type::WhileKeyword},
-      ],
-      [
-        {/^(\s+)/, Type::Whitespace, nil},
-        {/^\#.*$/, Type::Comment, nil},
-      ],
-    )
-
-    # Builtins are methods already defined that can be combined with
-    # optional arguments to make a statement
-    @@builtins = TokenDef.new([
-      {"main", Type::TwoArgBuiltin},
-      {"puts", Type::OneArgBuiltin},
-      {"scan", Type::TwoArgBuiltin},
-      {"cannon", Type::TwoArgBuiltin},
-      {"drive", Type::TwoArgBuiltin},
-      {"damage", Type::ZeroArgBuiltin},
-      {"speed", Type::ZeroArgBuiltin},
-      {"loc_x", Type::ZeroArgBuiltin},
-      {"loc_y", Type::ZeroArgBuiltin},
-      {"rand", Type::OneArgBuiltin},
-      {"sqrt", Type::OneArgBuiltin},
-      {"sin", Type::OneArgBuiltin},
-      {"cos", Type::OneArgBuiltin},
-      {"tan", Type::OneArgBuiltin},
-      {"atan", Type::OneArgBuiltin},
-    ])
-
-    # Operators used to make expressions
+        {/^\"([^\"]+)\"/, [], Type::String, Mapper::Default}, # NOTE: the parser should be protected from the random UTF-8 characters I use as long as I disallow their use in identifiers and this will allow them to still be used in strings
+        {/^(-{0,1}[\.0-9]+)/, [], Type::Number, Mapper::Default},
+        {nil,
+          [
+            "*",
+            "//",
+          ], Type::Operator, Mapper::Default
+        },
+        {nil,
+          [
+            "+",
+            "-",
+          ], Type::Operator, Mapper::Default
+        },
+        {nil,
+          [
+            "==",
+            "!=",
+          ], Type::Operator, Mapper::Default
+        },
+        {nil,
+          [
+            "<",
+            ">",
+            "<=",
+            ">=",
+          ], Type::Operator, Mapper::Default
+        },
     @@mul_op = TokenDef.new(Type::Operator, ["*", "//"])
     @@add_op = TokenDef.new(Type::Operator, ["+", "-"])
     @@eq_op = TokenDef.new(Type::Operator, ["==", "!="])
     @@comp_op = TokenDef.new(Type::Operator, ["<", ">", "<=", ">="])
     @@bin_and_op = TokenDef.new(Type::Operator, ["&"])
     @@bin_or_op = TokenDef.new(Type::Operator, ["|", "^"])
+        {/^([a-z]+)\b/, 
+          [
+            {"begin", Type::BeginKeyword},
+            {"break", Type::BreakKeyword},
+            {"case", Type::CaseKeyword},
+            {"def", Type::DefKeyword},
+            {"do", Type::DoKeyword},
+            {"else", Type::ElseKeyword},
+            {"elsif", Type::ElsifKeyword},
+            {"end", Type::EndKeyword},
+            {"false", Type::FalseKeyword},
+            {"for", Type::ForKeyword},
+            {"if", Type::IfKeyword},
+            {"in", Type::InKeyword},
+            {"next", Type::NextKeyword},
+            {"nil", Type::NilKeyword},
+            {"require", Type::RequireKeyword},
+            {"then", Type::ThenKeyword},
+            {"true", Type::TrueKeyword},
+            {"while", Type::WhileKeyword},
+            {"main", Type::TwoArgMethod},
+            {"puts", Type::OneArgMethod},
+            {"scan", Type::TwoArgMethod},
+            {"cannon", Type::TwoArgMethod},
+            {"drive", Type::TwoArgMethod},
+            {"damage", Type::ZeroArgMethod},
+            {"speed", Type::ZeroArgMethod},
+            {"loc_x", Type::ZeroArgMethod},
+            {"loc_y", Type::ZeroArgMethod},
+            {"rand", Type::OneArgMethod},
+            {"sqrt", Type::OneArgMethod},
+            {"sin", Type::OneArgMethod},
+            {"cos", Type::OneArgMethod},
+            {"tan", Type::OneArgMethod},
+            {"atan", Type::OneArgMethod},
+          ],
+          Mapper::Default
+        },
+        {/^(\s+)/, [], Type::Whitespace, nil},
+        {/^\#.*$/, [], Type::Comment, nil},
+        {/^(\()/, [], Type::OpenParen, nil},
+        {/^(\))/, [], Type::CloseParen, nil},
+        {/(№⊚№)/, [], Type::Expression},
+        {/^(∉)/, Type::ZeroArgStatement},
+        {/^(∊(№|🐍|😑))/, Type::OneArgStatement},
+        {/^(∋(№|🐍|😑)(№|🐍|😑))/, Type::TwoArgStatement},
+      ],
+      [
+        {Regex.new("^(#{@@statements_s})+$"), Type::Program},
+      ],
+    )
+
+    # Builtins are methods already defined that can be combined with
+    # optional arguments to make a statement
+    @@builtins = TokenDef.new([
+    ])
+
+    # Operators used to make expressions
 
     # Statements are the top-level building blocks of a program
     @@statements : Array(Type)
