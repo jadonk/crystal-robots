@@ -58,7 +58,7 @@ module CrystalRobots::Compiler
     struct TokenDef
       property v, s, h, r
 
-      def initialize(@v : Array(Tuple(String, Type)), @s : String, @h : Hash(String, Type), @r : Regex)
+      def initialize(@v : Array(Tuple(String, Type)) | Nil, @s : String, @h : Hash(String, Type), @r : Regex | Nil)
       end
 
       def initialize(values : Array(Tuple(String, Type)))
@@ -79,6 +79,13 @@ module CrystalRobots::Compiler
         end
         initialize(t_values)
       end
+
+      def initialize(t : Nil)
+        @v = nil
+        @s = ""
+        @h = Hash(String,Type)
+        @r = nil
+      end
     end
 
     enum MappingType
@@ -90,7 +97,18 @@ module CrystalRobots::Compiler
     struct GrammarRule
       property rule
 
-      def initialize(@rule : Tuple(Regex | Nil, Array(Tuple(String, Type)) | Nil, Type, MappingType))
+      def initialize(@rule : Tuple(Regex | Nil, Array(TokenDef) | Nil, Type, MappingType))
+      end
+
+      def initialize(rs : Tuple(Regex | Nil, Array(Tuple(String, Type)) | Nil, Type, MappingType))
+        token_defs = Array(TokenDef)
+        rs[1].each do |r|
+          if rs[0].nil?
+            token_defs = 
+          else
+            token_defs = 
+          end
+        @rule = {r[0], token_defs, r[2], r[3]}
       end
     end
 
