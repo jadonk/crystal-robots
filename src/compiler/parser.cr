@@ -61,7 +61,7 @@ module CrystalRobots::Compiler
       def initialize(@v : Array(Tuple(String,Type)), @s : String, @h : Hash(String, Type), @r : Regex)
       end
 
-      def self.new(values : Array(Tuple(String,Type)))
+      def initialize(values : Array(Tuple(String,Type)))
         @v = values
         @s = (values.map { |s, t| Regex.escape(s) }).join("|")
         @h = Hash(String, Type).new
@@ -72,7 +72,7 @@ module CrystalRobots::Compiler
       end
 
       # All tokens are the same type
-      def self.new(type : Type, values : Array(String))
+      def initialize(type : Type, values : Array(String))
         @v = values
         @s = (values.map { |s, t| Regex.escape(s) }).join("|")
         @h = Hash(String, Type).new
@@ -83,56 +83,96 @@ module CrystalRobots::Compiler
       end
     end
 
+    enum MappingType
+      Default
+      Expression
+      Program
+    end
+
+    struct GrammarRule
+      property r
+
+      def initialize(@r : Tuple(Regex, Array(Tuple(String,Type)), Type, MappingType))
+      end
+    end
+
+    class Grammar
+      property grammar
+
+      def initialize(rules : Array(GrammarRule))
+      end
+
+      def self.new
+        i = Grammar.allocate
+        i.grammar = [] of GrammarRule
+        i
+      end
+
+      #def <<(r : Tuple(Regex, Array(Tuple(String,Type)), Type, MappingType)) : self
+      #  @grammar << GrammarRule(r)
+      #end
+    end 
+
     # These are language keywords that generate various statement types
     # I think there are 2 mechanisms for getting a token type assigned, there can 
     # either be a simple pattern match, or there can be a match with a hash
     # lookup to find the token type. And then there is the matter of the mapping
     # function, but it might be possible to combine into a single mapper. I
     # think I might add a more generic regex to help foster lookups.
-    @@grammar = Grammar.new(
+    #
+    # The array is in rule precedence order. If a search is separated, that is the
+    # primary reason it *should* be so, except that in several cases I simply
+    # haven't thought of how to make the right unifying regex.
+    #
+    # NOTE: the parser should be protected from the random UTF-8 characters I 
+    # use as long as I disallow their use in identifiers and this will allow them to
+    # still be used in strings
+    # 
+    @@grammar = Grammar.new
+    @@grammar << {/^\"([^\"]+)\"/, [] of Tuple(String,Type), Type::String, MappingType::Default}
+    @@grammar << {/^(-{0,1}[\.0-9]+)/, [] of Tuple(String,Type), Type::Number, MappingType::Default}
+    @@grammar << {/^(\()|\)), [
+        { "(", Type::OpenParen },
+        { ")", Type::CloseParen },
+      ], nil, MappingType::Default
+    }
+    @@grammar << {nil, [
+        {"*", Type::Operator},
+        {"//", Type::Operator},
+      ], Type::Operator, MappingType::Default
+    }
+    @@grammar << {nil,
       [
-        {/^\"([^\"]+)\"/, [], Type::String, Mapper::Default}, # NOTE: the parser should be protected from the random UTF-8 characters I use as long as I disallow their use in identifiers and this will allow them to still be used in strings
-        {/^(-{0,1}[\.0-9]+)/, [], Type::Number, Mapper::Default},
-        {/^(\()/, [], Type::OpenParen, nil},
-        {/^(\))/, [], Type::CloseParen, nil},
-        {nil,
-          [
-            {"*", Type::Operator},
-            {"//", Type::Operator},
-          ], Type::Operator, Mapper::Default
-        },
-        {nil,
-          [
-            {"+", Type::Operator},
-            {"-", Type::Operator},
-          ], Type::Operator, Mapper::Default
-        },
-        {nil,
-          [
-            {"==", Type::Operator},
-            {"!=", Type::Operator},
-          ], Type::Operator, Mapper::Default
-        },
-        {nil,
-          [
-            {"<", Type::Operator},
-            {">", Type::Operator},
-            {"<=", Type::Operator},
-            {">=", Type::Operator},
-          ], Type::Operator, Mapper::Default
-        },
-        {nil,
-          [
-            {"&", Type::Operator},
-          ], Type::Operator, Mapper::Default
-        },
-        {nil,
-          [
-            {"|", Type::Operator},
-            {"^", Type::Operator},
-          ], Type::Operator, Mapper::Default
-        },
-        {/^([a-z]+)\b/, 
+        {"+", Type::Operator},
+        {"-", Type::Operator},
+      ], Type::Operator, MappingType::Default
+    }
+    @@grammar << {nil,
+      [
+        {"==", Type::Operator},
+        {"!=", Type::Operator},
+      ], Type::Operator, MappingType::Default
+    }
+    @@grammar << {nil,
+      [
+        {"<", Type::Operator},
+        {">", Type::Operator},
+        {"<=", Type::Operator},
+        {">=", Type::Operator},
+      ], Type::Operator, MappingType::Default
+    }
+    @@grammar << {nil,
+      [
+        {"&", Type::Operator},
+      ], Type::Operator, MappingType::Default
+    }
+    @@grammar << {nil,
+      [
+        {"|", Type::Operator},
+        {"^", Type::Operator},
+      ], Type::Operator, MappingType::Default
+    }
+    @@grammar << {{/^([a-z]+)\b/, 
           [
             {"begin", Type::BeginKeyword},
             {"break", Type::BreakKeyword},
@@ -168,17 +208,15 @@ module CrystalRobots::Compiler
             {"tan", Type::OneArgMethod},
             {"atan", Type::OneArgMethod},
           ],
-          nil, Mapper::Default
-        },
-        {/^(\s+)/, [], Type::Whitespace, nil},
-        {/^\#.*$/, [], Type::Comment, nil},
-        {/(№⊚№)/, [], Type::Expression, Mapper::Default},
-        {/^(∉)/, [], Type::ZeroArgStatement, Mapper::Default},
-        {/^(∊(№|🐍|😑))/, [], Type::OneArgStatement, Mapper::Default},
-        {/^(∋(№|🐍|😑)(№|🐍|😑))/, [], Type::TwoArgStatement, Mapper::Default},
-        {/^[❣❤❥/]+$/, [], Type::Program, Mapper::Program},
-      ],
-    )
+          nil, MappingType::Default
+        }
+        @@grammar << {/^(\s+)/, [] of TokenDef, Type::Whitespace, nil}
+        @@grammar << {/^\#.*$/, [] of TokenDef, Type::Comment, nil}
+        @@grammar << {/(№⊚№)/, [] of TokenDef, Type::Expression, MappingType::Default}
+        @@grammar << {/^(∉)/, [] of TokenDef, Type::ZeroArgStatement, MappingType::Default}
+        @@grammar << {/^(∊(№|🐍|😑))/, [] of TokenDef, Type::OneArgStatement, MappingType::Default}
+        @@grammar << {/^(∋(№|🐍|😑)(№|🐍|😑))/, [] of TokenDef, Type::TwoArgStatement, MappingType::Default}
+        @@grammar << {/^[❣❤❥/]+$/, [] of TokenDef, Type::Program, MappingType::Program}
 
     def self.mapperDefault(p : Program, t : Type, m : Regex::MatchData, i : Array(Int32))
       value = m[0]
