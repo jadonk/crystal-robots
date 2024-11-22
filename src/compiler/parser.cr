@@ -69,7 +69,6 @@ module CrystalRobots::Compiler
           @h[values[i][0]] = values[i][1]
         end
         @r = Regex.new("^(#{@s})")
-        @m = {@r, }
       end
 
       # All tokens are the same type
@@ -94,38 +93,45 @@ module CrystalRobots::Compiler
       [
         {/^\"([^\"]+)\"/, [], Type::String, Mapper::Default}, # NOTE: the parser should be protected from the random UTF-8 characters I use as long as I disallow their use in identifiers and this will allow them to still be used in strings
         {/^(-{0,1}[\.0-9]+)/, [], Type::Number, Mapper::Default},
+        {/^(\()/, [], Type::OpenParen, nil},
+        {/^(\))/, [], Type::CloseParen, nil},
         {nil,
           [
-            "*",
-            "//",
+            {"*", Type::Operator},
+            {"//", Type::Operator},
           ], Type::Operator, Mapper::Default
         },
         {nil,
           [
-            "+",
-            "-",
+            {"+", Type::Operator},
+            {"-", Type::Operator},
           ], Type::Operator, Mapper::Default
         },
         {nil,
           [
-            "==",
-            "!=",
+            {"==", Type::Operator},
+            {"!=", Type::Operator},
           ], Type::Operator, Mapper::Default
         },
         {nil,
           [
-            "<",
-            ">",
-            "<=",
-            ">=",
+            {"<", Type::Operator},
+            {">", Type::Operator},
+            {"<=", Type::Operator},
+            {">=", Type::Operator},
           ], Type::Operator, Mapper::Default
         },
-    @@mul_op = TokenDef.new(Type::Operator, ["*", "//"])
-    @@add_op = TokenDef.new(Type::Operator, ["+", "-"])
-    @@eq_op = TokenDef.new(Type::Operator, ["==", "!="])
-    @@comp_op = TokenDef.new(Type::Operator, ["<", ">", "<=", ">="])
-    @@bin_and_op = TokenDef.new(Type::Operator, ["&"])
-    @@bin_or_op = TokenDef.new(Type::Operator, ["|", "^"])
+        {nil,
+          [
+            {"&", Type::Operator},
+          ], Type::Operator, Mapper::Default
+        },
+        {nil,
+          [
+            {"|", Type::Operator},
+            {"^", Type::Operator},
+          ], Type::Operator, Mapper::Default
+        },
         {/^([a-z]+)\b/, 
           [
             {"begin", Type::BeginKeyword},
@@ -162,62 +168,17 @@ module CrystalRobots::Compiler
             {"tan", Type::OneArgMethod},
             {"atan", Type::OneArgMethod},
           ],
-          Mapper::Default
+          nil, Mapper::Default
         },
         {/^(\s+)/, [], Type::Whitespace, nil},
         {/^\#.*$/, [], Type::Comment, nil},
-        {/^(\()/, [], Type::OpenParen, nil},
-        {/^(\))/, [], Type::CloseParen, nil},
-        {/(№⊚№)/, [], Type::Expression},
-        {/^(∉)/, Type::ZeroArgStatement},
-        {/^(∊(№|🐍|😑))/, Type::OneArgStatement},
-        {/^(∋(№|🐍|😑)(№|🐍|😑))/, Type::TwoArgStatement},
-      ],
-      [
-        {Regex.new("^(#{@@statements_s})+$"), Type::Program},
+        {/(№⊚№)/, [], Type::Expression, Mapper::Default},
+        {/^(∉)/, [], Type::ZeroArgStatement, Mapper::Default},
+        {/^(∊(№|🐍|😑))/, [], Type::OneArgStatement, Mapper::Default},
+        {/^(∋(№|🐍|😑)(№|🐍|😑))/, [], Type::TwoArgStatement, Mapper::Default},
+        {/^[❣❤❥/]+$/, [], Type::Program, Mapper::Program},
       ],
     )
-
-    # Builtins are methods already defined that can be combined with
-    # optional arguments to make a statement
-    @@builtins = TokenDef.new([
-    ])
-
-    # Operators used to make expressions
-
-    # Statements are the top-level building blocks of a program
-    @@statements : Array(Type)
-    @@statements = [
-      Type::ZeroArgStatement,
-      Type::OneArgStatement,
-      Type::TwoArgStatement,
-    ]
-    @@statements_s : String
-    @@statements_s = (@@statements.map { |t| t.value.chr }).join("|")
-
-    @@matchers = [
-      [
-        {/^\"([^\"]+)\"/, Type::String},
-        {/^(-{0,1}[\.0-9]+)/, Type::Number},
-        {Regex.new("^(#{@@keywords_s})"), Type::Keyword},
-        {Regex.new("^(#{@@builtins_s})"), Type::Builtin},
-        {Regex.new("^(#{@@operators_s})"), Type::Operator},
-        {/^(\s+)/, Type::Whitespace},
-        {/^\#.*$/, Type::Comment},
-        {/^(\()/, Type::OpenParen},
-        {/^(\))/, Type::CloseParen},
-      ],
-      [
-        {/(№⊚№)/, Type::Expression},
-        {/(№⊚№)/, Type::Expression},
-        {/^(∉)/, Type::ZeroArgStatement},
-        {/^(∊(№|🐍|😑))/, Type::OneArgStatement},
-        {/^(∋(№|🐍|😑)(№|🐍|😑))/, Type::TwoArgStatement},
-      ],
-      [
-        {Regex.new("^(#{@@statements_s})+$"), Type::Program},
-      ],
-    ]
 
     def self.mapperDefault(p : Program, t : Type, m : Regex::MatchData, i : Array(Int32))
       value = m[0]
