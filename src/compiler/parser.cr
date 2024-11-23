@@ -48,13 +48,6 @@ module CrystalRobots::Compiler
     def program=(@program : Program)
     end
 
-    struct Matcher
-      property r, t, phase
-
-      def initialize(@r : Regex, @t : Type, @phase : Int32)
-      end
-    end
-
     struct TokenDef
       property v, s, h, r
 
@@ -90,42 +83,52 @@ module CrystalRobots::Compiler
 
     enum MappingType
       Default
+      Drop
       Expression
       Program
     end
 
+    # 1. Start by matching the first Regex. If initially assigned Nil in creation, it should get 
+    #    assigned by the next argument (TokenDef).
+    # 2. Next, use the TokenDef Hash to select a type. If the rule Regex is Nil, assign it using the
+    #    TokenDef Regex. If the it TokenDef Hash doesn't have a value match, don't assign a type yet.
+    # 3. Next, use the provided type to set a type. If it is Nil, keep the already assigned type. If that is Nil, error out.
+    # 4. Finally, run the mapping function using the mapping type to set the final node parameters. If it is Nil, drop the token.
     struct GrammarRule
       property rule
 
-      def initialize(@rule : Tuple(Regex | Nil, Array(TokenDef) | Nil, Type, MappingType))
+      def initialize(@rule : Tuple(Regex, TokenDef | Nil, Type | Nil, MappingType | Nil))
       end
 
-      def initialize(rs : Tuple(Regex | Nil, Array(Tuple(String, Type)) | Nil, Type, MappingType))
-        token_defs = Array(TokenDef)
-        rs[1].each do |r|
-          if rs[0].nil?
-            token_defs = 
-          else
-            token_defs = 
-          end
-        @rule = {r[0], token_defs, r[2], r[3]}
+      def initialize(rs : Tuple(Regex | Nil, Array(Tuple(String, Type)) | Nil, Type | Nil, MappingType | Nil))
+        regex = rs[0]
+        tokendef = TokenDef.new(rs[1])
+        if regex.nil?
+          regex = tokendef.r.not_nil!
+        end
+        @rule = {rs[0], tokendef, rs[2], rs[3]}
       end
     end
 
-    class Grammar
+    def self.tokenize(p : Program, src : String)
+        tokens = Array(Node).new
+        tokens
+    end
+
+<<-'IGNORE'
+    struct Grammar
       property grammar
 
       def initialize(@grammar : Array(GrammarRule))
       end
 
-      def self.new
+      self.new(rs : Array(Tuple(Regex | Nil, Array(Tuple(String, Type)) | Nil, Type | Nil, MappingType | Nil)))
         i = Grammar.allocate
-        i.grammar = [] of GrammarRule
+        i.grammar = Array(GrammarRule).new
+        rs.each do |r|
+          i.grammar.push(GrammerRule.new(r[0], r[1], r[2], r[3]))
+        end
         i
-      end
-
-      def <<(r : GrammarRule) : self # Tuple(Regex | Nil, Array(Tuple(String, Type)) | Nil, Type, MappingType)) : self
-        @grammar << r
       end
     end
 
@@ -144,51 +147,55 @@ module CrystalRobots::Compiler
     # use as long as I disallow their use in identifiers and this will allow them to
     # still be used in strings
     #
-    @@grammar = Grammar.new
-    @@grammar << {/^\"([^\"]+)\"/, nil, Type::String, MappingType::Default}
-    @@grammar << {/^(-{0,1}[\.0-9]+)/, nil, Type::Number, MappingType::Default}
-    @@grammar << {/^(\(|\))/,
+    @@grammar = CrystalRobots::Compiler::Parser::Grammar.new(
+      [
+        {/^\"([^\"]+)\"/, nil, Type::String, MappingType::Default},
+        {/^\"([^\"]+)\"/, nil, Type::String, MappingType::Default},
+        {/^(-{0,1}[\.0-9]+)/, nil, Type::Number, MappingType::Default},
+      ])
+        {/^(\(|\))/,
                   [
                     {"(", Type::OpenParen},
                     {")", Type::CloseParen},
-                  ], nil, MappingType::Default}
-    @@grammar << {nil,
+                  ],
+                  nil, MappingType::Default},
+        {nil,
                   [
                     {"*", Type::Operator},
                     {"//", Type::Operator},
-                  ], Type::Operator, MappingType::Default}
-    @@grammar << {nil,
+                  ], Type::Operator, MappingType::Default},
+    {nil,
                   [
                     {"+", Type::Operator},
                     {"-", Type::Operator},
                   ], Type::Operator, MappingType::Default,
-    }
-    @@grammar << {nil,
+    },
+    {nil,
                   [
                     {"==", Type::Operator},
                     {"!=", Type::Operator},
                   ], Type::Operator, MappingType::Default,
-    }
-    @@grammar << {nil,
+    },
+    {nil,
                   [
                     {"<", Type::Operator},
                     {">", Type::Operator},
                     {"<=", Type::Operator},
                     {">=", Type::Operator},
                   ], Type::Operator, MappingType::Default,
-    }
-    @@grammar << {nil,
+    },
+    {nil,
                   [
                     {"&", Type::Operator},
                   ], Type::Operator, MappingType::Default,
-    }
-    @@grammar << {nil,
+    },
+    {nil,
                   [
                     {"|", Type::Operator},
                     {"^", Type::Operator},
                   ], Type::Operator, MappingType::Default,
-    }
-    @@grammar << {/^([a-z]+)\b/,
+    },
+    {/^([a-z]+)\b/,
                   [
                     {"begin", Type::BeginKeyword},
                     {"break", Type::BreakKeyword},
@@ -225,41 +232,20 @@ module CrystalRobots::Compiler
                     {"atan", Type::OneArgMethod},
                   ],
                   nil, MappingType::Default,
-    }
-    @@grammar << {/^(\s+)/, nil, Type::Whitespace, nil}
-    @@grammar << {/^\#.*$/, nil, Type::Comment, nil}
-    @@grammar << {/(№⊚№)/, nil, Type::Expression, MappingType::Default}
-    @@grammar << {/^(∉)/, nil, Type::ZeroArgStatement, MappingType::Default}
-    @@grammar << {/^(∊(№|🐍|😑))/, nil, Type::OneArgStatement, MappingType::Default}
-    @@grammar << {/^(∋(№|🐍|😑)(№|🐍|😑))/, nil, Type::TwoArgStatement, MappingType::Default}
-    @@grammar << {/^[❣❤❥]+$/, nil, Type::Program, MappingType::Program}
+    },
+    {/^(\s+)/, nil, Type::Whitespace, nil},
+    {/^\#.*$/, nil, Type::Comment, nil},
+    {/(№⊚№)/, nil, Type::Expression, MappingType::Default},
+    {/^(∉)/, nil, Type::ZeroArgStatement, MappingType::Default},
+    {/^(∊(№|🐍|😑))/, nil, Type::OneArgStatement, MappingType::Default},
+    {/^(∋(№|🐍|😑)(№|🐍|😑))/, nil, Type::TwoArgStatement, MappingType::Default},
+    {/^[❣❤❥]+$/, nil, Type::Program, MappingType::Program},
+        
+      ]
+    )
 
-    def self.mapperDefault(p : Program, t : Type, m : Regex::MatchData, i : Array(Int32))
-      value = m[0]
-      if t == Type::Keyword
-        t = @@keywords_h[value]
-      elsif t == Type::Builtin
-        t = @@builtins_h[value]
-      end
-      Log.d "default: #{t} #{value} #{i}"
-      [Node.new(type: t, value: value, index: i)]
-    end
-
-    def self.mapperStatement(p : Program, t : Type, m : Regex::MatchData, i : Array(Int32))
-      value = m[0]
-      case t
-      when Type::OneArgStatement
-        a = [i[0], i[0] + 1]
-      when Type::TwoArgStatement
-        a = [i[0], i[0] + 1, i[0] + 2]
-      else
-        a = [i[0]]
-      end
-      Log.d "statment: #{t} #{value} #{a}"
-      [Node.new(type: t, value: value, index: a)]
-    end
-
-    def self.mapperExpression(p : Program, t : Type, m : Regex::MatchData, i : Array(Int32))
+    def self.map(p : Program, t : Type, m : Regex::MatchData, i : Array(Int32), td : TokenDef | Nil, mt: MappingType)
+      # i is an array right now, but I don't think it needs to be as we know the length
       n = i[0]
       a = [n + 1, n, n + 2]
       value = m[0]
@@ -273,24 +259,9 @@ module CrystalRobots::Compiler
         Log.d "node #{node} @ #{pc}"
         tokens << Node.new(type: Type.new(m.string[j].ord), value: node.value, index: [n_off])
       end
+      Log.d "map: #{t} #{value} #{i}"
       tokens << Node.new(type: t, value: value, index: a)
     end
-
-    @@mappers : Hash(Type, Proc(Program, Type, Regex::MatchData, Array(Int32), Array(Node)) | Nil)
-    @@mappers = {
-      Type::String           => ->mapperDefault(Program, Type, Regex::MatchData, Array(Int32)),
-      Type::Number           => ->mapperDefault(Program, Type, Regex::MatchData, Array(Int32)),
-      Type::Keyword          => ->mapperDefault(Program, Type, Regex::MatchData, Array(Int32)),
-      Type::Builtin          => ->mapperDefault(Program, Type, Regex::MatchData, Array(Int32)),
-      Type::Operator         => ->mapperDefault(Program, Type, Regex::MatchData, Array(Int32)),
-      Type::Whitespace       => nil,
-      Type::Comment          => nil,
-      Type::Expression       => ->mapperExpression(Program, Type, Regex::MatchData, Array(Int32)),
-      Type::ZeroArgStatement => ->mapperStatement(Program, Type, Regex::MatchData, Array(Int32)),
-      Type::OneArgStatement  => ->mapperStatement(Program, Type, Regex::MatchData, Array(Int32)),
-      Type::TwoArgStatement  => ->mapperStatement(Program, Type, Regex::MatchData, Array(Int32)),
-      Type::Program          => ->mapperDefault(Program, Type, Regex::MatchData, Array(Int32)),
-    }
 
     class Error < Exception
     end
@@ -337,6 +308,7 @@ module CrystalRobots::Compiler
       tokens
     end
 
+IGNORE
     def tokens_to_s(tokens)
       tokens.map { |token| token.type.value.chr }.join
     end

@@ -65,15 +65,15 @@ module CrystalRobots::Compiler
     TrueKeyword    = 0x0001F522 # 🔢
     WhileKeyword   = 0x0001F523 # 🔣
 
-    Builtin        = 0x00002208 # ∈
-    ZeroArgBuiltin = 0x00002209 # ∉
-    OneArgBuiltin  = 0x0000220A # ∊
-    TwoArgBuiltin  = 0x0000220B # ∋
-    Whitespace     = 0x00002422 # ␢
-    Comment        = 0x0001F4AC # 💬
-    OpenParen      = 0x000027EE # ⟮
-    CloseParen     = 0x000027EF # ⟯
-    Expression     = 0x0001F611 # 😑
+    Builtin       = 0x00002208 # ∈
+    ZeroArgMethod = 0x00002209 # ∉
+    OneArgMethod  = 0x0000220A # ∊
+    TwoArgMethod  = 0x0000220B # ∋
+    Whitespace    = 0x00002422 # ␢
+    Comment       = 0x0001F4AC # 💬
+    OpenParen     = 0x000027EE # ⟮
+    CloseParen    = 0x000027EF # ⟯
+    Expression    = 0x0001F611 # 😑
 
     Statement        = 0x00002762 # ❢
     ZeroArgStatement = 0x00002763 # ❣
