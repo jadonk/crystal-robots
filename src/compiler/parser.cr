@@ -115,14 +115,13 @@ module CrystalRobots::Compiler
         tokens
     end
 
-<<-'IGNORE'
     struct Grammar
       property grammar
 
       def initialize(@grammar : Array(GrammarRule))
       end
 
-      self.new(rs : Array(Tuple(Regex | Nil, Array(Tuple(String, Type)) | Nil, Type | Nil, MappingType | Nil)))
+      def self.new(rs : Array(Tuple(Regex | Nil, Array(Tuple(String, Type)) | Nil, Type | Nil, MappingType | Nil)))
         i = Grammar.allocate
         i.grammar = Array(GrammarRule).new
         rs.each do |r|
@@ -308,7 +307,6 @@ module CrystalRobots::Compiler
       tokens
     end
 
-IGNORE
     def tokens_to_s(tokens)
       tokens.map { |token| token.type.value.chr }.join
     end
