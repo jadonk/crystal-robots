@@ -29,8 +29,9 @@ module CrystalRobots::Compiler
   end
 
   enum Type : Int32
-    String = 0x0001F40D # 🐍
-    Number = 0x00002116 # №
+    Invalid =    0x1F30B # 🌋
+    String  = 0x0001F40D # 🐍
+    Number  = 0x00002116 # №
 
     Operator         = 0x0000229A # ⊚
     AddOperator      = 0x00002295 # ⊕
@@ -85,7 +86,7 @@ module CrystalRobots::Compiler
   struct Node
     property type, value, index
 
-    def initialize(@type : Type, @value : String, @index : Array(Int32))
+    def initialize(@type : Type, @value : String, @index : Int32)
     end
 
     def to_s(io : IO)

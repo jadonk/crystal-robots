@@ -198,7 +198,7 @@ module CrystalRobots::Compiler
           p = ast.ast[i][j].type
           case p
           when Type::OneArgStatement
-            a = ast.ast[i][j].index[1]
+            a = ast.ast[i][j].index + 1
             t = ast.ast[i - 1][a]
             case t.type
             when Type::Number
