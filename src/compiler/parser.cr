@@ -151,7 +151,6 @@ module CrystalRobots::Compiler
         {/^\"([^\"]+)\"/, nil, Type::String, MappingType::Default},
         {/^\"([^\"]+)\"/, nil, Type::String, MappingType::Default},
         {/^(-{0,1}[\.0-9]+)/, nil, Type::Number, MappingType::Default},
-      ])
         {/^(\(|\))/,
                   [
                     {"(", Type::OpenParen},
