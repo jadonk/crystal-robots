@@ -78,7 +78,7 @@ describe CrystalRobots do
       it "can produce token strings" do
         p = CrystalRobots::Compiler::Parser.new(" puts \"string\"")
         s = p.program.to_s
-        s.should eq "∊🐍\n❤\n⏹\n @ 3,0"
+        s.should eq "∊🐍\n❤\n⏹\n@(3,0)"
       end
     end
 

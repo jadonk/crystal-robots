@@ -258,7 +258,7 @@ module CrystalRobots::Compiler
       when MappingType::Drop
         nil
       when MappingType::Program
-        if index == 0
+        if index != 0
           nil
         else
           type = rule.type.not_nil!
