@@ -6,16 +6,14 @@ describe CrystalRobots do
   end
 
   describe "CLI" do
-    describe "CLI" do
-      it "can be called without the command-line option parser" do
-        c = CrystalRobots::CLI.new(run_parser: false)
-        c.run.should eq 1
-      end
+    it "can be called without the command-line option parser" do
+      c = CrystalRobots::CLI.new(run_parser: false)
+      c.run.should eq 1
+    end
 
-      it "can be asked to compile a robot and output WebAssembly" do
-        c = CrystalRobots::CLI.new(run_parser: false, robot_to_compile: "examples/test.cr", outfile: "examples/test.wasm")
-        c.run.should eq 1
-      end
+    it "can be asked to compile a robot and output WebAssembly" do
+      c = CrystalRobots::CLI.new(run_parser: false, robot_to_compile: "examples/test.cr", outfile: "examples/test.wasm")
+      c.run.should eq 1
     end
   end
 
