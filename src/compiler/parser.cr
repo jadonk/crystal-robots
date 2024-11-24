@@ -251,7 +251,7 @@ module CrystalRobots::Compiler
         {/(№≟№)/, nil, Type::Expression, MappingType::Default},
         {/(№≺№)/, nil, Type::Expression, MappingType::Default},
         {/(№∧№)/, nil, Type::Expression, MappingType::Default},
-        {/(№∨№)/, nil, Type::Expression, MappingType::Default},        
+        {/(№∨№)/, nil, Type::Expression, MappingType::Default},
         {/^(∉)/, nil, Type::ZeroArgStatement, MappingType::Default},
         {/^(∊(№|🐍|😑))/, nil, Type::OneArgStatement, MappingType::Default},
         {/^(∋(№|🐍|😑)(№|🐍|😑))/, nil, Type::TwoArgStatement, MappingType::Default},
