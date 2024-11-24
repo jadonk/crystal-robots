@@ -26,8 +26,8 @@ module CrystalRobots::Compiler
       do_exit = true
       case stmt_t
       when Type::Expression
-        cmd = p.arg(0)
-        larg_val = get_val(p, 1)
+        cmd = p.arg(1)
+        larg_val = get_val(p, 0)
         rarg_val = get_val(p, 2)
         Log.d "evaluating #{larg_val} #{cmd.value} #{rarg_val}"
         retval = expression(cmd, larg_val, rarg_val)
@@ -66,7 +66,7 @@ module CrystalRobots::Compiler
 
     def self.expression(op, l, r)
       if l.nil? || r.nil?
-        raise "Argument was nil: #{l} #{op.value} #{r}"
+        raise "Argument was nil: '#{l}' '#{op.value}' '#{r}'"
       end
       case op.value
       when "+"
