@@ -6,7 +6,12 @@ describe CrystalRobots do
   end
 
   describe "CLI" do
-    # TODO: I really don't know how to do this
+    describe "CLI" do
+      it "can be called without the command-line option parser" do
+        c = CrystalRobots::CLI.new(run_parser: false)
+        c.run.should eq 1
+      end
+    end
   end
 
   describe "Robot" do

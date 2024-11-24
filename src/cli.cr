@@ -1,5 +1,4 @@
 require "./crystal-robots"
 
-at_exit do
-  CrystalRobots::CLI.new
-end
+c = CrystalRobots::CLI.new
+c.run_at_exit

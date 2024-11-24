@@ -180,16 +180,16 @@ module CrystalRobots
     @port : UInt32 | Nil
     @outfile : String | Nil
 
-    def initialize
-      @matches = 1
-      @cycles = 500_000
-      @exit = false
-      @interpreter = false
+    def initialize(@run_parser = true, @matches = 1, @cycles = 500_000, @exit = false, @interpreter = false, @robot_to_compile = nil, @robots_to_battle = nil, @port = nil, @outfile = nil)
+    end
 
-      # TODO: http://tpoindex.github.io/crobots/docs/crobots_manual.html#4
-      parser = OptionParser.new
-      customize_parser(parser)
-      parser.parse
+    def run
+      if @run_parser
+        # TODO: http://tpoindex.github.io/crobots/docs/crobots_manual.html#4
+        parser = OptionParser.new
+        customize_parser(parser)
+        parser.parse
+      end
 
       if @exit
         return 0
@@ -293,6 +293,12 @@ module CrystalRobots
           puts "Running with robots: #{robots}"
           @robots_to_battle = robots
         end
+      end
+    end
+
+    def run_at_exit
+      at_exit do
+        run
       end
     end
   end
