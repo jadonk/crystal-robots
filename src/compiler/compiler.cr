@@ -210,13 +210,11 @@ module CrystalRobots::Compiler
     end
 
     def arg(pc : PC, n : Int32)
-      if pc.pass <= 0
-        raise "I need to add handling of indexes into the source string"
+      arg_pc = PC.new(pc.pass-1, node.index + n)
+      if !test_pc(arg_pc)
+        raise "Invalid argument pointer #{arg_pc}"
       end
-      if n >= node.index.size
-        raise "Not enough arguments"
-      end
-      @ast[pc.pass - 1][node.index[n]]
+      node(arg_pc)
     end
 
     # Program#arg(0) should return the first Node pointed to by the current Node
@@ -231,7 +229,7 @@ module CrystalRobots::Compiler
     def to_s(io : IO)
       s = @ast.map { |a| tokens_to_s(a) }.join('\n')
       t = s
-      io << "#{t}\n @ #{@pc.pass},#{@pc.index}"
+      io << "#{t}\n#{@pc}"
     end
   end
 end

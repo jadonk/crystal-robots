@@ -24,15 +24,15 @@ describe CrystalRobots do
         t = CrystalRobots::Compiler::Parser.tokenize(p, " def")
         t.size.should eq 1
         t[0].type.should eq CrystalRobots::Compiler::Type::DefKeyword
-        t[0].index.should eq [1]
+        t[0].index.should eq 1
       end
 
       it "tokenizes single builtin" do
         p = CrystalRobots::Compiler::Program.new
         t = CrystalRobots::Compiler::Parser.tokenize(p, " puts")
         t.size.should eq 1
-        t[0].type.should eq CrystalRobots::Compiler::Type::OneArgBuiltin
-        t[0].index.should eq [1]
+        t[0].type.should eq CrystalRobots::Compiler::Type::OneArgMethod
+        t[0].index.should eq 1
       end
 
       it "tokenizes single string" do
@@ -40,17 +40,17 @@ describe CrystalRobots do
         t = CrystalRobots::Compiler::Parser.tokenize(p, "  \"string\" ")
         t.size.should eq 1
         t[0].type.should eq CrystalRobots::Compiler::Type::String
-        t[0].index.should eq [2]
+        t[0].index.should eq 2
       end
 
       it "tokenizes builtin followed by string" do
         p = CrystalRobots::Compiler::Parser.new(" puts \"string\"")
         p.program[0].size.should eq 2
-        p.program[0][0].type.should eq CrystalRobots::Compiler::Type::OneArgBuiltin
-        p.program[0][0].index.should eq [1]
+        p.program[0][0].type.should eq CrystalRobots::Compiler::Type::OneArgMethod
+        p.program[0][0].index.should eq 1
         p.program[0][0].value.should eq "puts"
         p.program[0][1].type.should eq CrystalRobots::Compiler::Type::String
-        p.program[0][1].index.should eq [6]
+        p.program[0][1].index.should eq 6
         p.program[0][1].value.should eq "\"string\""
       end
 
@@ -59,13 +59,13 @@ describe CrystalRobots do
         t = CrystalRobots::Compiler::Parser.tokenize(p, " 32 \n  -11 39.5")
         t.size.should eq 3
         t[0].type.should eq CrystalRobots::Compiler::Type::Number
-        t[0].index.should eq [1]
+        t[0].index.should eq 1
         t[0].value.should eq "32"
         t[1].type.should eq CrystalRobots::Compiler::Type::Number
-        t[1].index.should eq [7]
+        t[1].index.should eq 7
         t[1].value.should eq "-11"
         t[2].type.should eq CrystalRobots::Compiler::Type::Number
-        t[2].index.should eq [11]
+        t[2].index.should eq 11
         t[2].value.should eq "39.5"
       end
 

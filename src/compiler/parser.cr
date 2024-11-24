@@ -249,7 +249,6 @@ module CrystalRobots::Compiler
         {/^(∊(№|🐍|😑))/, nil, Type::OneArgStatement, MappingType::Default},
         {/^(∋(№|🐍|😑)(№|🐍|😑))/, nil, Type::TwoArgStatement, MappingType::Default},
         {/^[❣❤❥]+$/, nil, Type::Program, MappingType::Program},
-
       ]
     )
 
@@ -278,6 +277,9 @@ module CrystalRobots::Compiler
         end
         t = rule.tokendef.h[value]
         if t == Type::Invalid
+          if rule.type.nil?
+            raise Error.new("Unexpected token #{value} @ #{index}")
+          end
           t = rule.type.not_nil!
         end
         tokens << Node.new(type: t, value: value, index: index + m.begin(0))
