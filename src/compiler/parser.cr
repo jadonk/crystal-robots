@@ -170,39 +170,39 @@ module CrystalRobots::Compiler
          nil, MappingType::Default},
         {nil,
          [
-           {"*", Type::Operator},
-           {"//", Type::Operator},
-         ], Type::Operator, MappingType::Default},
+           {"*", Type::MulOperator},
+           {"//", Type::FloorDivOperator},
+         ], Type::MulOperator, MappingType::Default},
         {nil,
          [
-           {"+", Type::Operator},
-           {"-", Type::Operator},
-         ], Type::Operator, MappingType::Default,
+           {"+", Type::AddOperator},
+           {"-", Type::SubOperator},
+         ], Type::AddOperator, MappingType::Default,
         },
         {nil,
          [
-           {"==", Type::Operator},
-           {"!=", Type::Operator},
-         ], Type::Operator, MappingType::Default,
+           {"==", Type::EqOperator},
+           {"!=", Type::NeOperator},
+         ], Type::EqOperator, MappingType::Default,
         },
         {nil,
          [
-           {"<", Type::Operator},
-           {">", Type::Operator},
-           {"<=", Type::Operator},
-           {">=", Type::Operator},
-         ], Type::Operator, MappingType::Default,
+           {"<", Type::LtOperator},
+           {">", Type::GtOperator},
+           {"<=", Type::LtOperator},
+           {">=", Type::GtOperator},
+         ], Type::LtOperator, MappingType::Default,
         },
         {nil,
          [
-           {"&", Type::Operator},
-         ], Type::Operator, MappingType::Default,
+           {"&", Type::AndOperator},
+         ], Type::AndOperator, MappingType::Default,
         },
         {nil,
          [
-           {"|", Type::Operator},
-           {"^", Type::Operator},
-         ], Type::Operator, MappingType::Default,
+           {"|", Type::OrOperator},
+           {"^", Type::XorOperator},
+         ], Type::OrOperator, MappingType::Default,
         },
         {/^([a-z]+)\b/,
          [
@@ -244,7 +244,13 @@ module CrystalRobots::Compiler
         },
         {/^(\s+)/, nil, Type::Whitespace, nil},
         {/^\#.*$/, nil, Type::Comment, nil},
-        {/(№⊚№)/, nil, Type::Expression, MappingType::Default},
+        {/(№⊗№)/, nil, Type::Expression, MappingType::Default},
+        {/(№⊕№)/, nil, Type::Expression, MappingType::Default},
+        {/(№≟№)/, nil, Type::Expression, MappingType::Default},
+        {/(№≟№)/, nil, Type::Expression, MappingType::Default},
+        {/(№≺№)/, nil, Type::Expression, MappingType::Default},
+        {/(№∧№)/, nil, Type::Expression, MappingType::Default},
+        {/(№∨№)/, nil, Type::Expression, MappingType::Default},        
         {/^(∉)/, nil, Type::ZeroArgStatement, MappingType::Default},
         {/^(∊(№|🐍|😑))/, nil, Type::OneArgStatement, MappingType::Default},
         {/^(∋(№|🐍|😑)(№|🐍|😑))/, nil, Type::TwoArgStatement, MappingType::Default},
@@ -304,9 +310,16 @@ module CrystalRobots::Compiler
         end
         if matches.size == 0
           # TODO: Perhaps the right way is to pass one on at a time and then fail when there are no longer any reductions?
-          raise Error.new("Unexpected token #{src[index..index + 1]} @ #{index}")
-        end
-        if !matches[0].nil? && !matches[0][:m][0].nil?
+          if index == 0
+            raise Error.new("No tokens found in #{src}")
+          end
+          pc = PC.new(p.pc.pass - 1, index)
+          node = p.node(pc)
+          Log.d "skipping #{src[index]} as #{node.type} from #{node.value} #{pc}"
+          tokens << Node.new(type: node.type, value: node.value, index: index)
+          index += 1
+          p.pc.inc
+        elsif !matches[0].nil? && !matches[0][:m][0].nil?
           m = matches[0][:m].not_nil!
           rule = matches[0][:rule].not_nil!
           t = self.map(p, index, m, rule)
