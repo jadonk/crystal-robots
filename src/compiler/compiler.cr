@@ -210,7 +210,7 @@ module CrystalRobots::Compiler
     end
 
     def arg(pc : PC, n : Int32)
-      arg_pc = PC.new(pc.pass-1, node.index + n)
+      arg_pc = PC.new(pc.pass - 1, node.index + n)
       if !test_pc(arg_pc)
         raise "Invalid argument pointer #{arg_pc}"
       end
