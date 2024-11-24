@@ -244,6 +244,7 @@ module CrystalRobots::Compiler
         },
         {/^(\s+)/, nil, Type::Whitespace, nil},
         {/^\#.*$/, nil, Type::Comment, nil},
+        # TODO: This makes me realize I need to have both a source type and a result type
         {/(№⊗№)/, nil, Type::Expression, MappingType::Default},
         {/(№⊕№)/, nil, Type::Expression, MappingType::Default},
         {/(№≟№)/, nil, Type::Expression, MappingType::Default},
