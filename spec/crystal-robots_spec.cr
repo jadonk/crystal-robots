@@ -196,6 +196,12 @@ describe CrystalRobots do
         CrystalRobots::Compiler.interpret("puts 1+2")
         CrystalRobots::Compiler::Interpreter.puts_out.should eq "3"
       end
+
+      it "evaluates simple expressions with parentheses" do
+        CrystalRobots::Compiler::Interpreter.puts_clear
+        CrystalRobots::Compiler.interpret("puts 2*(1+2)")
+        CrystalRobots::Compiler::Interpreter.puts_out.should eq "6"
+      end
     end
   end
 end

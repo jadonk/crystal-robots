@@ -29,7 +29,7 @@ module CrystalRobots::Compiler
   end
 
   enum Type : Int32
-    Invalid =    0x1F30B # 🌋
+    Invalid = 0x0001F30B # 🌋
     String  = 0x0001F40D # 🐍
     Number  = 0x00002116 # №
 
@@ -152,13 +152,13 @@ module CrystalRobots::Compiler
     end
 
     def node
-      Log.d "Fetching node #{@pc}"
-      @ast[@pc.pass][@pc.index]
+      x = @ast[@pc.pass][@pc.index]
+      Log.d "Fetching node #{@pc}: #{x}"
     end
 
     def node(pc : PC)
-      Log.d "Fetching node #{pc}"
-      @ast[pc.pass][pc.index]
+      x = @ast[pc.pass][pc.index]
+      Log.d "Fetching node #{pc}: #{x}"
     end
 
     def size
@@ -210,7 +210,9 @@ module CrystalRobots::Compiler
     end
 
     def arg(pc : PC, n : Int32)
-      arg_pc = PC.new(pc.pass - 1, node.index + n)
+      m = node.not_nil!
+      i = m.index
+      arg_pc = PC.new(pc.pass - 1, i + n)
       if !test_pc(arg_pc)
         raise "Invalid argument pointer #{arg_pc}"
       end

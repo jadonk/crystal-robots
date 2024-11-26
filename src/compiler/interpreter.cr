@@ -19,8 +19,8 @@ module CrystalRobots::Compiler
     end
 
     def self.executeStatement(p : Program)
-      stmt = p.node
-      stmt_t = stmt.type
+      stmt = p.node.not_nil!
+      stmt_t = stmt.type.not_nil!
       pc = p.pc
       retval = 0_i32
       do_exit = true

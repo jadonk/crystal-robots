@@ -91,6 +91,7 @@ module CrystalRobots::Compiler
       Default
       Drop
       Program
+      Parenthetical
     end
 
     # 1. Start by matching the first Regex. If initially assigned Nil in creation, it should get
@@ -245,6 +246,7 @@ module CrystalRobots::Compiler
         {/^(\s+)/, nil, Type::Whitespace, nil},
         {/^(\#[^\n]*)/, nil, Type::Comment, nil},
         # TODO: This makes me realize I need to have both a source type and a result type
+        {/(⟮(№|😑)(⊗|⊕|≟|≺|∧|∨)(№|😑)⟯)/, nil, Type::Expression, MappingType::Parenthetical},
         {/((№|😑)⊗(№|😑))/, nil, Type::Expression, MappingType::Default},
         {/((№|😑)⊕(№|😑))/, nil, Type::Expression, MappingType::Default},
         {/((№|😑)≟(№|😑))/, nil, Type::Expression, MappingType::Default},
@@ -272,15 +274,16 @@ module CrystalRobots::Compiler
           [Node.new(type: type, value: value, index: 0)]
         end
       when MappingType::Default
-        Log.d "mapping #{value} as #{rule.type} @ #{index} offset by #{m.begin(0)}"
+        Log.d "mapping #{value} as #{rule.type} using #{rule.map} @ #{index} offset by #{m.begin(0)}"
         tokens = Array(Node).new
         m.begin(0).times do |j|
           n = index + j
           pc = PC.new(p.pc.pass - 1, n)
-          node = p.node(pc)
-          t = Type.new(m.string[j].ord)
-          Log.d "skipping #{m.string[j]} as #{t} from #{node.value} #{pc}"
-          tokens << Node.new(type: t, value: node.value, index: n)
+          node = p.node(pc).not_nil!
+          t = Type.new(m.string[j].ord).not_nil!
+          v = node.value.not_nil!
+          Log.d "skipping #{m.string[j]} as #{t} from #{v} #{pc}"
+          tokens << Node.new(type: t, value: v, index: n)
         end
         t = rule.tokendef.h[value]
         if t == Type::Invalid
@@ -290,6 +293,34 @@ module CrystalRobots::Compiler
           t = rule.type.not_nil!
         end
         tokens << Node.new(type: t, value: value, index: index + m.begin(0))
+      when MappingType::Parenthetical
+        # In this case, we want to drop the parentheses and point to the first
+        # argument. The parentheses have done their job already by breaking up
+        # things for the parser. At this point, everything inside the parentheses
+        # has been resolved and we only have Value-Operator-Value. Even though
+        # Value might be an expression, it is already isolated and prioritized.
+        Log.d "mapping #{value} as #{rule.type} using #{rule.map} @ #{index} offset by #{m.begin(0)}"
+        tokens = Array(Node).new
+        m.begin(0).times do |j|
+          n = index + j
+          pc = PC.new(p.pc.pass - 1, n)
+          node = p.node(pc)
+          t = Type.new(m.string[j].ord).not_nil!
+          n = node.not_nil!
+          v = n.value.not_nil!
+          Log.d "skipping #{m.string[j]} as #{t} from #{v} #{pc}"
+          tokens << Node.new(type: t, value: v, index: n)
+        end
+        t = rule.tokendef.h[value]
+        if t == Type::Invalid
+          if rule.type.nil?
+            raise Error.new("Unexpected token #{value} @ #{index}")
+          end
+          t = rule.type.not_nil!
+        end
+        i = index + m.begin(0) + 1
+        Log.d "adding token #{value} as #{t} with index #{i}"
+        tokens << Node.new(type: t, value: value, index: i)
       end
     end
 
@@ -315,8 +346,10 @@ module CrystalRobots::Compiler
             raise Error.new("No tokens found in #{src}")
           end
           pc = PC.new(p.pc.pass - 1, index)
-          node = p.node(pc)
-          Log.d "skipping #{src[index]} as #{node.type} from #{node.value} #{pc}"
+          node = p.node(pc).not_nil!
+          t = node.type.not_nil!
+          v = node.value.not_nil!
+          Log.d "skipping #{src[index]} as #{t} from #{v} #{pc}"
           tokens << Node.new(type: node.type, value: node.value, index: index)
           index += 1
           p.pc.inc
