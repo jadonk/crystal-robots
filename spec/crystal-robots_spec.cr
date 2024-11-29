@@ -202,6 +202,12 @@ describe CrystalRobots do
         CrystalRobots::Compiler.interpret("puts 2*(1+2)")
         CrystalRobots::Compiler::Interpreter.puts_out.should eq "6"
       end
+
+      it "evaluates expressions with precedence" do
+        CrystalRobots::Compiler::Interpreter.puts_clear
+        CrystalRobots::Compiler.interpret("puts 2+(1+2)//2*4")
+        CrystalRobots::Compiler::Interpreter.puts_out.should eq "7"
+      end
     end
   end
 end

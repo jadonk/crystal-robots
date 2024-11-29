@@ -350,7 +350,7 @@ module CrystalRobots::Compiler
           t = node.type.not_nil!
           v = node.value.not_nil!
           Log.d "skipping #{src[index]} as #{t} from #{v} #{pc}"
-          tokens << Node.new(type: node.type, value: node.value, index: index)
+          tokens << Node.new(type: t, value: v, index: index)
           index += 1
           p.pc.inc
         elsif !matches[0].nil? && !matches[0][:m][0].nil?
