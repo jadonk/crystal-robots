@@ -53,12 +53,15 @@ module CrystalRobots::Compiler
       Log.d "get_val #{n}"
       case n.type
       when Type::Number
-        n.value
+        j = n.value
       when Type::String
-        n.value
+        j = n.value
       when Type::Expression
-        call(p, i)
+        Log.d "call #{p} #{i}"
+        j = call(p, i)
       end
+      Log.d "get_val #{n} -> #{j}"
+      j
     end
 
     def self.call(p, i)

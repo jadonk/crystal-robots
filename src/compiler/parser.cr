@@ -319,6 +319,7 @@ module CrystalRobots::Compiler
           t = rule.type.not_nil!
         end
         i = index + m.begin(0) + 1
+        #value = value[1, value.size-2]
         Log.d "adding token #{value} as #{t} with index #{i}"
         tokens << Node.new(type: t, value: value, index: i)
       end
