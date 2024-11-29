@@ -48,19 +48,21 @@ module CrystalRobots::Compiler
       {"pc": pc, "ret": retval, "exit": do_exit}
     end
 
-    def self.get_val(p, n)
-      case p.arg(n).type
+    def self.get_val(p, i)
+      n = p.arg(i)
+      Log.d "get_val #{n}"
+      case n.type
       when Type::Number
-        p.arg(n).value
+        n.value
       when Type::String
-        p.arg(n).value
+        n.value
       when Type::Expression
-        call(p, n)
+        call(p, i)
       end
     end
 
-    def self.call(p, n)
-      p.call(n)
+    def self.call(p, i)
+      p.call(i)
       r = executeStatement(p)
       p.return
       r[:ret]
