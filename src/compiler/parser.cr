@@ -277,13 +277,13 @@ module CrystalRobots::Compiler
         Log.d "mapping #{value} as #{rule.type} using #{rule.map} @ #{index} offset by #{m.begin(0)}"
         tokens = Array(Node).new
         m.begin(0).times do |j|
-          n = index + j
-          pc = PC.new(p.pc.pass - 1, n)
-          node = p.node(pc).not_nil!
+          i = index + j
+          pc = PC.new(p.pc.pass - 1, i)
+          n = p.node(pc).not_nil!
           t = Type.new(m.string[j].ord).not_nil!
-          v = node.value.not_nil!
+          v = n.value.not_nil!
           Log.d "skipping #{m.string[j]} as #{t} from #{v} #{pc}"
-          tokens << Node.new(type: t, value: v, index: n)
+          tokens << Node.new(type: t, value: v, index: i)
         end
         t = rule.tokendef.h[value]
         if t == Type::Invalid
@@ -302,14 +302,14 @@ module CrystalRobots::Compiler
         Log.d "mapping #{value} as #{rule.type} using #{rule.map} @ #{index} offset by #{m.begin(0)}"
         tokens = Array(Node).new
         m.begin(0).times do |j|
-          n = index + j
-          pc = PC.new(p.pc.pass - 1, n)
+          i = index + j
+          pc = PC.new(p.pc.pass - 1, i)
           node = p.node(pc)
           t = Type.new(m.string[j].ord).not_nil!
           n = node.not_nil!
           v = n.value.not_nil!
           Log.d "skipping #{m.string[j]} as #{t} from #{v} #{pc}"
-          tokens << Node.new(type: t, value: v, index: n)
+          tokens << Node.new(type: t, value: v, index: i)
         end
         t = rule.tokendef.h[value]
         if t == Type::Invalid

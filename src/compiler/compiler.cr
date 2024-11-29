@@ -179,7 +179,7 @@ module CrystalRobots::Compiler
       if @ast.size < 3
         raise "not enough passes running tokenize"
       end
-      @pc.pass = @ast.size - 1
+      @pc.pass = @ast.size - 2
       @pc.index = 0
     end
 
