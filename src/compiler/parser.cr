@@ -274,7 +274,6 @@ module CrystalRobots::Compiler
           [Node.new(type: type, value: value, index: 0)]
         end
       when MappingType::Default
-        Log.d "mapping #{value} as #{rule.type} using #{rule.map} @ #{index} offset by #{m.begin(0)}"
         tokens = Array(Node).new
         m.begin(0).times do |j|
           i = index + j
@@ -282,7 +281,7 @@ module CrystalRobots::Compiler
           n = p.node(pc).not_nil!
           t = Type.new(m.string[j].ord).not_nil!
           v = n.value.not_nil!
-          Log.d "skipping #{m.string[j]} as #{t} from #{v} #{pc}"
+          Log.d "passing #{m.string[j]} as #{t} from #{v} #{pc}"
           tokens << Node.new(type: t, value: v, index: i)
         end
         t = rule.tokendef.h[value]
@@ -292,6 +291,7 @@ module CrystalRobots::Compiler
           end
           t = rule.type.not_nil!
         end
+        Log.d "mapping #{value} as #{t} using #{rule.map} @ #{index} offset by #{m.begin(0)}"
         tokens << Node.new(type: t, value: value, index: index + m.begin(0))
       when MappingType::Parenthetical
         # In this case, we want to drop the parentheses and point to the first
@@ -299,7 +299,6 @@ module CrystalRobots::Compiler
         # things for the parser. At this point, everything inside the parentheses
         # has been resolved and we only have Value-Operator-Value. Even though
         # Value might be an expression, it is already isolated and prioritized.
-        Log.d "mapping #{value} as #{rule.type} using #{rule.map} @ #{index} offset by #{m.begin(0)}"
         tokens = Array(Node).new
         m.begin(0).times do |j|
           i = index + j
@@ -308,7 +307,7 @@ module CrystalRobots::Compiler
           t = Type.new(m.string[j].ord).not_nil!
           n = node.not_nil!
           v = n.value.not_nil!
-          Log.d "skipping #{m.string[j]} as #{t} from #{v} #{pc}"
+          Log.d "passing #{m.string[j]} as #{t} from #{v} #{pc}"
           tokens << Node.new(type: t, value: v, index: i)
         end
         t = rule.tokendef.h[value]
@@ -320,7 +319,7 @@ module CrystalRobots::Compiler
         end
         i = index + m.begin(0) + 1
         #value = value[1, value.size-2]
-        Log.d "adding token #{value} as #{t} with index #{i}"
+        Log.d "mapping #{value} as #{t} using #{rule.map} @ #{index} offset by #{m.begin(0) + 1}"
         tokens << Node.new(type: t, value: value, index: i)
       end
     end

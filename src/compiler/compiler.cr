@@ -199,7 +199,7 @@ module CrystalRobots::Compiler
       end
       @call_stack << @pc.index
       @pc.pass -= 1
-      @pc.index = i
+      @pc.index += i
     end
 
     def return

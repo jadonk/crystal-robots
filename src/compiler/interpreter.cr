@@ -22,6 +22,7 @@ module CrystalRobots::Compiler
 
     def self.executeStatement(p : Program)
       stmt = p.node.not_nil!
+      Log.d "executeStatement #{stmt}"
       stmt_t = stmt.type.not_nil!
       pc = p.pc
       retval = 0_i32
@@ -57,7 +58,7 @@ module CrystalRobots::Compiler
       when Type::String
         j = n.value
       when Type::Expression
-        Log.d "call #{p} #{i}"
+        Log.d "call #{p.node} #{i}"
         j = call(p, i)
       end
       Log.d "get_val #{n} -> #{j}"
