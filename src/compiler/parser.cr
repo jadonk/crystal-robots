@@ -318,7 +318,7 @@ module CrystalRobots::Compiler
           t = rule.type.not_nil!
         end
         i = index + m.begin(0) + 1
-        #value = value[1, value.size-2]
+        # value = value[1, value.size-2]
         Log.d "mapping #{value} as #{t} using #{rule.map} @ #{index} offset by #{m.begin(0) + 1}"
         tokens << Node.new(type: t, value: value, index: i)
       end

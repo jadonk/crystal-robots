@@ -90,7 +90,7 @@ module CrystalRobots::Compiler
     end
 
     def to_s(io : IO)
-      io << "'#{@type.value.chr}' #{@value}(#{@index})"
+      io << "'#{@type.value.chr}' \"#{@value}\" (#{@index})"
     end
   end
 
@@ -153,13 +153,13 @@ module CrystalRobots::Compiler
 
     def node
       x = @ast[@pc.pass][@pc.index].not_nil!
-      Log.d "Fetching node #{@pc}: #{x}"
+      Log.d "node #{@pc}: #{x}"
       x
     end
 
     def node(pc : PC)
       x = @ast[pc.pass][pc.index].not_nil!
-      Log.d "Fetching node #{pc}: #{x}"
+      Log.d "node #{pc}: #{x}"
       x
     end
 
