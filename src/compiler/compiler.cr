@@ -152,13 +152,15 @@ module CrystalRobots::Compiler
     end
 
     def node
-      x = @ast[@pc.pass][@pc.index]
+      x = @ast[@pc.pass][@pc.index].not_nil!
       Log.d "Fetching node #{@pc}: #{x}"
+      x
     end
 
     def node(pc : PC)
-      x = @ast[pc.pass][pc.index]
+      x = @ast[pc.pass][pc.index].not_nil!
       Log.d "Fetching node #{pc}: #{x}"
+      x
     end
 
     def size
@@ -177,7 +179,7 @@ module CrystalRobots::Compiler
       if @ast.size < 3
         raise "not enough passes running tokenize"
       end
-      @pc.pass = @ast.size - 2
+      @pc.pass = @ast.size - 1
       @pc.index = 0
     end
 

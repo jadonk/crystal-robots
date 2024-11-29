@@ -8,8 +8,10 @@ module CrystalRobots::Compiler
       retval = Nil
       while true
         r = executeStatement(p)
-        Log.d "#{p.node.type.value.chr} -> ret: #{retval}, i: #{r[:pc]}, exit: #{r[:exit]}"
         retval = r[:ret]
+        n = p.node.not_nil!
+        t = n.type.not_nil!
+        Log.d "#{t.value.chr} -> ret: #{retval}, i: #{r[:pc]}, exit: #{r[:exit]}"
         if r[:exit]
           break
         end
