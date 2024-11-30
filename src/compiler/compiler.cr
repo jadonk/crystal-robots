@@ -102,72 +102,50 @@ module CrystalRobots::Compiler
     end
   end
 
-  struct PC
-    property pass, index
-
-    def initialize(@pass : Int32, @index : Int32)
-    end
-
-    def inc
-      @index += 1
-      self
-    end
-
-    def inc(i : Int32)
-      @index += i
-      self
-    end
-
-    def to_s(io : IO)
-      io << "@(#{@pass},#{@index})"
-    end
-  end
-
+  # A `Program` is the result of parsing the source file.
+  # `ast` is an array of nodes, also called tokens.
+  # `pc` is the index to the current token when adding or interpreting. -1 is unintialized.
+  # `ppc` is the index to the start of tokens for this pass. -1 is uninitialized.
+  # `stack` is an array of indexes used for returning from calls.
   struct Program
-    property ast, pc, call_stack
+    property ast, pc, ppc, stack
 
-    def initialize
-      @ast = [] of Array(Node)
-      @pc = PC.new(0, 0)
-      @call_stack = [] of Int32
-    end
-
-    def initialize(@ast : Array(Array(Node)), @pc : PC, @call_stack : Array(Int32))
+    def initialize(@ast : Array(Node) = [] of Node, @pc : Int32 = -1, @ppc : Int32 = -1, @stack : Array(Int32) = [] of Int32)
     end
 
     def <<(token : Node)
-      @index += 1
-      @ast[@pc.pass] << token
+      @pc += 1
+      @ast.push(token)
     end
 
     def <<(tokens : Array(Node))
-      @index += tokens.size
-      @ast[@pc.@pass].concat(tokens)
+      @pc += tokens.size
+      @ast.concat(tokens)
     end
 
     def add_pass(tokens : Array(Node))
-      @ast << tokens
-      @pc.index = 0
-      @pc.pass += 1
+      @ast.concat(tokens)
+      @pc += tokens.size
+      @ppc = @pc
     end
 
     def [](i)
       @ast[i]
     end
 
-    def map(& : Array(Node) -> String) : Array(String)
-      Array(String).new(@ast.size) { |i| yield @ast[i] }
-    end
+    # def map(& : Array(Node) -> String) : String
+    #   Array(String).new(@ast.size) { |i| yield @ast[i] }
+    # end
 
     def node
-      x = @ast[@pc.pass][@pc.index].not_nil!
-      Log.d "node #{@pc}: #{x}"
+      x = @ast[@pc].not_nil!
+      Log.d "node @#{@pc}: #{x}"
       x
     end
 
     def node(pc : PC)
-      x = @ast[pc.pass][pc.index].not_nil!
-      Log.d "node #{pc}: #{x}"
+      x = @ast[pc].not_nil!
+      Log.d "node @#{pc}: #{x}"
       x
     end
 
@@ -176,24 +154,11 @@ module CrystalRobots::Compiler
     end
 
     def inc
-      @pc.inc
+      @pc += 1
     end
 
     def inc(i : Int32)
-      @pc.inc(i)
-    end
-
-    def start
-      if @ast.size < 3
-        raise "not enough passes running tokenize"
-      end
-      @pc.pass = @ast.size - 2
-      @pc.index = 0
-    end
-
-    def next_pass
-      @pc.pass += 1
-      @pc.index = 0
+      @pc += i
     end
 
     def jump(pc : PC)
@@ -202,27 +167,22 @@ module CrystalRobots::Compiler
 
     # We know for every call, pass is reduced by 1
     def call(i : Int32)
-      if pc.pass <= 1
-        raise "Call pass maximum depth"
-      end
-      @call_stack << @pc.index
-      @pc.pass -= 1
-      @pc.index += i
+      @stack.push(@pc)
+      @pc = i
     end
 
     def return
-      @pc.pass += 1
-      @pc.index = @call_stack.pop
+      @pc = @stack.pop
     end
 
     def test_pc(pc : PC)
-      pc.pass >= 0 && pc.index >= 0 && pc.pass < @ast.size && pc.index < @ast[pc.pass].size
+      pc >= 0 && pc < size
     end
 
-    def arg(pc : PC, n : Int32)
-      m = node.not_nil!
-      i = m.index
-      arg_pc = PC.new(pc.pass - 1, i + n)
+    def arg(pc : Int32, n : Int32)
+      m = @ast[pc].not_nil!
+      i = m.src
+      arg_pc = i + n
       if !test_pc(arg_pc)
         raise "Invalid argument pointer #{arg_pc}"
       end
@@ -234,14 +194,9 @@ module CrystalRobots::Compiler
       arg(@pc, n)
     end
 
-    def tokens_to_s(tokens)
-      tokens.map { |token| token.type.value.chr }.join
-    end
-
     def to_s(io : IO)
-      s = @ast.map { |a| tokens_to_s(a) }.join('\n')
-      t = s
-      io << "#{t}\n#{@pc}"
+      s = @ast.map { |token| token.type.value.chr }.join
+      io << "#{s} pc: #{@pc} ppc: #{@ppc} stack: #{@stack}"
     end
   end
 end
