@@ -83,14 +83,22 @@ module CrystalRobots::Compiler
     Program          = 0x000023F9 # ⏹
   end
 
+  # A `Node` is meant to be kept in an array. It can be said to be synonomous with a token.
+  # Each `Node` has a token `type` to reflect what was found.
+  # It also has a String `value`, which contains the original source content. This could be
+  # replaced by a pointer into the original source string along with a length.
+  # The `index` is the origin offset in the array to the next token such that tokens that
+  # have been combined can be skipped. If it isn't initialized, it is set to -1 and that
+  # simply means that the next token is just the next one in the array.
+  # The `src` is the origin offset in the array to the tokens this token represents. 
   struct Node
-    property type, value, index
+    property type, value, index, src
 
-    def initialize(@type : Type, @value : String, @index : Int32)
+    def initialize(@type : Type, @value : String, @index : Int32 = -1, @src : Int32 = -1)
     end
 
     def to_s(io : IO)
-      io << "'#{@type.value.chr}' \"#{@value}\" (#{@index})"
+      io << "'#{@type.value.chr}' \"#{@value}\" from #{@src} next @#{@index}"
     end
   end
 
