@@ -14,12 +14,6 @@
 # offset.
 #
 # https://en.wikipedia.org/wiki/Abstract_syntax_tree
-#
-# ```
-# bottom (0): [[ type : Type, value : String, line, column, [..args..]], ...]
-#        (1): [[ type : Type, .., [index0_in_0, index1_in_0, ...]], ...]
-#    top (n): [[ type : Type = Statement, .., [..args..]], ...]
-# ```
 
 module CrystalRobots::Compiler
   class Parser
@@ -31,10 +25,9 @@ module CrystalRobots::Compiler
       program = Program.new
       src = source
       while src != "⏹" && src != ""
-        Log.d "tokenize(#{program.pc.pass}, #{src})"
+        Log.d "tokenize(#{src})"
         t = tokenize(program, src)
-        program.add_pass(t)
-        src = tokens_to_s(t)
+        src = "#{t}"
       end
       i = Parser.allocate
       i.program = program
@@ -123,11 +116,6 @@ module CrystalRobots::Compiler
       end
     end
 
-    def self.tokenize(p : Program, src : String)
-      tokens = Array(Node).new
-      tokens
-    end
-
     struct Grammar
       property grammar
 
@@ -159,7 +147,7 @@ module CrystalRobots::Compiler
     # use as long as I disallow their use in identifiers and this will allow them to
     # still be used in strings
     #
-    @@grammar = CrystalRobots::Compiler::Parser::Grammar.new(
+    @@grammar = Grammar.new(
       [
         {/^\"([^\"]+)\"/, nil, Type::String, MappingType::Default},
         {/^(-{0,1}[\.0-9]+)/, nil, Type::Number, MappingType::Default},
@@ -261,7 +249,13 @@ module CrystalRobots::Compiler
       ]
     )
 
-    def self.map(p : Program, index : Int32, m : Regex::MatchData, rule : GrammarRule)
+    # `p` is the active program ast being filled
+    # `index` is the offset index into the source string where the search started
+    # `m` is the match result
+    # `rule` is the rule that was matched against
+    # result is an array of tokens to be added to the program or nil. why not add them here?
+    # what is the resulting string to search on the next pass? how do we know this pass should end?
+    def self.map(p : Program, index : Int32, m : Regex::MatchData, rule : GrammarRule) : Array(Node)
       value = m[0]
       case rule.map
       when MappingType::Drop
@@ -271,7 +265,7 @@ module CrystalRobots::Compiler
           nil
         else
           type = rule.type.not_nil!
-          [Node.new(type: type, value: value, index: 0)]
+          p.push(Node.new(type: type, value: value, index: p.ppc))
         end
       when MappingType::Default
         tokens = Array(Node).new
@@ -327,7 +321,9 @@ module CrystalRobots::Compiler
     class Error < Exception
     end
 
-    # src is the string to tokenize
+    # *src* is the string to tokenize
+    # *p* is the program to add the tokens to
+    # Returns the new stringified latest top-level tokens 
     def self.tokenize(p : Program, src : String)
       tokens = Array(Node).new
       index = 0
