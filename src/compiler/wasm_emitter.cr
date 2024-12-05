@@ -191,25 +191,23 @@ module CrystalRobots::Compiler
       )
     end
 
-    def codeFromAst(ast : Program)
+    def codeFromAst(program : Program)
       code = Bytes[0] # local decl count = 0
-      Range.new(0, ast.ast.size, exclusive = true).reverse_each do |i|
-        ast.ast[i].each_index do |j|
-          p = ast.ast[i][j].type
-          case p
-          when Type::OneArgStatement
-            a = ast.ast[i][j].index + 1
-            t = ast.ast[i - 1][a]
-            case t.type
-            when Type::Number
-              code += Bytes[Opcodes::I32_const.value]
-              code += signedLEB128(t.value.to_i32)
-            else
-              raise "Unsupported argument type: #{t.type} at #{a}"
-            end
-            code += Bytes[Opcodes::Call.value]
-            code += unsignedLEB128(0)
+      program.walkmode = WalkMode::Top
+      program.each do |p|
+        t = p.node.type.not_nil!
+        case t
+        when Type::OneArgStatement
+          a = p.arg(1)
+          case t
+          when Type::Number
+            code += Bytes[Opcodes::I32_const.value]
+            code += signedLEB128(t.value.to_i32)
+          else
+            raise "Unsupported argument type: #{t} at #{p.pc}"
           end
+          code += Bytes[Opcodes::Call.value]
+          code += unsignedLEB128(0)
         end
       end
       code += Bytes[Opcodes::End]

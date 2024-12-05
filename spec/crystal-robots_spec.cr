@@ -21,6 +21,13 @@ describe CrystalRobots do
   end
 
   describe "Compiler" do
+    describe "Program" do
+      it "can be instantiated" do
+        p = CrystalRobots::Compiler::Program.new
+        p.should_not eq nil
+      end
+    end
+
     describe "Parser" do
       it "can be instantiated" do
         p = CrystalRobots::Compiler::Parser.new("")

@@ -257,26 +257,23 @@ module CrystalRobots::Compiler
     # what is the resulting string to search on the next pass? how do we know this pass should end?
     def self.map(p : Program, index : Int32, m : Regex::MatchData, rule : GrammarRule) : Array(Node)
       value = m[0]
+      tokens = Array(Node).new
       case rule.map
       when MappingType::Drop
-        nil
       when MappingType::Program
-        if index != 0
-          nil
-        else
+        if index == 0
           type = rule.type.not_nil!
-          p.push(Node.new(type: type, value: value, index: p.ppc))
+          # TODO          p.push(Node.new(type: type, value: value))
         end
       when MappingType::Default
-        tokens = Array(Node).new
         m.begin(0).times do |j|
           i = index + j
-          pc = PC.new(p.pc.pass - 1, i)
-          n = p.node(pc).not_nil!
+          # TODO pc = PC.new(p.pc.pass - 1, i)
+          # TODO n = p.node(pc).not_nil!
           t = Type.new(m.string[j].ord).not_nil!
-          v = n.value.not_nil!
-          Log.d "passing #{m.string[j]} as #{t} from #{v} #{pc}"
-          tokens << Node.new(type: t, value: v, index: i)
+          # TODO v = n.value.not_nil!
+          # TODO Log.d "passing #{m.string[j]} as #{t} from #{v} #{pc}"
+          # TODO tokens << Node.new(type: t, value: v, index: i)
         end
         t = rule.tokendef.h[value]
         if t == Type::Invalid
@@ -286,23 +283,22 @@ module CrystalRobots::Compiler
           t = rule.type.not_nil!
         end
         Log.d "mapping #{value} as #{t} using #{rule.map} @ #{index} offset by #{m.begin(0)}"
-        tokens << Node.new(type: t, value: value, index: index + m.begin(0))
+        tokens << Node.new(type: t, value: value, src: index + m.begin(0))
       when MappingType::Parenthetical
         # In this case, we want to drop the parentheses and point to the first
         # argument. The parentheses have done their job already by breaking up
         # things for the parser. At this point, everything inside the parentheses
         # has been resolved and we only have Value-Operator-Value. Even though
         # Value might be an expression, it is already isolated and prioritized.
-        tokens = Array(Node).new
         m.begin(0).times do |j|
           i = index + j
-          pc = PC.new(p.pc.pass - 1, i)
-          node = p.node(pc)
-          t = Type.new(m.string[j].ord).not_nil!
-          n = node.not_nil!
-          v = n.value.not_nil!
-          Log.d "passing #{m.string[j]} as #{t} from #{v} #{pc}"
-          tokens << Node.new(type: t, value: v, index: i)
+          # TODO pc = PC.new(p.pc.pass - 1, i)
+          # TODO node = p.node(pc)
+          # TODO t = Type.new(m.string[j].ord).not_nil!
+          # TODO n = node.not_nil!
+          # TODO v = n.value.not_nil!
+          # TODO Log.d "passing #{m.string[j]} as #{t} from #{v} #{pc}"
+          # TODO tokens << Node.new(type: t, value: v, index: i)
         end
         t = rule.tokendef.h[value]
         if t == Type::Invalid
@@ -314,8 +310,9 @@ module CrystalRobots::Compiler
         i = index + m.begin(0) + 1
         # value = value[1, value.size-2]
         Log.d "mapping #{value} as #{t} using #{rule.map} @ #{index} offset by #{m.begin(0) + 1}"
-        tokens << Node.new(type: t, value: value, index: i)
+        tokens << Node.new(type: t, value: value, src: i)
       end
+      tokens
     end
 
     class Error < Exception
@@ -323,7 +320,7 @@ module CrystalRobots::Compiler
 
     # *src* is the string to tokenize
     # *p* is the program to add the tokens to
-    # Returns the new stringified latest top-level tokens 
+    # Returns the new stringified latest top-level tokens
     def self.tokenize(p : Program, src : String)
       tokens = Array(Node).new
       index = 0
@@ -341,14 +338,13 @@ module CrystalRobots::Compiler
           if index == 0
             raise Error.new("No tokens found in #{src}")
           end
-          pc = PC.new(p.pc.pass - 1, index)
+          pc = index
           node = p.node(pc).not_nil!
           t = node.type.not_nil!
           v = node.value.not_nil!
           Log.d "skipping #{src[index]} as #{t} from #{v} #{pc}"
-          tokens << Node.new(type: t, value: v, index: index)
+          tokens << Node.new(type: t, value: v, src: index)
           index += 1
-          p.pc.inc
         elsif !matches[0].nil? && !matches[0][:m][0].nil?
           m = matches[0][:m].not_nil!
           rule = matches[0][:rule].not_nil!
@@ -357,7 +353,6 @@ module CrystalRobots::Compiler
             tokens.concat(t)
           end
           index += m.begin(0) + m[0].size
-          p.pc.inc
         else
           raise Error.new("Unexpected match in token array #{src[index..index + 1]}")
         end

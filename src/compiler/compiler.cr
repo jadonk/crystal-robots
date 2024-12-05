@@ -87,30 +87,73 @@ module CrystalRobots::Compiler
   # Each `Node` has a token `type` to reflect what was found.
   # It also has a String `value`, which contains the original source content. This could be
   # replaced by a pointer into the original source string along with a length.
-  # The `index` is the origin offset in the array to the next token such that tokens that
+  # The `nxt` is the origin offset in the array to the next token such that tokens that
   # have been combined can be skipped. If it isn't initialized, it is set to -1 and that
   # simply means that the next token is just the next one in the array.
-  # The `src` is the origin offset in the array to the tokens this token represents. 
+  # The `src` is the origin offset in source string or the array to the tokens this token
+  # represents if greater than the size of the source string.
   struct Node
-    property type, value, index, src
+    property type, value, nxt, src
 
-    def initialize(@type : Type, @value : String, @index : Int32 = -1, @src : Int32 = -1)
+    def initialize(@type : Type, @value : String, @nxt : Int32 = -1, @src : Int32 = -1)
     end
 
     def to_s(io : IO)
-      io << "'#{@type.value.chr}' \"#{@value}\" from #{@src} next @#{@index}"
+      io << "'#{@type.value.chr}' \"#{@value}\" from #{@src} next @#{@nxt}"
     end
   end
 
-  # A `Program` is the result of parsing the source file.
+  enum WalkMode
+    Follow
+    Linear
+    Top
+  end
+
+  # A `Program` is the result of parsing the source file and used for generating code or interpreting.
   # `ast` is an array of nodes, also called tokens.
   # `pc` is the index to the current token when adding or interpreting. -1 is unintialized.
-  # `ppc` is the index to the start of tokens for this pass. -1 is uninitialized.
   # `stack` is an array of indexes used for returning from calls.
-  struct Program
-    property ast, pc, ppc, stack
+  # `walkmode` is the mode used for enumeration and .to_s String conversion operation.
+  # `pass` is an array of indexes for the first token for each pass of tokenization.
+  class Program
+    include Enumerable(Node)
+    property source, ast, pc, stack, walkmode, pass
 
-    def initialize(@ast : Array(Node) = [] of Node, @pc : Int32 = -1, @ppc : Int32 = -1, @stack : Array(Int32) = [] of Int32)
+    def initialize(@source : String | Nil = nil,
+                   @ast : Array(Node) = [] of Node,
+                   @pc : Int32 = -1,
+                   @stack : Array(Int32) = [] of Int32,
+                   @walkmode : WalkMode = WalkMode::Follow,
+                   @pass : Array(Int32) = [] of Int32)
+    end
+
+    def each(&)
+      if walkmode == WalkMode::Top
+        pass = @pass[-1].not_nil!
+        @pc = pass
+      end
+      while true
+        yield self
+        case walkmode
+        when WalkMode::Follow | WalkMode::Top
+          if n.nxt > 0
+            @pc = n.nxt
+          else
+            inc
+          end
+        when WalkMode::Linear
+          inc
+        end
+      end
+      if !test_pc
+        break
+      end
+    end
+
+    def add_token(type : Type, value : String, src : Int32, len : Int32)
+      s = src + pass_start
+      token = Node.new(type: type, value: value, src: s)
+      @ast.push(token)
     end
 
     def <<(token : Node)
@@ -133,17 +176,13 @@ module CrystalRobots::Compiler
       @ast[i]
     end
 
-    # def map(& : Array(Node) -> String) : String
-    #   Array(String).new(@ast.size) { |i| yield @ast[i] }
-    # end
-
     def node
       x = @ast[@pc].not_nil!
       Log.d "node @#{@pc}: #{x}"
       x
     end
 
-    def node(pc : PC)
+    def node(pc : Int32)
       x = @ast[pc].not_nil!
       Log.d "node @#{pc}: #{x}"
       x
@@ -175,8 +214,12 @@ module CrystalRobots::Compiler
       @pc = @stack.pop
     end
 
-    def test_pc(pc : PC)
+    def test_pc(pc : Int32)
       pc >= 0 && pc < size
+    end
+
+    def test_pc
+      test_pc(@pc)
     end
 
     def arg(pc : Int32, n : Int32)
