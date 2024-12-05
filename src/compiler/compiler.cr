@@ -110,6 +110,12 @@ module CrystalRobots::Compiler
   end
 
   # A `Program` is the result of parsing the source file and used for generating code or interpreting.
+  #
+  # A `Program` should look like an array of characters, but some of the characters will point to another
+  # set of characters that provide more detail about what they represent. When the source has been fully
+  # parsed, the final character will point to a sequence of statements.
+  #
+  # `source` is the source code string.
   # `ast` is an array of nodes, also called tokens.
   # `pc` is the index to the current token when adding or interpreting. -1 is unintialized.
   # `stack` is an array of indexes used for returning from calls.
