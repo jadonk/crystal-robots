@@ -255,9 +255,9 @@ module CrystalRobots::Compiler
     # `rule` is the rule that was matched against
     # result is an array of tokens to be added to the program or nil. why not add them here?
     # what is the resulting string to search on the next pass? how do we know this pass should end?
-    def self.map(p : Program, index : Int32, m : Regex::MatchData, rule : GrammarRule) : Array(Node)
+    def self.map(p : Program, index : Int32, m : Regex::MatchData, rule : GrammarRule) : Array(Program::Node)
       value = m[0]
-      tokens = Array(Node).new
+      tokens = Array(Program::Node).new
       case rule.map
       when MappingType::Drop
       when MappingType::Program
@@ -283,7 +283,7 @@ module CrystalRobots::Compiler
           t = rule.type.not_nil!
         end
         Log.d "mapping #{value} as #{t} using #{rule.map} @ #{index} offset by #{m.begin(0)}"
-        tokens << Node.new(type: t, value: value, src: index + m.begin(0))
+        tokens << Program::Node.new(type: t, value: value, src: index + m.begin(0))
       when MappingType::Parenthetical
         # In this case, we want to drop the parentheses and point to the first
         # argument. The parentheses have done their job already by breaking up
@@ -310,7 +310,7 @@ module CrystalRobots::Compiler
         i = index + m.begin(0) + 1
         # value = value[1, value.size-2]
         Log.d "mapping #{value} as #{t} using #{rule.map} @ #{index} offset by #{m.begin(0) + 1}"
-        tokens << Node.new(type: t, value: value, src: i)
+        tokens << Program::Node.new(type: t, value: value, src: i)
       end
       tokens
     end
@@ -322,7 +322,7 @@ module CrystalRobots::Compiler
     # *p* is the program to add the tokens to
     # Returns the new stringified latest top-level tokens
     def self.tokenize(p : Program, src : String)
-      tokens = Array(Node).new
+      tokens = Array(Program::Node).new
       index = 0
       while index < src.size
         m_off = 0
@@ -343,7 +343,7 @@ module CrystalRobots::Compiler
           t = node.type.not_nil!
           v = node.value.not_nil!
           Log.d "skipping #{src[index]} as #{t} from #{v} #{pc}"
-          tokens << Node.new(type: t, value: v, src: index)
+          tokens << Program::Node.new(type: t, value: v, src: index)
           index += 1
         elsif !matches[0].nil? && !matches[0][:m][0].nil?
           m = matches[0][:m].not_nil!

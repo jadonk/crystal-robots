@@ -83,36 +83,10 @@ module CrystalRobots::Compiler
     Program          = 0x000023F9 # ⏹
   end
 
-  # A `Node` is meant to be kept in an array. It can be said to be synonomous with a token.
-  # Each `Node` has a token `type` to reflect what was found.
-  # It also has a String `value`, which contains the original source content. This could be
-  # replaced by a pointer into the original source string along with a length.
-  # The `nxt` is the origin offset in the array to the next token such that tokens that
-  # have been combined can be skipped. If it isn't initialized, it is set to -1 and that
-  # simply means that the next token is just the next one in the array.
-  # The `src` is the origin offset in source string or the array to the tokens this token
-  # represents if greater than the size of the source string.
-  struct Node
-    property type, value, nxt, src
-
-    def initialize(@type : Type, @value : String, @nxt : Int32 = -1, @src : Int32 = -1)
-    end
-
-    def to_s(io : IO)
-      io << "'#{@type.value.chr}' \"#{@value}\" from #{@src} next @#{@nxt}"
-    end
-  end
-
-  enum WalkMode
-    Follow
-    Linear
-    Top
-  end
-
   # A `Program` is the result of parsing the source file and used for generating code or interpreting.
   #
-  # A `Program` should look like an array of characters, but some of the characters will point to another
-  # set of characters that provide more detail about what they represent. When the source has been fully
+  # A `Program` should look like string, but some of the characters will point to another
+  # a subset of characters that provide more detail about what they represent. When the source has been fully
   # parsed, the final character will point to a sequence of statements.
   #
   # `source` is the source code string.
@@ -122,8 +96,37 @@ module CrystalRobots::Compiler
   # `walkmode` is the mode used for enumeration and .to_s String conversion operation.
   # `pass` is an array of indexes for the first token for each pass of tokenization.
   class Program
-    include Enumerable(Node)
     property source, ast, pc, stack, walkmode, pass
+
+    # A `Node` is meant to be kept in an array. It can be said to be synonomous with a token.
+    # Each `Node` has a token `type` to reflect what was found.
+    # It also has a String `value`, which contains the original source content. This could be
+    # replaced by a pointer into the original source string along with a length.
+    # The `nxt` is the origin offset in the array to the next token such that tokens that
+    # have been combined can be skipped. If it isn't initialized, it is set to -1 and that
+    # simply means that the next token is just the next one in the array.
+    # The `src` is the origin offset in source string or the array to the tokens this token
+    # represents if greater than the size of the source string.
+    struct Node
+      property type, value, nxt, src, len
+
+      def initialize(@type : Type, @value : String = "", @nxt : Int32 = -1, @src : Int32 = -1, @len : Int32 = -1)
+        if @value == ""
+        end
+      end
+
+      def to_s(io : IO)
+        io << "'#{@type.value.chr}' \"#{@value}\" from #{@src} next @#{@nxt}"
+      end
+    end
+
+    include Enumerable(Node)
+
+    enum WalkMode
+      Follow
+      Linear
+      Top
+    end
 
     def initialize(@source : String | Nil = nil,
                    @ast : Array(Node) = [] of Node,
@@ -131,6 +134,10 @@ module CrystalRobots::Compiler
                    @stack : Array(Int32) = [] of Int32,
                    @walkmode : WalkMode = WalkMode::Follow,
                    @pass : Array(Int32) = [] of Int32)
+      if !@source.nil?
+        src = @source.not_nil!
+        @pass.push(src.size)
+      end
     end
 
     def each(&)
@@ -142,8 +149,8 @@ module CrystalRobots::Compiler
         yield self
         case walkmode
         when WalkMode::Follow | WalkMode::Top
-          if n.nxt > 0
-            @pc = n.nxt
+          if node.nxt > 0
+            @pc = node.nxt
           else
             inc
           end
