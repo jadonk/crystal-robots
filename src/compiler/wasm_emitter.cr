@@ -193,7 +193,7 @@ module CrystalRobots::Compiler
 
     def codeFromAst(program : Program)
       code = Bytes[0] # local decl count = 0
-      program.walkmode = WalkMode::Top
+      program.walkmode = Program::WalkMode::Top
       program.each do |p|
         t = p.node.type.not_nil!
         case t
