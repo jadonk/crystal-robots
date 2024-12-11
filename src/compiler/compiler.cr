@@ -108,9 +108,9 @@ module CrystalRobots::Compiler
     # The `src` is the origin offset in source string or the array to the tokens this token
     # represents if greater than the size of the source string.
     struct Node
-      property type, value, nxt, src, len
+      property type, value, nxt, src, size
 
-      def initialize(@type : Type, @value : String = "", @nxt : Int32 = -1, @src : Int32 = -1, @len : Int32 = -1)
+      def initialize(@type : Type, @value : String = "", @nxt : Int32 = -1, @src : Int32 = -1, @size : Int32 = -1)
         if @value == ""
         end
       end
@@ -157,9 +157,9 @@ module CrystalRobots::Compiler
         when WalkMode::Linear
           inc
         end
-      end
-      if !test_pc
-        break
+        if !test_pc
+          break
+        end
       end
     end
 

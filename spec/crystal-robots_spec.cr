@@ -35,65 +35,73 @@ describe CrystalRobots do
       end
 
       it "tokenizes single keyword" do
-        p = CrystalRobots::Compiler::Program.new
-        t = CrystalRobots::Compiler::Parser.tokenize(p, " def")
-        t.size.should eq 1
-        t[0].type.should eq CrystalRobots::Compiler::Type::DefKeyword
-        t[0].index.should eq 1
+        p = CrystalRobots::Compiler::Program.new(" def")
+        tstr = p.tokenize
+        tstr.should eq ""
+        p.size.should eq 1
+        p.node.type.should eq CrystalRobots::Compiler::Type::DefKeyword
+        p.node.src.should eq 1
+        p.node.size.should eq 3
       end
 
       it "tokenizes single builtin" do
-        p = CrystalRobots::Compiler::Program.new
-        t = CrystalRobots::Compiler::Parser.tokenize(p, " puts")
-        t.size.should eq 1
-        t[0].type.should eq CrystalRobots::Compiler::Type::OneArgMethod
-        t[0].index.should eq 1
+        p = CrystalRobots::Compiler::Program.new(" puts")
+        tstr = p.tokenize
+        tstr.should eq ""
+        p.size.should eq 1
+        p.node.type.should eq CrystalRobots::Compiler::Type::OneArgMethod
+        p.node.src.should eq 1
+        p.node.size.should eq 4
       end
 
       it "tokenizes single string" do
-        p = CrystalRobots::Compiler::Program.new
-        t = CrystalRobots::Compiler::Parser.tokenize(p, "  \"string\" ")
-        t.size.should eq 1
-        t[0].type.should eq CrystalRobots::Compiler::Type::String
-        t[0].index.should eq 2
+        p = CrystalRobots::Compiler::Program.new("  \"string\" ")
+        tstr = p.tokenize
+        tstr.size.should eq 1
+        p.node.type.should eq CrystalRobots::Compiler::Type::String
+        p.node.src.should eq 2
       end
 
       it "tokenizes builtin followed by string" do
-        p = CrystalRobots::Compiler::Parser.new(" puts \"string\"")
-        p.program[0].size.should eq 2
-        p.program[0][0].type.should eq CrystalRobots::Compiler::Type::OneArgMethod
-        p.program[0][0].index.should eq 1
-        p.program[0][0].value.should eq "puts"
-        p.program[0][1].type.should eq CrystalRobots::Compiler::Type::String
-        p.program[0][1].index.should eq 6
-        p.program[0][1].value.should eq "\"string\""
+        p = CrystalRobots::Compiler::Program.new(" puts \"string\"")
+        tstr = p.tokenize
+        tstr.size.should eq 2
+        p.size.should eq 2
+        p[0].type.should eq CrystalRobots::Compiler::Type::OneArgMethod
+        p[0].src.should eq 1
+        p[0].value.should eq "puts"
+        p[1].type.should eq CrystalRobots::Compiler::Type::String
+        p[1].src.should eq 6
+        p[1].value.should eq "\"string\""
       end
 
       it "tokenizes numbers" do
-        p = CrystalRobots::Compiler::Program.new
-        t = CrystalRobots::Compiler::Parser.tokenize(p, " 32 \n  -11 39.5")
-        t.size.should eq 3
-        t[0].type.should eq CrystalRobots::Compiler::Type::Number
-        t[0].index.should eq 1
-        t[0].value.should eq "32"
-        t[1].type.should eq CrystalRobots::Compiler::Type::Number
-        t[1].index.should eq 7
-        t[1].value.should eq "-11"
-        t[2].type.should eq CrystalRobots::Compiler::Type::Number
-        t[2].index.should eq 11
-        t[2].value.should eq "39.5"
+        p = CrystalRobots::Compiler::Program.new(" 32 \n  -11 39.5")
+        tstr = p.tokenize
+        tstr.size.should eq 3
+        p[0].type.should eq CrystalRobots::Compiler::Type::Number
+        p[0].src.should eq 1
+        p[0].value.should eq "32"
+        p[1].type.should eq CrystalRobots::Compiler::Type::Number
+        p[1].src.should eq 7
+        p[1].value.should eq "-11"
+        p[2].type.should eq CrystalRobots::Compiler::Type::Number
+        p[2].src.should eq 11
+        p[2].value.should eq "39.5"
       end
 
       it "throws exception with bad keyword" do
         expect_raises(CrystalRobots::Compiler::Parser::Error, "Unexpected token f") do
-          p = CrystalRobots::Compiler::Parser.new(" def foo")
+          p = CrystalRobots::Compiler::Program.new(" def foo")
+          p.tokenize
         end
       end
 
       it "can produce token strings" do
-        p = CrystalRobots::Compiler::Parser.new(" puts \"string\"")
-        s = p.program.to_s
-        s.should eq "∊🐍\n❤\n⏹\n@(3,0)"
+        p = CrystalRobots::Compiler::Program.new(" puts \"string\"")
+        p.tokenize
+        s = p.to_s
+        s.should eq " puts \"string\"∊🐍❤⏹"
       end
     end
 
