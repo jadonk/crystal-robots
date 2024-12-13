@@ -4,8 +4,7 @@ module CrystalRobots::Compiler
   class WASM_Emitter
     @code : Bytes
 
-    def initialize(ast : Program)
-      @program = ast
+    def initialize(@program : Program)
       @code = Bytes[]
     end
 

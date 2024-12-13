@@ -72,6 +72,11 @@ TODO: Describe the development roadmap here
 
 TODO: Write development instructions here
 
+### Roadmap
+
+- [ ] Fossil-like self-source-control and documentation generation/hosting
+- [ ] Forks: SQL implementation in Crystal
+
 ## Contributing
 
 1. Fork it (<https://openbeagle.org/jkridner/crystal-robots/-/forks/new>)

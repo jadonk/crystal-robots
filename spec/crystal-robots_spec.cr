@@ -26,17 +26,28 @@ describe CrystalRobots do
         p = CrystalRobots::Compiler::Program.new
         p.should_not eq nil
       end
+
+      it "can have source code" do
+        p = CrystalRobots::Compiler::Program.new("source")
+        p.source.should eq "source"
+      end
+
+      it "can hold tokens" do
+        p = CrystalRobots::Compiler::Program.new
+        p.push(type: CrystalRobots::Compiler::Type::Number, value: "2")
+        p.node.should eq ""
+      end
     end
 
     describe "Parser" do
       it "can be instantiated" do
-        p = CrystalRobots::Compiler::Parser.new("")
+        p = CrystalRobots::Compiler::Parser.new
         p.should_not eq nil
       end
 
       it "tokenizes single keyword" do
         p = CrystalRobots::Compiler::Program.new(" def")
-        tstr = p.tokenize
+        tstr = CrystalRobots::Compiler::Parser.tokenize(p)
         tstr.should eq ""
         p.size.should eq 1
         p.node.type.should eq CrystalRobots::Compiler::Type::DefKeyword
@@ -46,6 +57,7 @@ describe CrystalRobots do
 
       it "tokenizes single builtin" do
         p = CrystalRobots::Compiler::Program.new(" puts")
+        tstr = CrystalRobots::Compiler::Parser.tokenize(p)
         tstr = p.tokenize
         tstr.should eq ""
         p.size.should eq 1
@@ -56,7 +68,7 @@ describe CrystalRobots do
 
       it "tokenizes single string" do
         p = CrystalRobots::Compiler::Program.new("  \"string\" ")
-        tstr = p.tokenize
+        tstr = CrystalRobots::Compiler::Parser.tokenize(p)
         tstr.size.should eq 1
         p.node.type.should eq CrystalRobots::Compiler::Type::String
         p.node.src.should eq 2

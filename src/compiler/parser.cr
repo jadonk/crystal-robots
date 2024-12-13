@@ -17,28 +17,15 @@
 
 module CrystalRobots::Compiler
   class Parser
-    def initialize(source : String)
-      @program = Program.new
-    end
-
-    def self.new(source : String)
-      program = Program.new
-      src = source
+    property program
+    
+    def initialize(@program : Program)
+      src = program.source
       while src != "⏹" && src != ""
         Log.d "tokenize(#{src})"
-        t = tokenize(program, src)
-        src = "#{t}"
+        tstr = tokenize(program, src)
+        src = "#{tstr}"
       end
-      i = Parser.allocate
-      i.program = program
-      i
-    end
-
-    def program
-      @program
-    end
-
-    def program=(@program : Program)
     end
 
     struct TokenDef
@@ -319,9 +306,8 @@ module CrystalRobots::Compiler
     end
 
     # *src* is the string to tokenize
-    # *p* is the program to add the tokens to
     # Returns the new stringified latest top-level tokens
-    def self.tokenize(p : Program, src : String)
+    def tokenize(src : String)
       tokens = Array(Program::Node).new
       index = 0
       while index < src.size
@@ -338,8 +324,8 @@ module CrystalRobots::Compiler
           if index == 0
             raise Error.new("No tokens found in #{src}")
           end
-          pc = index
-          node = p.node(pc).not_nil!
+          @program.pc = index
+          node = @program.node.not_nil!
           t = node.type.not_nil!
           v = node.value.not_nil!
           Log.d "skipping #{src[index]} as #{t} from #{v} #{pc}"

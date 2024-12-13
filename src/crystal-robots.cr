@@ -198,7 +198,9 @@ module CrystalRobots
       if !@robot_to_compile.nil?
         STDERR.puts "Compiling #{@robot_to_compile}"
         source = File.read("#{@robot_to_compile}")
-        binfile = Compiler.compile_to_wasm(source)
+        program = Compiler::Program.new(source)
+        Compiler::Parser.new(program)
+        binfile = Compiler::WASM_Emitter.new(program).to_wasm
         if @outfile.nil?
           STDOUT.write(binfile)
         else

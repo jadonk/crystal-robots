@@ -11,23 +11,6 @@ require "./interpreter.cr"
 require "./wasm_emitter.cr"
 
 module CrystalRobots::Compiler
-  def self.parse(src)
-    # puts "Parsing #{src}"
-    Parser.new(src)
-  end
-
-  def self.compile_to_wasm(src)
-    # puts "Parsing #{src}"
-    p = Parser.new(src)
-    # puts "Emitting WASM from #{p}"
-    WASM_Emitter.new(p.program).to_wasm
-  end
-
-  def self.interpret(src)
-    p = Parser.new(src)
-    Interpreter.execute(p.program)
-  end
-
   enum Type : Int32
     Invalid = 0x0001F30B # 🌋
     String  = 0x0001F40D # 🐍
@@ -163,26 +146,20 @@ module CrystalRobots::Compiler
       end
     end
 
-    def add_token(type : Type, value : String, src : Int32, len : Int32)
-      s = src + pass_start
+    def push(type : Type, value : String, src : Int32 = -1, len : Int32 = -1)
+      if src >= 0
+        s = src + pass_start
+      else
+        s = -1
+      end
       token = Node.new(type: type, value: value, src: s)
-      @ast.push(token)
-    end
-
-    def <<(token : Node)
       @pc += 1
       @ast.push(token)
     end
 
-    def <<(tokens : Array(Node))
+    def add_pass
       @pc += tokens.size
-      @ast.concat(tokens)
-    end
-
-    def add_pass(tokens : Array(Node))
-      @ast.concat(tokens)
-      @pc += tokens.size
-      @ppc = @pc
+      @pass.push(pass_start)
     end
 
     def [](i)
@@ -190,9 +167,7 @@ module CrystalRobots::Compiler
     end
 
     def node
-      x = @ast[@pc].not_nil!
-      Log.d "node @#{@pc}: #{x}"
-      x
+      node(@pc)
     end
 
     def node(pc : Int32)
