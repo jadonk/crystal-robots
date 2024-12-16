@@ -19,12 +19,11 @@ module CrystalRobots::Compiler
   class Parser
     property program
     
-    def initialize(@program : Program)
-      src = program.source
+    def initialize(src : String)
+      @program = Program.new(src)
       while src != "⏹" && src != ""
         Log.d "tokenize(#{src})"
-        tstr = tokenize(program, src)
-        src = "#{tstr}"
+        src = tokenize(src)
       end
     end
 
@@ -305,10 +304,13 @@ module CrystalRobots::Compiler
     class Error < Exception
     end
 
+    # *p* is the program the string represents to be updated with a single tokenization pass
     # *src* is the string to tokenize
+    #
+    # Updates the program with any newly identified tokens
+    #
     # Returns the new stringified latest top-level tokens
-    def tokenize(src : String)
-      tokens = Array(Program::Node).new
+    def self.tokenize(p : Program, src : String)
       index = 0
       while index < src.size
         m_off = 0
@@ -324,8 +326,8 @@ module CrystalRobots::Compiler
           if index == 0
             raise Error.new("No tokens found in #{src}")
           end
-          @program.pc = index
-          node = @program.node.not_nil!
+          p.pc = index
+          node = p.node.not_nil!
           t = node.type.not_nil!
           v = node.value.not_nil!
           Log.d "skipping #{src[index]} as #{t} from #{v} #{pc}"
@@ -343,7 +345,11 @@ module CrystalRobots::Compiler
           raise Error.new("Unexpected match in token array #{src[index..index + 1]}")
         end
       end
-      tokens
+      p.to_s
+    end
+
+    def tokenize(src : String)
+      self.tokenize(@program, src)
     end
 
     def tokens_to_s(tokens)
