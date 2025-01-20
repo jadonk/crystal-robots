@@ -18,7 +18,7 @@
 module CrystalRobots::Compiler
   class Parser
     property program
-    
+
     def initialize(src : String)
       @program = Program.new(src)
       while src != "⏹" && src != ""

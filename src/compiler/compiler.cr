@@ -146,15 +146,21 @@ module CrystalRobots::Compiler
       end
     end
 
-    def push(type : Type, value : String, src : Int32 = -1, len : Int32 = -1)
+    def push(type : Type,
+             value : String,
+             src : Int32 = -1,
+             len : Int32 = -1,
+             new_start : Bool = false,
+             new_pass : Bool = false)
       if src >= 0
         s = src + pass_start
       else
         s = -1
       end
       token = Node.new(type: type, value: value, src: s)
-      @pc += 1
       @ast.push(token)
+      if new_pass
+        @pass.push()
     end
 
     def add_pass
