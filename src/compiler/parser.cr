@@ -19,7 +19,7 @@ module CrystalRobots::Compiler
   class Parser
     property program
 
-    def initialize(src : String)
+    def initialize(src : String = "")
       @program = Program.new(src)
       while src != "⏹" && src != ""
         Log.d "tokenize(#{src})"
@@ -269,7 +269,7 @@ module CrystalRobots::Compiler
           t = rule.type.not_nil!
         end
         Log.d "mapping #{value} as #{t} using #{rule.map} @ #{index} offset by #{m.begin(0)}"
-        tokens << Program::Node.new(type: t, value: value, src: index + m.begin(0))
+        tokens << Program::Node.new(type: t, start: index + m.begin(0), count: value.size)
       when MappingType::Parenthetical
         # In this case, we want to drop the parentheses and point to the first
         # argument. The parentheses have done their job already by breaking up
@@ -296,7 +296,7 @@ module CrystalRobots::Compiler
         i = index + m.begin(0) + 1
         # value = value[1, value.size-2]
         Log.d "mapping #{value} as #{t} using #{rule.map} @ #{index} offset by #{m.begin(0) + 1}"
-        tokens << Program::Node.new(type: t, value: value, src: i)
+        tokens << Program::Node.new(type: t, start: i, count: value.size)
       end
       tokens
     end
@@ -312,6 +312,7 @@ module CrystalRobots::Compiler
     # Returns the new stringified latest top-level tokens
     def self.tokenize(p : Program, src : String)
       index = 0
+      tokens = [] of Program::Node
       while index < src.size
         m_off = 0
         matches = @@grammar.grammar.compact_map do |rule|

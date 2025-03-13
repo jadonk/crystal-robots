@@ -117,17 +117,16 @@ module CrystalRobots::Compiler
       @ast.push(node)
     end
 
-    def initialize(@source : String | Nil = nil,
+    def initialize(@source : String,
                    @ast : Array(Node) = [] of Node,
                    @pc : Int32 = -1,
                    @stack : Array(Int32) = [] of Int32,
                    @walkmode : WalkMode = WalkMode::Follow,
                    @pass : Array(Int32) = [] of Int32)
-      if !@source.nil?
-        @source = @source.not_nil! + "#{Type::PassToken.value.chr}"
-        push(Type::PassToken, 0, source.size)
-        @pass.push(source.size)
-      end
+      src = @source + "#{Type::PassToken.value.chr}"
+      push(Type::PassToken, 0, src.size)
+      @pass.push(src.size)
+      @source = src
     end
 
     def each(&)
@@ -172,6 +171,31 @@ module CrystalRobots::Compiler
       x
     end
 
+    # Return the value pointed to by the node
+    def value(n : Node)
+      @source[n.start, n.count]
+    end
+
+    def value(i : Int32)
+      value(node(i))
+    end
+
+    def value
+      value(node)
+    end
+
+    def type(i : Int32)
+      node(i).type
+    end
+
+    def start(i : Int32)
+      node(i).start
+    end
+
+    def count(i : Int32)
+      node(i).count
+    end
+
     def size
       @ast.size
     end
@@ -208,7 +232,7 @@ module CrystalRobots::Compiler
 
     def arg(pc : Int32, n : Int32)
       m = @ast[pc].not_nil!
-      i = m.src
+      i = m.start
       arg_pc = i + n
       if !test_pc(arg_pc)
         raise "Invalid argument pointer #{arg_pc}"
@@ -223,7 +247,17 @@ module CrystalRobots::Compiler
 
     def to_s(io : IO)
       s = @ast.map { |token| token.type.value.chr }.join
-      io << "#{s} pc: #{@pc} ppc: #{@ppc} stack: #{@stack}"
+      io << "#{s} pc: #{@pc} pass: #{@pass} stack: #{@stack}"
     end
+  end
+
+  # TODO: decide how we want to call the compiler and remove this method
+  def self.compile_to_wasm(source : String)
+    Bytes[]
+  end
+
+  # TODO: decide how we want to call the interpreter and remove this method
+  def self.interpret(source : String)
+    Bytes[]
   end
 end
