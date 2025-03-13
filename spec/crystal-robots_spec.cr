@@ -29,13 +29,19 @@ describe CrystalRobots do
 
       it "can have source code" do
         p = CrystalRobots::Compiler::Program.new("source")
-        p.source.should eq "source"
+        p.source.should eq "sourceŖ"
       end
 
       it "can hold tokens" do
         p = CrystalRobots::Compiler::Program.new("")
         p.push(type: CrystalRobots::Compiler::Type::Number)
-        p.node.should eq ""
+        "#{p.node}".should eq "'№' from -1 length -1 next -1"
+      end
+
+      it "adds characters for new tokens" do
+        p = CrystalRobots::Compiler::Program.new("source")
+        p.push(type: CrystalRobots::Compiler::Type::Number)
+        p.source.should eq "sourceŖ№"
       end
     end
 

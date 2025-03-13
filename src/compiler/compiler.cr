@@ -100,7 +100,7 @@ module CrystalRobots::Compiler
       end
 
       def to_s(io : IO)
-        io << "'#{@type.value.chr}' from #{@start} length #{@count} next @#{@nxt}"
+        io << "'" << @type.value.chr << "' from " << @start << " length " << @count << " next " << @nxt
       end
     end
 
@@ -115,6 +115,8 @@ module CrystalRobots::Compiler
     def push(type : Type, start : Int32 = -1, count : Int32 = -1, nxt : Int32 = -1)
       node = Node.new(type, start, count, nxt)
       @ast.push(node)
+      # TODO: @source needs to be pre-allocated and should be able to take new characters
+      @source = @source + "#{type.value.chr}"
     end
 
     def initialize(@source : String,
@@ -123,10 +125,8 @@ module CrystalRobots::Compiler
                    @stack : Array(Int32) = [] of Int32,
                    @walkmode : WalkMode = WalkMode::Follow,
                    @pass : Array(Int32) = [] of Int32)
-      src = @source + "#{Type::PassToken.value.chr}"
-      push(Type::PassToken, 0, src.size)
-      @pass.push(src.size)
-      @source = src
+      push(Type::PassToken, 0, @source.size)
+      @pass.push(@source.size)
     end
 
     def each(&)
