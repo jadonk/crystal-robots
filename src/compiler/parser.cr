@@ -329,9 +329,8 @@ module CrystalRobots::Compiler
           p.pc = index
           node = p.node.not_nil!
           t = node.type.not_nil!
-          v = node.value.not_nil!
-          Log.d "skipping #{src[index]} as #{t} from #{v} #{pc}"
-          tokens << Program::Node.new(type: t, value: v, src: index)
+          Log.d "skipping #{src[index]} as #{t}"
+          tokens << Program::Node.new(type: t, start: index)
           index += 1
         elsif !matches[0].nil? && !matches[0][:m][0].nil?
           m = matches[0][:m].not_nil!
@@ -349,7 +348,7 @@ module CrystalRobots::Compiler
     end
 
     def tokenize(src : String)
-      self.tokenize(@program, src)
+      self.class.tokenize(@program, src)
     end
 
     def tokens_to_s(tokens)
