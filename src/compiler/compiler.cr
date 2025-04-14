@@ -148,18 +148,15 @@ module CrystalRobots::Compiler
 
     def push(type : Type, value : String, src : Int32 = -1, len : Int32 = -1)
       if src >= 0
-        s = src + pass_start
+        s = src + @pass[-1]
       else
         s = -1
       end
+      # TODO: update tokens before and after new token
+      # TODO: if token replaces first token, update starting token
       token = Node.new(type: type, value: value, src: s)
       @pc += 1
       @ast.push(token)
-    end
-
-    def add_pass
-      @pc += tokens.size
-      @pass.push(pass_start)
     end
 
     def [](i)

@@ -46,8 +46,8 @@ describe CrystalRobots do
       end
 
       it "tokenizes single keyword" do
-        p = CrystalRobots::Compiler::Program.new(" def")
-        tstr = CrystalRobots::Compiler::Parser.tokenize(p)
+        p = CrystalRobots::Compiler::Program.new
+        tstr = CrystalRobots::Compiler::Parser.tokenize(p, " def")
         tstr.should eq ""
         p.size.should eq 1
         p.node.type.should eq CrystalRobots::Compiler::Type::DefKeyword
