@@ -59,6 +59,8 @@ module CrystalRobots::Compiler
     CloseParen    = 0x000027EF # ⟯
     Expression    = 0x0001F611 # 😑
 
+    PassToken = 0x00000156 # œ
+
     Statement        = 0x00002762 # ❢
     ZeroArgStatement = 0x00002763 # ❣
     OneArgStatement  = 0x00002764 # ❤
@@ -72,8 +74,11 @@ module CrystalRobots::Compiler
   # a subset of characters that provide more detail about what they represent. When the source has been fully
   # parsed, the final character will point to a sequence of statements.
   #
-  # `source` is the source code string.
-  # `ast` is an array of nodes, also called tokens.
+  # To speed up implementation, I'll start with just making new strings, but, eventually, I'll do some
+  # smart allocation and fill in the empty space.
+  #
+  # `source` holds the string of the source program along with the generated tokens.
+  # `ast` is an array of Node associated to each generated token pointing to regions in the string.
   # `pc` is the index to the current token when adding or interpreting. -1 is unintialized.
   # `stack` is an array of indexes used for returning from calls.
   # `walkmode` is the mode used for enumeration and .to_s String conversion operation.
@@ -81,25 +86,21 @@ module CrystalRobots::Compiler
   class Program
     property source, ast, pc, stack, walkmode, pass
 
-    # A `Node` is meant to be kept in an array. It can be said to be synonomous with a token.
+    # A `Node` is meant to be kept in an array. It is synonomous with a token.
     # Each `Node` has a token `type` to reflect what was found.
-    # It also has a String `value`, which contains the original source content. This could be
-    # replaced by a pointer into the original source string along with a length.
+    # The `start` is the origin offset in source string, including generated tokens.
+    # The `count` is the length of the string matched.
     # The `nxt` is the origin offset in the array to the next token such that tokens that
     # have been combined can be skipped. If it isn't initialized, it is set to -1 and that
     # simply means that the next token is just the next one in the array.
-    # The `src` is the origin offset in source string or the array to the tokens this token
-    # represents if greater than the size of the source string.
     struct Node
-      property type, value, nxt, src, size
+      property type, start, count, nxt
 
-      def initialize(@type : Type, @value : String = "", @nxt : Int32 = -1, @src : Int32 = -1, @size : Int32 = -1)
-        if @value == ""
-        end
+      def initialize(@type : Type, @start : Int32 = -1, @count : Int32 = 0, @nxt : Int32 = -1)
       end
 
       def to_s(io : IO)
-        io << "'#{@type.value.chr}' \"#{@value}\" from #{@src} next @#{@nxt}"
+        io << "'" << @type.value.chr << "' from " << @start << " length " << @count << " next " << @nxt
       end
     end
 
@@ -111,16 +112,21 @@ module CrystalRobots::Compiler
       Top
     end
 
-    def initialize(@source : String | Nil = nil,
+    def push(type : Type, start : Int32 = -1, count : Int32 = -1, nxt : Int32 = -1)
+      node = Node.new(type, start, count, nxt)
+      @ast.push(node)
+      # TODO: @source needs to be pre-allocated and should be able to take new characters
+      @source = @source + "#{type.value.chr}"
+    end
+
+    def initialize(@source : String,
                    @ast : Array(Node) = [] of Node,
                    @pc : Int32 = -1,
                    @stack : Array(Int32) = [] of Int32,
                    @walkmode : WalkMode = WalkMode::Follow,
                    @pass : Array(Int32) = [] of Int32)
-      if !@source.nil?
-        src = @source.not_nil!
-        @pass.push(src.size)
-      end
+      push(Type::PassToken, 0, @source.size)
+      @pass.push(@source.size)
     end
 
     def each(&)
@@ -146,21 +152,13 @@ module CrystalRobots::Compiler
       end
     end
 
-    def push(type : Type, value : String, src : Int32 = -1, len : Int32 = -1)
-      if src >= 0
-        s = src + @pass[-1]
-      else
-        s = -1
-      end
-      # TODO: update tokens before and after new token
-      # TODO: if token replaces first token, update starting token
-      token = Node.new(type: type, value: value, src: s)
-      @pc += 1
-      @ast.push(token)
+    def [](i : Int32)
+      @ast[i]
     end
 
-    def [](i)
-      @ast[i]
+    def [](start : Int32, count : Int32)
+      src = @source.not_nil!
+      src[start, count]
     end
 
     def node
@@ -171,6 +169,31 @@ module CrystalRobots::Compiler
       x = @ast[pc].not_nil!
       Log.d "node @#{pc}: #{x}"
       x
+    end
+
+    # Return the value pointed to by the node
+    def value(n : Node)
+      @source[n.start, n.count]
+    end
+
+    def value(i : Int32)
+      value(node(i))
+    end
+
+    def value
+      value(node)
+    end
+
+    def type(i : Int32)
+      node(i).type
+    end
+
+    def start(i : Int32)
+      node(i).start
+    end
+
+    def count(i : Int32)
+      node(i).count
     end
 
     def size
@@ -209,7 +232,7 @@ module CrystalRobots::Compiler
 
     def arg(pc : Int32, n : Int32)
       m = @ast[pc].not_nil!
-      i = m.src
+      i = m.start
       arg_pc = i + n
       if !test_pc(arg_pc)
         raise "Invalid argument pointer #{arg_pc}"
@@ -224,7 +247,17 @@ module CrystalRobots::Compiler
 
     def to_s(io : IO)
       s = @ast.map { |token| token.type.value.chr }.join
-      io << "#{s} pc: #{@pc} ppc: #{@ppc} stack: #{@stack}"
+      io << "#{s} pc: #{@pc} pass: #{@pass} stack: #{@stack}"
     end
+  end
+
+  # TODO: decide how we want to call the compiler and remove this method
+  def self.compile_to_wasm(source : String)
+    Bytes[]
+  end
+
+  # TODO: decide how we want to call the interpreter and remove this method
+  def self.interpret(source : String)
+    Bytes[]
   end
 end
