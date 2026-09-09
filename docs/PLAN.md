@@ -4,6 +4,11 @@ Drafted 2026-09-09 on the session branch after merging `dev` (no-op: `dev`,
 `main` and `trunk` all point at the same commit). This is a living document;
 update it as phases land.
 
+Direction set 2026-09-09: the project is migrating from GitLab to Fossil, and
+**Fossil + CGI is the primary hosting example**. Direct hosting (`-p PORT`)
+and the other interfaces stay in scope but are secondary. The in-progress
+compiler work is fixed alongside the migration, not after it.
+
 ## 1. Where the code is today
 
 Measured on this checkout with Crystal 1.18.2 and wasmer 4.4.0.
@@ -121,15 +126,58 @@ the `Host` interface through wasmer for both the CLI and the specs.
 Differential spec: for every example, interpreter trace == WASM trace. Add a
 `.wat` text emitter as a debugging aid.
 
-### Phase 5: web UI and hosting
+### Phase 5: Fossil + CGI hosting (primary)
 
-Recommended first cut: `-p PORT` starts an `HTTP::Server` that serves static
-assets, compiles submitted sources, runs the simulation server-side and
-streams the cycle trace over SSE. The browser renders the field on a canvas
-with a scoreboard. `-s DIR` writes the static assets for the pages job.
-Revisit running the compiler in the browser via Crystal's wasm32 target once
-that toolchain is solid enough. Reviewable through the session preview
-deploy before any merge.
+Fossil serves everything: the repository, embedded docs, and the robots web
+app as a CGI extension under `/ext`. Fossil 2.27 (`--extroot DIR`) is what
+this environment already uses for session previews, so the preview URL and
+the production deployment are the same mechanism.
+
+Architecture that fits CGI: **stateless per request**. A request submits
+robot sources, the process compiles them, runs one seeded match to the cycle
+limit, and returns the whole trace as JSON. The browser replays the trace on
+a canvas. No long-lived server state, no SSE, no sockets. Deterministic
+matches (Phase 3) make this cheap to re-run and easy to cache.
+
+1. **Transport-agnostic core.** A `Web::Router` that maps a plain
+   `Request(method, path, query, headers, body)` to a `Response`. Adapters:
+   `Web::CGI` (reads the CGI environment and stdin, writes status, headers and
+   body to stdout) and, later, `Web::HTTP` for `HTTP::Server`. The router is
+   unit-tested without either transport.
+2. **Routes.** `GET /` page shell; `GET /static/*` assets embedded in the
+   binary with Crystal's `read_file` macro so deployment is one executable;
+   `GET /examples` and `GET /examples/:name` from the bundled example robots;
+   `POST /compile` returns WASM bytes or structured errors with line:column;
+   `POST /battle` returns the match trace JSON; `GET /version`.
+3. **CGI entry.** `crystal-robots --cgi` runs the CGI adapter. Fossil passes
+   `PATH_INFO`, `QUERY_STRING`, `REQUEST_METHOD`, `CONTENT_LENGTH`, plus
+   `FOSSIL_USER` and `FOSSIL_CAPABILITIES`; the app uses `FOSSIL_USER` for
+   attribution of saved robots and `SCRIPT_NAME` to build relative links so
+   it works under any mount point (including the session preview path).
+4. **Deployment recipe.** An `extroot/` directory in the repo with a small
+   wrapper script that execs the built binary with `--cgi`, and README
+   instructions for both `fossil server --extroot` and a classic Fossil CGI
+   file (`repository:` plus `extroot:` directives) behind althttpd, Apache or
+   nginx. The session preview validates this path before any merge.
+5. **Docs through Fossil.** README and `docs/*.md` are served by Fossil's
+   embedded documentation (`/doc/trunk/...`). The `crystal docs` API output
+   is published as Fossil unversioned files or a `www/` tree rather than a
+   GitLab pages job.
+6. **Saved robots.** Decide later between Fossil unversioned files, ticket
+   attachments, or a small SQLite file next to the repository. Not needed for
+   the first deployable version.
+
+A thin version of steps 1 through 4 (page shell, examples, version) should
+land right after Phase 0 so the preview URL shows something real while the
+compiler matures; `/compile` and `/battle` light up as Phases 1 through 4
+finish.
+
+### Phase 5b: direct hosting and static export (secondary)
+
+`-p PORT` starts an `HTTP::Server` using the same router through the
+`Web::HTTP` adapter. `-s DIR` writes the page shell and static assets for
+plain file hosting. Running the compiler in the browser via Crystal's wasm32
+target remains a later experiment.
 
 ### Phase 6: teaching layers
 
@@ -139,10 +187,18 @@ with the prelude), and later `riscv_emitter`. A language reference for the
 subset and a port of the CROBOTS manual sections, published by the existing
 `crystal docs` pages job.
 
-### Phase 7: housekeeping
+### Phase 7: GitLab to Fossil migration and housekeeping
 
-README installation and usage sections, `ameba` lint, GPL headers, version
-bump, and a CI matrix that runs both the native examples and the spec suite.
+- Replace `.gitlab-ci.yml` with `scripts/ci.sh` that any runner (or a
+  developer) can execute: shards install, wasmer 4.4.0 pin, build, spec,
+  format check, example builds. Keep the GitLab file only as long as the
+  mirror exists.
+- README: source links point at the Fossil repository; the contributing
+  section describes `fossil clone`, branch, commit and the review flow
+  instead of GitLab forks and merge requests. Move `.gitignore` rules into
+  `.fossil-settings/ignore-glob`.
+- Optional: keep the GitHub mirror alive with `fossil git export`.
+- `ameba` lint, GPL headers, version bump, installation and usage sections.
 
 ## 4. Open decision: parser architecture
 
@@ -174,5 +230,14 @@ delivery speed, choose A and budget Phase 1 at two to three times the effort.
 
 1. Phase 0 items 1 and 2 (wasmer pin, skippable wasmer specs). No decision
    needed.
-2. Confirm A or B in section 4.
-3. Start Phase 1 with the lexer, which is needed under either choice.
+2. Thin Phase 5 skeleton: router, CGI adapter, `--cgi` flag, `extroot/`
+   wrapper, page shell and `/examples`, verified through the session
+   preview URL. No decision needed.
+3. Confirm A or B in section 4.
+4. Start Phase 1 with the lexer, which is needed under either choice.
+
+## 6. Order of work
+
+Phase 0, then the Phase 5 skeleton, then Phases 1 through 4 with the CGI
+routes gaining `/compile` and `/battle` as each lands, then Phase 7
+migration items, then Phase 5b and Phase 6.
