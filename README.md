@@ -66,13 +66,16 @@ TODO: Write support instructions here
 
 ## Roadmap
 
-TODO: Describe the development roadmap here
+See [docs/PLAN.md](docs/PLAN.md) for the phased development plan, the current
+baseline, and the open parser-architecture decision.
 
 ## Development
 
 TODO: Write development instructions here
 
 ### Roadmap
+
+See [docs/PLAN.md](docs/PLAN.md). Longer-term ideas kept from the original list:
 
 - [ ] Fossil-like self-source-control and documentation generation/hosting
 - [ ] Forks: SQL implementation in Crystal
