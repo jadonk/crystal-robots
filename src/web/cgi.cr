@@ -6,6 +6,7 @@
 # emits a full HTML page. Identity is `FOSSIL_USER`, permissions are
 # `FOSSIL_CAPABILITIES`, both supplied by Fossil.
 require "http/params"
+require "uri"
 require "../compiler"
 require "../battle/field"
 
@@ -180,16 +181,23 @@ module CrystalRobots::Web
     def battle_page : String
       q = query
       names = q.fetch_all("r").select { |n| EXAMPLES.has_key?(n) }.first(4)
-      return battle_form if names.empty?
+      pasted = (q["src"]? || "").strip
+      pasted = "" if pasted.size > PASTE_LIMIT
+      return battle_form if names.empty? && pasted.empty?
       seed = (q["seed"]?.try(&.to_u64?) || 1_u64)
       limit = (q["limit"]?.try(&.to_i64?) || WEB_CYCLE_LIMIT).clamp(MOTION_STEP, WEB_CYCLE_MAX)
       entries = names.map { |n| {n, EXAMPLES[n]} }
+      entries.unshift({"yours", pasted}) unless pasted.empty?
+      entries = entries.first(4)
+      entries << entries[0] if entries.size == 1 # CROBOTS clones a lone robot
       field = Battle::Field.new(entries, seed: seed, limit: limit, max_frames: 120)
       field.run
       frame_count = field.frames.size
       frame = (q["frame"]?.try(&.to_i?) || frame_count - 1).clamp(0, frame_count - 1)
-      render_battle(field, names, seed, limit, frame)
+      render_battle(field, names, pasted, seed, limit, frame)
     end
+
+    PASTE_LIMIT = 6000
 
     private MOTION_STEP = Battle::MOTION_CYCLES.to_i64
 
@@ -202,21 +210,25 @@ module CrystalRobots::Web
           checked = {"counter", "rabbit"}.includes?(name) ? " checked" : ""
           md << "<label><input type=\"checkbox\" name=\"r\" value=\"#{name}\"#{checked}> #{name}</label><br>\n"
         end
+        md << "<p>Or paste your own robot (it fights as <b>yours</b>):</p>\n"
+        md << "<textarea name=\"src\" rows=\"10\" cols=\"70\" maxlength=\"#{PASTE_LIMIT}\"></textarea><br>\n"
         md << "<label>Seed <input type=\"number\" name=\"seed\" value=\"1\" min=\"0\"></label>\n"
         md << "<label>Cycle limit <input type=\"number\" name=\"limit\" value=\"#{WEB_CYCLE_LIMIT}\" min=\"#{MOTION_STEP}\" max=\"#{WEB_CYCLE_MAX}\"></label>\n"
         md << "<button type=\"submit\">Fight</button>\n</form>\n"
       end
     end
 
-    def battle_link(names : Array(String), seed : UInt64, limit : Int64, frame : Int32) : String
-      "#{link_base}/battle?#{names.map { |n| "r=#{n}" }.join("&")}&seed=#{seed}&limit=#{limit}&frame=#{frame}"
+    def battle_link(names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32) : String
+      params = names.map { |n| "r=#{n}" }
+      params << "src=#{URI.encode_www_form(pasted)}" unless pasted.empty?
+      "#{link_base}/battle?#{params.join("&")}&seed=#{seed}&limit=#{limit}&frame=#{frame}"
     end
 
-    def render_battle(field : Battle::Field, names : Array(String), seed : UInt64, limit : Int64, frame : Int32) : String
+    def render_battle(field : Battle::Field, names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32) : String
       f = field.frames[frame]
       last = field.frames.size - 1
       String.build do |md|
-        md << "# Battle: #{names.join(" vs ")}\n\n"
+        md << "# Battle: #{field.robots.map(&.name).join(" vs ")}\n\n"
         md << "[Pick again](#{link_base}/battle) · seed #{seed} · limit #{limit} · #{field.cycles} cycles run\n\n"
         if (w = field.winner)
           md << "**Winner: #{w.name}**\n\n"
@@ -233,12 +245,12 @@ module CrystalRobots::Web
         end
         md << "\n## Frame #{frame + 1} of #{last + 1} (cycle #{f.cycle})\n\n"
         nav = [] of String
-        nav << "[first](#{battle_link(names, seed, limit, 0)})" if frame > 0
-        nav << "[previous](#{battle_link(names, seed, limit, frame - 1)})" if frame > 0
-        nav << "[next](#{battle_link(names, seed, limit, frame + 1)})" if frame < last
-        nav << "[last](#{battle_link(names, seed, limit, last)})" if frame < last
+        nav << "[first](#{battle_link(names, pasted, seed, limit, 0)})" if frame > 0
+        nav << "[previous](#{battle_link(names, pasted, seed, limit, frame - 1)})" if frame > 0
+        nav << "[next](#{battle_link(names, pasted, seed, limit, frame + 1)})" if frame < last
+        nav << "[last](#{battle_link(names, pasted, seed, limit, last)})" if frame < last
         md << nav.join(" · ") << "\n\n" unless nav.empty?
-        md << "```pikchr\n" << pikchr_frame(f) << "```\n\n"
+        md << "```pikchr\n" << pikchr_frame(f, field.frames[0..frame]) << "```\n\n"
         md << "| Robot | x | y | heading | speed | damage | scan |\n| --- | --- | --- | --- | --- | --- | --- |\n"
         f.robots.each do |r|
           md << "| #{r.name} | #{r.x // Battle::CLICK} | #{r.y // Battle::CLICK} | #{r.heading} | #{r.speed} | #{r.damage}% | #{r.scan} |\n"
@@ -250,12 +262,21 @@ module CrystalRobots::Web
       end
     end
 
-    # One frame of the field as a Pikchr diagram: 4 inches for 1000 meters.
-    def pikchr_frame(f : Battle::Frame) : String
+    # One frame of the field as a Pikchr diagram: 4 inches for 1000 meters,
+    # with each robot's trail over the frames so far.
+    def pikchr_frame(f : Battle::Frame, history : Array(Battle::Frame) = [f]) : String
       scale = 4.0 / (Battle::MAX_X * Battle::CLICK)
       String.build do |pik|
         pik << "F: box wid 4 ht 4 fill 0xF4F4F0 color 0x888888\n"
         pik << "text \"1000 m\" small at F.n + (0, 0.12)\n"
+        f.robots.each_with_index do |r, i|
+          points = history.map { |h| h.robots[i] }.map { |s| {(s.x * scale).round(3), (s.y * scale).round(3)} }.uniq
+          next if points.size < 2
+          color = ROBOT_COLORS[i % ROBOT_COLORS.size]
+          pik << "line thin color #{color} from F.sw + (#{points[0][0]}, #{points[0][1]})"
+          points[1..].each { |(x, y)| pik << " then to F.sw + (#{x}, #{y})" }
+          pik << "\n"
+        end
         f.robots.each_with_index do |r, i|
           x = (r.x * scale).round(3)
           y = (r.y * scale).round(3)
@@ -289,6 +310,13 @@ module CrystalRobots::Web
           program = Compiler::Parser.new(src).program
           md << "#{program.passes} passes, #{program.size} nodes.\n\n"
           md << "```\n" << program.derivation << "```\n"
+          problems = Compiler::Checker.check(program)
+          if problems.empty?
+            md << "\nChecks passed: every name is defined and every call has the right number of arguments.\n"
+          else
+            md << "\n**Problems:**\n\n"
+            problems.each { |problem| md << "- #{problem}\n" }
+          end
         rescue e : Compiler::Parser::Error
           md << "**Parse error:** #{e.message}\n\n"
           program = Compiler::Program.new(src)

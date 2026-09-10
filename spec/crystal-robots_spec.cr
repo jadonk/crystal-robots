@@ -415,3 +415,46 @@ describe CrystalRobots do
     end
   end
 end
+
+describe CrystalRobots::Compiler::Checker do
+  it "accepts every example robot" do
+    Dir.glob("examples/*.cr").sort.each do |file|
+      p = C::Parser.new(File.read(file)).program
+      C::Checker.check(p).should eq([] of C::Checker::Problem)
+    end
+  end
+
+  it "reports undefined names, arity, return and break misuse with locations" do
+    src = <<-ROBOT
+      global(g, 0)
+      def two(a, b)
+        a + b + c
+      end
+      def two(x)
+        x
+      end
+      main("T") do
+        y = two(1)
+        z += 1
+        puts nope
+        return 1
+        while true
+          break
+        end
+        break
+        g = y
+        puts two(1, 2)
+      end
+      ROBOT
+    problems = C::Checker.check(C::Parser.new(src).program).map(&.to_s)
+    problems.should eq [
+      "function two is defined twice at 5:5",
+      "undefined variable or function c at 3:11",
+      "undefined variable z at 10:3",
+      "undefined variable or function nope at 11:8",
+      "return outside of a def at 12:3",
+      "break outside of a loop at 16:3",
+      "two takes 1 arguments but is called with 2 at 18:8",
+    ]
+  end
+end

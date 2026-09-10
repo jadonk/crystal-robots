@@ -54,8 +54,9 @@ scripts/install_extroot.sh /path/to/extroot      # symlinks extroot/robots -> bi
 fossil server crystal-robots.fossil --extroot /path/to/extroot --port 8080
 ```
 
-Then browse to `http://localhost:8080/ext/robots/`: pick example robots,
-run a seeded match, and step through its frames drawn in Pikchr. A rebuild is the deploy:
+Then browse to `http://localhost:8080/ext/robots/`: pick example robots or
+paste your own, run a seeded match, and step through its frames drawn in
+Pikchr with each robot's trail. A rebuild is the deploy:
 the CGI runs fresh on every request. To put the app in the Fossil menu, paste
 `fossil-skin/mainmenu` into Admin, Skins, Main Menu. Who may use the app is
 decided by the repository's user capabilities: reading needs `o` or `h`

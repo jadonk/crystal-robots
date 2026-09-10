@@ -24,7 +24,10 @@ compiler work is fixed alongside the migration, not after it.
 | 2026-09-10 | `-m MATCHES --seed N -l CYCLES` runs matches from the CLI; `GET /battle` renders any frame of a match in Pikchr under the Fossil chrome |
 | 2026-09-10 | Preview verified by the user at `/ext/preview/session-<root>/`; the parse form's POST went to the site root because Fossil does not rewrite raw HTML `action` attributes; fixed by using the full `SCRIPT_NAME` |
 
-Spec suite: 59 examples green with `-Dwasmer`.
+| 2026-09-10 | Phase 2 remainder: `Compiler::Checker` reports undefined names, call arity, misplaced `return`/`break` and duplicate `def` with locations; the battlefield, `-t`, `-i` and the web pages use it |
+| 2026-09-10 | Battle page takes a pasted robot ("yours") and draws each robot's trail over the frames so far |
+
+Spec suite: 62 examples green with `-Dwasmer`.
 
 Deliberate deviation from CROBOTS: the scanner normalizes both angles in
 the wrap-around branch, so a scan at 359 sees a robot at 0 as the manual
@@ -264,16 +267,12 @@ operator-precedence variant) is dropped.
 
 ## 5. Immediate next steps
 
-1. Phase 2 remainder: semantic checks (undefined names, builtin arity)
-   reported before a match starts, so a typo shows on the battle page
-   instead of as a runtime restart loop.
-2. Phase 4 remainder: variables, functions and control flow in the WASM
+1. Phase 4 remainder: variables, functions and control flow in the WASM
    emitter, wasmer-hosted robots bound to the same `Host`, then the
    differential spec against the interpreter.
-3. Phase 5 polish: let the battle page take a pasted robot next to the
-   examples; consider a compact all-frames strip (small multiples) so a
-   match can be read at a glance without clicking through frames.
-4. Phase 7 migration items.
+2. Phase 5 polish: saved robots (Fossil-backed) instead of the pasted
+   source travelling in the query string.
+3. Phase 7 migration items.
 
 ## 6. Order of work
 

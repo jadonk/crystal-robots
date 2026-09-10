@@ -202,6 +202,9 @@ module CrystalRobots
         begin
           program = Compiler::Parser.new(source).program
           puts program.derivation
+          problems = Compiler::Checker.check(program)
+          problems.each { |problem| STDERR.puts "#{trace}: #{problem}" }
+          return 1 unless problems.empty?
         rescue e : Compiler::Parser::Error
           STDERR.puts e.message
           return 1
@@ -233,6 +236,12 @@ module CrystalRobots
           source = File.read(file)
           begin
             program = Compiler::Parser.new(source).program
+            problems = Compiler::Checker.check(program)
+            unless problems.empty?
+              problems.each { |problem| STDERR.puts "#{file}: #{problem}" }
+              status = 1
+              next
+            end
             interpreter = Compiler::Interpreter.new(program, Compiler::NullHost.new, @cycles)
             Compiler::Interpreter.puts_clear
             begin
@@ -388,9 +397,13 @@ module CrystalRobots
       end
     end
 
+    # The CLI runs from an at_exit handler so that robots compiled natively
+    # with the prelude get a chance to register first. A non-zero status
+    # from `run` becomes the process exit code.
     def run_at_exit
       at_exit do
-        run
+        status = run
+        exit(status) if status.is_a?(Int32) && status != 0
       end
     end
   end

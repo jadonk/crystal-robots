@@ -1,5 +1,6 @@
 require "./spec_helper"
 require "../src/web/cgi"
+require "uri"
 
 private def run_cgi(caps : String, path : String, method = "GET", query = "", body = "", script = "/ext/robots") : String
   env = {
@@ -43,7 +44,7 @@ describe CrystalRobots::Web::CGI do
     reply.should contain "main(\"Counter\") do"
     reply.should contain "## Derivation"
     reply.should contain "  0 lex "
-    reply.lines.last.should eq "```"
+    reply.should contain "Checks passed"
   end
 
   it "returns 404 for an unknown example" do
@@ -72,6 +73,19 @@ describe CrystalRobots::Web::CGI do
     again.should eq page
     first = run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000&frame=0")
     first.should contain "## Frame 1 of"
+    page.should contain "line thin color" # trails
+  end
+
+  it "lets a pasted robot fight and reports its problems" do
+    src = URI.encode_www_form("main(\"Me\") do\n  while true\n    drive(90, 50)\n  end\nend\n")
+    page = run_cgi("o", "/battle", "GET", "r=target&src=#{src}&seed=1&limit=1500")
+    page.should contain "# Battle: yours vs target"
+    page.should contain "src=main"
+    broken = run_cgi("o", "/battle", "GET", "src=#{URI.encode_www_form("puts nope\n")}&limit=300")
+    broken.should contain "| yours | failed |"
+    broken.should contain "undefined variable or function nope at 1:6"
+    checked = run_cgi("o", "/parse", "POST", "", "source=puts+nope")
+    checked.should contain "**Problems:**"
   end
 
   it "re-roots links under a session preview path" do

@@ -131,6 +131,12 @@ module CrystalRobots::Battle
         @active = false
         return
       end
+      problems = Compiler::Checker.check(@program.not_nil!)
+      unless problems.empty?
+        @error = problems.map(&.to_s).join("; ")
+        @active = false
+        return
+      end
       @active = true
       @alive = true
       program = @program.not_nil!
