@@ -9,7 +9,20 @@ Direction set 2026-09-09: the project is migrating from GitLab to Fossil, and
 and the other interfaces stay in scope but are secondary. The in-progress
 compiler work is fixed alongside the migration, not after it.
 
-## 1. Where the code is today
+## 0. Status
+
+| Date | Milestone |
+| --- | --- |
+| 2026-09-09 | Baseline audit; plan drafted |
+| 2026-09-10 | Phase 0 done: wasmer pinned, runtime specs skippable (`-Dwasmer`), stubs retired |
+| 2026-09-10 | Phase 1 done: multipass tokenizer in `src/compiler`, all six examples parse, `-t` trace |
+| 2026-09-10 | Phase 2 started: tree-walking interpreter with `Host` seam and `NullHost`, `-i` runs robots to a step limit |
+| 2026-09-10 | Phase 4 started: WASM emitter handles `puts` with full integer expressions, verified under wasmer |
+| 2026-09-10 | Phase 5 skeleton: CGI mode, capability gate, Markdown replies, overview, example and parse pages, `extroot` script, `fossil-skin/mainmenu` |
+
+Spec suite: 51 examples green with `-Dwasmer`.
+
+## 1. Where the code is today (2026-09-09 audit, kept for history)
 
 Measured on this checkout with Crystal 1.18.2 and wasmer 4.4.0.
 
@@ -236,13 +249,13 @@ operator-precedence variant) is dropped.
 
 ## 5. Immediate next steps
 
-1. Phase 0 items 1 and 2 (wasmer pin, skippable wasmer specs).
-2. Phase 1: port the prototype into `src/compiler` and bring the parser
-   specs to green on pass strings.
-3. Phase 5 skeleton: `GATEWAY_INTERFACE` mode, capability gate, Markdown
-   reply, overview and example routes with the parse trace, `extroot/`
-   symlink recipe, `fossil-skin/mainmenu`; verified through the session
-   preview URL.
+1. Phase 3: battlefield simulation from the CROBOTS source, as a `Host`,
+   with a seeded RNG and a per-cycle trace; `POST /battle` renders it as
+   Pikchr under the Fossil chrome.
+2. Phase 2 remainder: semantic checks (undefined names, builtin arity)
+   reported before running; instruction slicing per robot per cycle.
+3. Phase 4 remainder: variables, functions and control flow in the WASM
+   emitter, then the differential spec against the interpreter.
 
 ## 6. Order of work
 

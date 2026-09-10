@@ -1,10 +1,10 @@
 # The progressive multipass tokenizer
 
-Status 2026-09-10: design worked out and proven by
-`scripts/multipass_prototype.cr`, which reduces all six example robots
-(`test`, `target`, `rabbit`, `counter`, `rook`, `sniper`) to the single
-Program glyph and gets precedence and associativity right. The next step is
-to port it into `src/compiler` (Phase 1 of `docs/PLAN.md`).
+Status 2026-09-10: implemented in `src/compiler/parser.cr` and
+`src/compiler/compiler.cr` (ported from `scripts/multipass_prototype.cr`,
+which is kept as the standalone reference). All six example robots reduce to
+the single Program glyph with correct precedence and associativity;
+`bin/crystal-robots -t FILE` prints the derivation.
 
 ## 1. The idea, restated
 
@@ -154,8 +154,8 @@ down what each field means.
   mapping because parentheses and program are just rules like any other.
 - `Parser.tokenize(p, src)` becomes `reduce_once`: one pass, returns the new
   string or nil when no rule matched. `Parser#initialize` keeps its loop.
-- The interpreter's `pc`/`stack`/`call`/`return` walk stays as is on top of
-  `arg(n)`.
+- The interpreter walks the tree recursively through `children`/`arg(n)`;
+  the old `pc`/`stack` fields are gone.
 
 ## 6. Errors
 

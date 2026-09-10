@@ -1,367 +1,232 @@
-# TODO: Write documentation for `CrystalRobots::Compiler::Parser`
+# The progressive multipass tokenizer.
 #
-# Let's see if the doc tool allows more sophisticated markdown here
+# Pass 0 turns the source text into a glyph string with the lexical rules.
+# Every later pass applies exactly one grammar rule, a regex over glyphs, to
+# the whole string: the first rule in `GRAMMAR` order that matches anywhere
+# is applied to every non-overlapping match, each match collapsing to a
+# single new glyph. The next pass starts again from the top of the list, so
+# higher-precedence rules always win. Parsing ends when no rule matches;
+# success is the single Program glyph `⏹`.
 #
-# I ultimately want to end up with an array of statments. Statements will typically have
-# arguments at previous levels.
-#
-# OK, I think I've figured out what the difference between a parser and a tokenizer is. A
-# parser is just going to call the tokenizer repeatedly, but after the first time, you need
-# a function to determine something looking back at the token array from the earlier pass.
-#
-# I don't think I can express a grammar with my regex match thingy though unless I make
-# the tokens unique. I think that means I need to make my token types utilize an index
-# offset.
-#
-# https://en.wikipedia.org/wiki/Abstract_syntax_tree
-
+# See `docs/PARSER.md` for the reasoning behind the rule order and the
+# lookaround guards.
 module CrystalRobots::Compiler
   class Parser
-    property program
+    class Error < Exception
+      getter line : Int32, col : Int32
 
+      def initialize(message : String, @line : Int32, @col : Int32)
+        super("#{message} at #{@line}:#{@col}")
+      end
+    end
+
+    # One grammar rule: a regex over glyphs and the glyph it reduces to.
+    struct Rule
+      getter name : Symbol, regex : Regex, type : Type
+
+      def initialize(@name : Symbol, @regex : Regex, @type : Type)
+      end
+    end
+
+    KEYWORDS = {
+      "begin" => Type::BeginKeyword, "break" => Type::BreakKeyword, "case" => Type::CaseKeyword,
+      "def" => Type::DefKeyword, "do" => Type::DoKeyword, "else" => Type::ElseKeyword,
+      "elsif" => Type::ElsifKeyword, "end" => Type::EndKeyword, "false" => Type::FalseKeyword,
+      "for" => Type::ForKeyword, "if" => Type::IfKeyword, "in" => Type::InKeyword,
+      "next" => Type::NextKeyword, "nil" => Type::NilKeyword, "require" => Type::RequireKeyword,
+      "then" => Type::ThenKeyword, "true" => Type::TrueKeyword, "while" => Type::WhileKeyword,
+      "until" => Type::UntilKeyword, "when" => Type::WhenKeyword, "return" => Type::ReturnKeyword,
+      "main" => Type::MainKeyword, "global" => Type::GlobalKeyword,
+      "damage" => Type::ZeroArgMethod, "speed" => Type::ZeroArgMethod, "loc_x" => Type::ZeroArgMethod,
+      "loc_y" => Type::ZeroArgMethod, "sleep" => Type::ZeroArgMethod,
+      "puts" => Type::OneArgMethod, "rand" => Type::OneArgMethod, "sqrt" => Type::OneArgMethod,
+      "sin" => Type::OneArgMethod, "cos" => Type::OneArgMethod, "tan" => Type::OneArgMethod,
+      "atan" => Type::OneArgMethod,
+      "scan" => Type::TwoArgMethod, "cannon" => Type::TwoArgMethod, "drive" => Type::TwoArgMethod,
+    }
+
+    OPERATORS = {
+      "==" => Type::EqOperator, "!=" => Type::NeOperator, "<=" => Type::LeOperator,
+      ">=" => Type::GeOperator, "&&" => Type::AndOperator, "||" => Type::OrOperator,
+      "+=" => Type::AddAssign, "-=" => Type::SubAssign, "*=" => Type::MulAssign,
+      "%=" => Type::ModAssign, "//" => Type::FloorDivOperator,
+      "+" => Type::AddOperator, "-" => Type::SubOperator, "*" => Type::MulOperator,
+      "/" => Type::DivOperator, "%" => Type::ModOperator, "<" => Type::LtOperator,
+      ">" => Type::GtOperator, "&" => Type::AndOperator, "|" => Type::OrOperator,
+      "^" => Type::XorOperator, "=" => Type::Assign, "(" => Type::OpenParen,
+      ")" => Type::CloseParen, "," => Type::Comma,
+    }
+
+    # Pass 0 rules, tried in order at the current text position. A nil type
+    # drops the match. Operators and words are looked up in the tables.
+    LEXICAL = [
+      {/\A#[^\n]*/, nil},
+      {/\A[ \t\r]+/, nil},
+      {/\A(\n|;)+/, Type::Newline},
+      {/\A"[^"]*"/, Type::String},
+      {/\A[0-9]+/, Type::Number},
+      {/\A(==|!=|<=|>=|&&|\|\||\+=|-=|\*=|%=|\/\/|[-+*\/%<>=&|^(),])/, Type::Invalid},
+      {/\A[A-Za-z_][A-Za-z0-9_]*/, Type::Identifier},
+    ]
+
+    # Anything that is already a value: number, string, expression, identifier.
+    V = "[№🐍😑𝑥]"
+
+    # Infix operator glyphs by precedence level, tightest first.
+    MULOPS = "⊗／⊘％"
+    ADDOPS = "⊕⊖"
+    CMPOPS = "≺≻≼≽"
+    EQOPS  = "≟≠"
+    ANDOPS = "∧"
+    OROPS  = "∨⊻"
+
+    # An infix rule at level L reduces `V op V` only when the left operand is
+    # not preceded by an operator of level <= L (that operand belongs to the
+    # earlier operator, giving left associativity) and the right operand is
+    # not followed by an operator of level < L (that operand belongs to the
+    # tighter operator).
+    def self.infix(ops : String, higher : String) : Regex
+      ahead = higher.empty? ? "" : "(?![#{higher}])"
+      Regex.new("(?<![#{higher}#{ops}])#{V}[#{ops}]#{V}#{ahead}")
+    end
+
+    # Grammar rules in priority order. Each pass applies the FIRST rule in
+    # this list that matches anywhere, to every non-overlapping match.
+    GRAMMAR = [
+      # headers first: a def or main header must never be read as a call
+      Rule.new(:main_head, /🏁⟮🐍⟯🔖⏎/, Type::MainHead),
+      Rule.new(:def_head, /🔕𝑥(⟮(𝑥(，𝑥)*)?⟯)?⏎/, Type::DefHead),
+      Rule.new(:global, /🌐⟮𝑥，#{V}⟯⏎/, Type::Statement),
+      # values
+      Rule.new(:literal, /[🔢🔚]/, Type::Expression),
+      Rule.new(:call0, /∉/, Type::Expression),
+      Rule.new(:call, /𝑥⟮(#{V}(，#{V})*)?⟯/, Type::Expression),
+      Rule.new(:call1, /∊⟮#{V}⟯/, Type::Expression),
+      Rule.new(:call2, /∋⟮#{V}，#{V}⟯/, Type::Expression),
+      Rule.new(:paren, /⟮#{V}⟯/, Type::Expression),
+      Rule.new(:neg, /(?<![№🐍😑𝑥⟯])⊖#{V}/, Type::Expression),
+      # infix, tightest first
+      Rule.new(:mul, infix(MULOPS, ""), Type::Expression),
+      Rule.new(:add, infix(ADDOPS, MULOPS), Type::Expression),
+      Rule.new(:cmp, infix(CMPOPS, MULOPS + ADDOPS), Type::Expression),
+      Rule.new(:eq, infix(EQOPS, MULOPS + ADDOPS + CMPOPS), Type::Expression),
+      Rule.new(:and, infix(ANDOPS, MULOPS + ADDOPS + CMPOPS + EQOPS), Type::Expression),
+      Rule.new(:or, infix(OROPS, MULOPS + ADDOPS + CMPOPS + EQOPS + ANDOPS), Type::Expression),
+      # command calls without parentheses bind loosest of all expressions
+      Rule.new(:command1, /∊#{V}(?=[⏎⟯，])/, Type::Expression),
+      Rule.new(:command2, /∋#{V}，#{V}(?=[⏎⟯，])/, Type::Expression),
+      # assignment is right associative: only once the value is complete
+      Rule.new(:assign, /𝑥＝#{V}(?=[⏎⟯，])/, Type::Expression),
+      Rule.new(:opassign, /𝑥[➕➖✖⁒]#{V}(?=[⏎⟯，])/, Type::Expression),
+      # block headers
+      Rule.new(:if_head, /🔜#{V}⏎/, Type::IfHead),
+      Rule.new(:elsif_head, /🔘#{V}⏎/, Type::ElsifHead),
+      Rule.new(:while_head, /🔣#{V}⏎/, Type::WhileHead),
+      Rule.new(:until_head, /🔂#{V}⏎/, Type::UntilHead),
+      Rule.new(:case_head, /🔔#{V}⏎/, Type::CaseHead),
+      Rule.new(:when_head, /🔶#{V}⏎/, Type::WhenHead),
+      # simple statements
+      Rule.new(:return, /↩#{V}?⏎/, Type::Statement),
+      Rule.new(:break, /🔓⏎/, Type::Statement),
+      Rule.new(:exprstmt, /#{V}⏎/, Type::Statement),
+      # blocks reduce only once their body is entirely statements
+      Rule.new(:if, /🅸❢*(🅴❢*)*(🔗⏎❢*)?🔙⏎/, Type::Statement),
+      Rule.new(:while, /🆆❢*🔙⏎/, Type::Statement),
+      Rule.new(:until, /🆄❢*🔙⏎/, Type::Statement),
+      Rule.new(:case, /🅲(🆂❢*)+(🔗⏎❢*)?🔙⏎/, Type::Statement),
+      Rule.new(:def, /🅳❢*🔙⏎/, Type::Statement),
+      Rule.new(:main, /🅼❢*🔙⏎/, Type::Statement),
+      Rule.new(:program, /\A❢+\z/, Type::Program),
+    ]
+
+    property program : Program
+
+    # Parse `src` completely. Raises `Parser::Error` with a source location
+    # when the text cannot be reduced to a program.
     def initialize(src : String = "")
       @program = Program.new(src)
-      while src != "⏹" && src != ""
-        Log.d "tokenize(#{src})"
-        src = tokenize(src)
-      end
+      Parser.parse(@program)
     end
 
-    struct TokenDef
-      property v, s, h, r
-
-      def initialize(@v : Array(Tuple(String, Type)) | Nil, @s : String, @h : Hash(String, Type), @r : Regex | Nil)
+    def self.parse(p : Program) : Program
+      lex(p)
+      if p.current.empty?
+        # an empty source is an empty program
+        idx = p.push(Type::Program, p.source.size, 0, 1, :program)
+        p.add_pass([idx], :program)
+        return p
       end
+      while reduce_once(p)
+      end
+      unless p.parsed?
+        bad = p.current.find { |i| p.type(i) != Type::Statement } || p.current[0]
+        line, col = p.location(bad)
+        raise Error.new("Cannot reduce #{p.type(bad).glyph} (#{p.type(bad)}) in #{p}", line, col)
+      end
+      p
+    end
 
-      def initialize(values : Array(Tuple(String, Type)))
-        @v = values
-        @h = Hash(String, Type).new(default_value = Type::Invalid, initial_capacity = 20)
-        if !@v.nil?
-          v = @v.not_nil!
-          @s = (v.map { |s, t| Regex.escape(s) }).join("|")
-          @r = Regex.new("^(#{@s})")
-          v.each_index do |i|
-            @h[v[i][0]] = v[i][1]
+    # Pass 0. Returns the glyph string.
+    def self.lex(p : Program) : String
+      text = p.text
+      layer = [] of Int32
+      pos = 0
+      while pos < text.size
+        rest = text[pos..]
+        matched = false
+        LEXICAL.each do |(regex, type)|
+          m = regex.match(rest)
+          next unless m
+          matched = true
+          lexeme = m[0]
+          t = type
+          if t == Type::Invalid
+            t = OPERATORS[lexeme]
+          elsif t == Type::Identifier
+            t = KEYWORDS.fetch(lexeme, Type::Identifier)
           end
-        else
-          @s = ""
-          @r = nil
-        end
-      end
-
-      # All tokens are the same type, so copy to each
-      def initialize(type : Type, values : Array(String))
-        t_values = [] of Tuple(String, Type)
-        values.each_index do |i|
-          t_values.push({values[i], type})
-        end
-        initialize(t_values)
-      end
-
-      def initialize(t : Nil)
-        @v = nil
-        @s = ""
-        @h = Hash(String, Type).new(default_value = Type::Invalid, initial_capacity = 20)
-        @r = nil
-      end
-    end
-
-    enum MappingType
-      Default
-      Drop
-      Program
-      Parenthetical
-    end
-
-    # 1. Start by matching the first Regex. If initially assigned Nil in creation, it should get
-    #    assigned by the next argument (TokenDef).
-    # 2. Next, use the TokenDef Hash to select a type. If the rule Regex is Nil, assign it using the
-    #    TokenDef Regex. If the it TokenDef Hash doesn't have a value match, don't assign a type yet.
-    # 3. Next, use the provided type to set a type. If it is Nil, keep the already assigned type. If that is Nil, error out.
-    # 4. Finally, run the mapping function using the mapping type to set the final node parameters. If it is Nil, drop the token.
-    struct GrammarRule
-      property regex, tokendef, type, map
-
-      def initialize(@regex : Regex, @tokendef : TokenDef, @type : Type | Nil, @map : MappingType)
-      end
-
-      def initialize(rs : Tuple(Regex | Nil, Array(Tuple(String, Type)) | Nil, Type | Nil, MappingType | Nil))
-        regex = rs[0]
-        tokendef = TokenDef.new(rs[1])
-        if regex.nil?
-          regex = tokendef.r.not_nil!
-        end
-        map = rs[3]
-        if map.nil?
-          map = MappingType::Drop
-        end
-        @regex = regex
-        @tokendef = tokendef
-        @type = rs[2]
-        @map = map
-      end
-    end
-
-    struct Grammar
-      property grammar
-
-      def initialize(@grammar : Array(GrammarRule))
-      end
-
-      def self.new(rs : Array(Tuple(Regex | Nil, Array(Tuple(String, Type)) | Nil, Type | Nil, MappingType | Nil)))
-        i = Grammar.allocate
-        i.grammar = Array(GrammarRule).new
-        rs.each do |r|
-          i.grammar.push(GrammarRule.new({r[0], r[1], r[2], r[3]}))
-        end
-        i
-      end
-    end
-
-    # These are language keywords that generate various statement types
-    # I think there are 2 mechanisms for getting a token type assigned, there can
-    # either be a simple pattern match, or there can be a match with a hash
-    # lookup to find the token type. And then there is the matter of the mapping
-    # function, but it might be possible to combine into a single mapper. I
-    # think I might add a more generic regex to help foster lookups.
-    #
-    # The array is in rule precedence order. If a search is separated, that is the
-    # primary reason it *should* be so, except that in several cases I simply
-    # haven't thought of how to make the right unifying regex.
-    #
-    # NOTE: the parser should be protected from the random UTF-8 characters I
-    # use as long as I disallow their use in identifiers and this will allow them to
-    # still be used in strings
-    #
-    @@grammar = Grammar.new(
-      [
-        {/^\"([^\"]+)\"/, nil, Type::String, MappingType::Default},
-        {/^(-{0,1}[\.0-9]+)/, nil, Type::Number, MappingType::Default},
-        {/^(\(|\))/,
-         [
-           {"(", Type::OpenParen},
-           {")", Type::CloseParen},
-         ],
-         nil, MappingType::Default},
-        {nil,
-         [
-           {"*", Type::MulOperator},
-           {"//", Type::FloorDivOperator},
-         ], Type::MulOperator, MappingType::Default},
-        {nil,
-         [
-           {"+", Type::AddOperator},
-           {"-", Type::SubOperator},
-         ], Type::AddOperator, MappingType::Default,
-        },
-        {nil,
-         [
-           {"==", Type::EqOperator},
-           {"!=", Type::NeOperator},
-         ], Type::EqOperator, MappingType::Default,
-        },
-        {nil,
-         [
-           {"<", Type::LtOperator},
-           {">", Type::GtOperator},
-           {"<=", Type::LtOperator},
-           {">=", Type::GtOperator},
-         ], Type::LtOperator, MappingType::Default,
-        },
-        {nil,
-         [
-           {"&", Type::AndOperator},
-         ], Type::AndOperator, MappingType::Default,
-        },
-        {nil,
-         [
-           {"|", Type::OrOperator},
-           {"^", Type::XorOperator},
-         ], Type::OrOperator, MappingType::Default,
-        },
-        {/^([a-z]+)\b/,
-         [
-           {"begin", Type::BeginKeyword},
-           {"break", Type::BreakKeyword},
-           {"case", Type::CaseKeyword},
-           {"def", Type::DefKeyword},
-           {"do", Type::DoKeyword},
-           {"else", Type::ElseKeyword},
-           {"elsif", Type::ElsifKeyword},
-           {"end", Type::EndKeyword},
-           {"false", Type::FalseKeyword},
-           {"for", Type::ForKeyword},
-           {"if", Type::IfKeyword},
-           {"in", Type::InKeyword},
-           {"next", Type::NextKeyword},
-           {"nil", Type::NilKeyword},
-           {"require", Type::RequireKeyword},
-           {"then", Type::ThenKeyword},
-           {"true", Type::TrueKeyword},
-           {"while", Type::WhileKeyword},
-           {"main", Type::TwoArgMethod},
-           {"puts", Type::OneArgMethod},
-           {"scan", Type::TwoArgMethod},
-           {"cannon", Type::TwoArgMethod},
-           {"drive", Type::TwoArgMethod},
-           {"damage", Type::ZeroArgMethod},
-           {"speed", Type::ZeroArgMethod},
-           {"loc_x", Type::ZeroArgMethod},
-           {"loc_y", Type::ZeroArgMethod},
-           {"rand", Type::OneArgMethod},
-           {"sqrt", Type::OneArgMethod},
-           {"sin", Type::OneArgMethod},
-           {"cos", Type::OneArgMethod},
-           {"tan", Type::OneArgMethod},
-           {"atan", Type::OneArgMethod},
-         ],
-         nil, MappingType::Default,
-        },
-        {/^(\s+)/, nil, Type::Whitespace, nil},
-        {/^(\#[^\n]*)/, nil, Type::Comment, nil},
-        # TODO: This makes me realize I need to have both a source type and a result type
-        {/(⟮(№|😑)(⊗|⊕|≟|≺|∧|∨)(№|😑)⟯)/, nil, Type::Expression, MappingType::Parenthetical},
-        {/((№|😑)⊗(№|😑))/, nil, Type::Expression, MappingType::Default},
-        {/((№|😑)⊕(№|😑))/, nil, Type::Expression, MappingType::Default},
-        {/((№|😑)≟(№|😑))/, nil, Type::Expression, MappingType::Default},
-        {/((№|😑)≟(№|😑))/, nil, Type::Expression, MappingType::Default},
-        {/((№|😑)≺(№|😑))/, nil, Type::Expression, MappingType::Default},
-        {/((№|😑)∧(№|😑))/, nil, Type::Expression, MappingType::Default},
-        {/((№|😑)∨(№|😑))/, nil, Type::Expression, MappingType::Default},
-        {/^(∉)/, nil, Type::ZeroArgStatement, MappingType::Default},
-        {/^(∊(№|🐍|😑))/, nil, Type::OneArgStatement, MappingType::Default},
-        {/^(∋(№|🐍|😑)(№|🐍|😑))/, nil, Type::TwoArgStatement, MappingType::Default},
-        {/^[❣❤❥]+$/, nil, Type::Program, MappingType::Program},
-      ]
-    )
-
-    # `p` is the active program ast being filled
-    # `index` is the offset index into the source string where the search started
-    # `m` is the match result
-    # `rule` is the rule that was matched against
-    # result is an array of tokens to be added to the program or nil. why not add them here?
-    # what is the resulting string to search on the next pass? how do we know this pass should end?
-    def self.map(p : Program, index : Int32, m : Regex::MatchData, rule : GrammarRule) : Array(Program::Node)
-      value = m[0]
-      tokens = Array(Program::Node).new
-      case rule.map
-      when MappingType::Drop
-      when MappingType::Program
-        if index == 0
-          type = rule.type.not_nil!
-          # TODO          p.push(Node.new(type: type, value: value))
-        end
-      when MappingType::Default
-        m.begin(0).times do |j|
-          i = index + j
-          # TODO pc = PC.new(p.pc.pass - 1, i)
-          # TODO n = p.node(pc).not_nil!
-          t = Type.new(m.string[j].ord).not_nil!
-          # TODO v = n.value.not_nil!
-          # TODO Log.d "passing #{m.string[j]} as #{t} from #{v} #{pc}"
-          # TODO tokens << Node.new(type: t, value: v, index: i)
-        end
-        t = rule.tokendef.h[value]
-        if t == Type::Invalid
-          if rule.type.nil?
-            raise Error.new("Unexpected token #{value} @ #{index}")
+          if t && !(t == Type::Newline && (layer.empty? || p.type(layer.last) == Type::Newline))
+            layer << p.push(t, pos, lexeme.size, 0, :lex)
           end
-          t = rule.type.not_nil!
+          pos += lexeme.size
+          break
         end
-        Log.d "mapping #{value} as #{t} using #{rule.map} @ #{index} offset by #{m.begin(0)}"
-        tokens << Program::Node.new(type: t, start: index + m.begin(0), count: value.size)
-      when MappingType::Parenthetical
-        # In this case, we want to drop the parentheses and point to the first
-        # argument. The parentheses have done their job already by breaking up
-        # things for the parser. At this point, everything inside the parentheses
-        # has been resolved and we only have Value-Operator-Value. Even though
-        # Value might be an expression, it is already isolated and prioritized.
-        m.begin(0).times do |j|
-          i = index + j
-          # TODO pc = PC.new(p.pc.pass - 1, i)
-          # TODO node = p.node(pc)
-          # TODO t = Type.new(m.string[j].ord).not_nil!
-          # TODO n = node.not_nil!
-          # TODO v = n.value.not_nil!
-          # TODO Log.d "passing #{m.string[j]} as #{t} from #{v} #{pc}"
-          # TODO tokens << Node.new(type: t, value: v, index: i)
-        end
-        t = rule.tokendef.h[value]
-        if t == Type::Invalid
-          if rule.type.nil?
-            raise Error.new("Unexpected token #{value} @ #{index}")
-          end
-          t = rule.type.not_nil!
-        end
-        i = index + m.begin(0) + 1
-        # value = value[1, value.size-2]
-        Log.d "mapping #{value} as #{t} using #{rule.map} @ #{index} offset by #{m.begin(0) + 1}"
-        tokens << Program::Node.new(type: t, start: i, count: value.size)
-      end
-      tokens
-    end
-
-    class Error < Exception
-    end
-
-    # *p* is the program the string represents to be updated with a single tokenization pass
-    # *src* is the string to tokenize
-    #
-    # Updates the program with any newly identified tokens
-    #
-    # Returns the new stringified latest top-level tokens
-    def self.tokenize(p : Program, src : String)
-      index = 0
-      tokens = [] of Program::Node
-      while index < src.size
-        m_off = 0
-        matches = @@grammar.grammar.compact_map do |rule|
-          m = rule.regex.match(src[(index..)])
-          if m.nil?
-            next
-          end
-          {"m": m, "rule": rule}
-        end
-        if matches.size == 0
-          # TODO: Perhaps the right way is to pass one on at a time and then fail when there are no longer any reductions?
-          if index == 0
-            raise Error.new("No tokens found in #{src}")
-          end
-          p.pc = index
-          node = p.node.not_nil!
-          t = node.type.not_nil!
-          Log.d "skipping #{src[index]} as #{t}"
-          tokens << Program::Node.new(type: t, start: index)
-          index += 1
-        elsif !matches[0].nil? && !matches[0][:m][0].nil?
-          m = matches[0][:m].not_nil!
-          rule = matches[0][:rule].not_nil!
-          t = self.map(p, index, m, rule)
-          if !t.nil?
-            tokens.concat(t)
-          end
-          index += m.begin(0) + m[0].size
-        else
-          raise Error.new("Unexpected match in token array #{src[index..index + 1]}")
+        unless matched
+          line, col = p.line_col(pos)
+          raise Error.new("Unexpected character #{text[pos].inspect}", line, col)
         end
       end
+      # end of input terminates the last statement
+      unless layer.empty? || p.type(layer.last) == Type::Newline
+        layer << p.push(Type::Newline, text.size, 0, 0, :lex)
+      end
+      p.add_pass(layer, :lex)
       p.to_s
     end
 
-    def tokenize(src : String)
-      self.class.tokenize(@program, src)
-    end
-
-    def tokens_to_s(tokens)
-      tokens.map { |token| token.type.value.chr }.join
-    end
-
-    def self.tokens_to_s(tokens)
-      tokens.map { |token| token.type.value.chr }.join
-    end
-
-    # TODO: Implement to_json
-    def to_json
+    # One reduction pass. Returns false when no rule matches.
+    def self.reduce_once(p : Program) : Bool
+      layer = p.current
+      s = p.glyphs(layer)
+      base = p.pass.last
+      level = p.passes
+      GRAMMAR.each do |rule|
+        matches = s.scan(rule.regex)
+        next if matches.empty?
+        next_layer = [] of Int32
+        cursor = 0
+        matches.each do |m|
+          b = m.begin(0)
+          len = m[0].size
+          (cursor...b).each { |i| next_layer << layer[i] }
+          next_layer << p.push(rule.type, base + b, len, level, rule.name)
+          cursor = b + len
+        end
+        (cursor...layer.size).each { |i| next_layer << layer[i] }
+        p.add_pass(next_layer, rule.name)
+        return true
+      end
+      false
     end
   end
 end

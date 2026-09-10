@@ -18,27 +18,50 @@ language itself.
 
 ## Installation
 
-TODO: Write installation instructions here
+```
+shards build            # produces bin/crystal-robots
+bin/crystal-robots -h
+```
+
+Crystal 1.14 or newer. Running the emitted WebAssembly (the specs and,
+later, battles) needs the wasmer runtime; see Development below.
 
 ## Usage
 
-TODO: Write usage instructions here
+`bin/crystal-robots` is one binary with several faces:
+
+```
+bin/crystal-robots -t examples/counter.cr           # print the parser derivation, one line per pass
+bin/crystal-robots -i -l 5000 examples/counter.cr   # run robots in the interpreter, 5000 steps each
+bin/crystal-robots -c examples/test.cr -o test.wasm # compile a robot to WebAssembly
+GATEWAY_INTERFACE=CGI/1.1 bin/crystal-robots        # serve the web app (Fossil does this for you)
+```
 
 The primary method for using `crystal-robots` is by using my hosted server. The compiler is built into the web page. You can provide sources for the various robots and watch them battle it out.
 
 There are a lot of other methods to battle your `crystal-robots` and each peels back a layer to teach you more about full-stack programming.
 
-### My hosted server
+### Hosted by Fossil (the primary way)
 
-Browse to https://jkridner.beagleboard.io/crystal-robots and ...
-
-### Self-hosted server
-
-Start your own server by invoking `crystal-robots` and specifying a port ...
+The web app is a [Fossil CGI extension](https://fossil-scm.org/home/doc/trunk/www/serverext.wiki):
+Fossil serves the repository, the docs and the app, and supplies the login.
+The app replies in Markdown, so it appears inside the repository's own skin.
 
 ```
-bin/crystal-robots -p 8080
+shards build
+scripts/install_extroot.sh /path/to/extroot      # symlinks extroot/robots -> bin/crystal-robots
+fossil server crystal-robots.fossil --extroot /path/to/extroot --port 8080
 ```
+
+Then browse to `http://localhost:8080/ext/robots/`. A rebuild is the deploy:
+the CGI runs fresh on every request. To put the app in the Fossil menu, paste
+`fossil-skin/mainmenu` into Admin, Skins, Main Menu. Who may use the app is
+decided by the repository's user capabilities: reading needs `o` or `h`
+(what anonymous usually has), saving robots (later) needs check-in (`i`).
+
+### Self-hosted server without Fossil
+
+Planned: `bin/crystal-robots -p 8080` will serve the same pages directly.
 
 ### Compiled to native code with `crystal`
 
@@ -71,7 +94,22 @@ baseline, and the open parser-architecture decision.
 
 ## Development
 
-TODO: Write development instructions here
+```
+crystal spec                       # everything except running WebAssembly
+crystal spec -Dwasmer              # also runs the emitted modules with wasmer
+crystal tool format --check src spec scripts
+```
+
+The wasmer runtime is optional. Wasmer 4.4.0 is the last release with a
+`linux-musl` build, so pin it:
+
+```
+scripts/install_wasmer.sh v4.4.0
+export WASMER_DIR=$HOME/.wasmer
+```
+
+The parser design is described in [docs/PARSER.md](docs/PARSER.md); the
+phased plan and current status in [docs/PLAN.md](docs/PLAN.md).
 
 ### Roadmap
 

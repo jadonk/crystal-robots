@@ -28,11 +28,12 @@ test:
   stage: test
   before_script:
     - sudo apk add curl shards
-    - scripts/install_wasmer.sh
+    - scripts/install_wasmer.sh v4.4.0
     - . $HOME/.wasmer/wasmer.sh
+    - export WASMER_DIR=$HOME/.wasmer
     - shards update
   script:
-    - crystal spec -v
+    - crystal spec -v -Dwasmer
     - crystal tool format --check
     - bin/crystal-robots -v
     - bin/crystal-robots
