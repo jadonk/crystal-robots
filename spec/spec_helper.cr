@@ -11,10 +11,14 @@ require "semantic_version"
 {% if flag?(:wasmer) %}
   require "wasmer"
 
+  # Runs an emitted module under wasmer with every builtin bound to a
+  # `Compiler::Host`, the same interface the interpreter uses.
   class WASMSpec
     getter last_puts : String
+    getter puts_out = [] of String
+    getter host : CrystalRobots::Compiler::Host
 
-    def initialize(@last_puts)
+    def initialize(@last_puts = "", @host = CrystalRobots::Compiler::NullHost.new)
     end
 
     # https://github.com/naqvis/wasmer-crystal
@@ -23,17 +27,49 @@ require "semantic_version"
       store = Wasmer::Store.new(engine)
       module_ = Wasmer::Module.new(store, file)
       imports = Wasmer::ImportObject.new
-      params = Wasmer.value_types(Wasmer::I32)
-      results = Wasmer.value_types(Wasmer::I32)
-      oneArgStatement = Wasmer::FunctionType.new(params, results)
-      wasm_puts_import = Wasmer::Function.new(store, type: oneArgStatement, &->wasm_puts(Array(Wasmer::Value)))
-      imports.register("env", {"puts" => wasm_puts_import.as(Wasmer::WithExtern)})
+      i32 = Wasmer.value_types(Wasmer::I32)
+      none = Wasmer.value_types
+      two = Wasmer.value_types(Wasmer::I32, Wasmer::I32)
+      t0 = Wasmer::FunctionType.new(none, i32)
+      t1 = Wasmer::FunctionType.new(i32, i32)
+      t2 = Wasmer::FunctionType.new(two, i32)
+      h = @host
+      env = {} of String => Wasmer::WithExtern
+      env["puts"] = Wasmer::Function.new(store, type: t1, &->wasm_puts(Array(Wasmer::Value)))
+      env["scan"] = fn(store, t2) { |a| h.scan(a[0].as_i, a[1].as_i) }
+      env["cannon"] = fn(store, t2) { |a| h.cannon(a[0].as_i, a[1].as_i) }
+      env["drive"] = fn(store, t2) { |a| h.drive(a[0].as_i, a[1].as_i) }
+      env["damage"] = fn(store, t0) { |_| h.damage }
+      env["speed"] = fn(store, t0) { |_| h.speed }
+      env["loc_x"] = fn(store, t0) { |_| h.loc_x }
+      env["loc_y"] = fn(store, t0) { |_| h.loc_y }
+      env["sleep"] = fn(store, t0) { |_| h.sleep }
+      env["rand"] = fn(store, t1) { |a| h.rand(a[0].as_i) }
+      env["sqrt"] = fn(store, t1) { |a| h.sqrt(a[0].as_i) }
+      env["sin"] = fn(store, t1) { |a| h.sin(a[0].as_i) }
+      env["cos"] = fn(store, t1) { |a| h.cos(a[0].as_i) }
+      env["tan"] = fn(store, t1) { |a| h.tan(a[0].as_i) }
+      env["atan"] = fn(store, t1) { |a| h.atan(a[0].as_i) }
+      imports.register("env", env)
       Wasmer::Instance.new(module_, imports)
+    end
+
+    private def fn(store, type, &block : Array(Wasmer::Value) -> Int32) : Wasmer::WithExtern
+      Wasmer::Function.new(store, type: type) { |args| [Wasmer::Value.new(block.call(args))] }.as(Wasmer::WithExtern)
     end
 
     def wasm_puts(args : Array(Wasmer::Value)) : Array(Wasmer::Value)
       @last_puts = "#{args[0].as_i}"
+      @puts_out << @last_puts
+      @host.puts(args[0].as_i)
       [Wasmer::Value.new(0)]
+    end
+
+    # Compile and run `source`; returns everything it printed.
+    def run(source : String) : Array(String)
+      i = load_wasm(CrystalRobots::Compiler.compile_to_wasm(source))
+      i.function("run").not_nil!.call
+      @puts_out
     end
   end
 {% end %}

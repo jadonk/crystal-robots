@@ -22,7 +22,7 @@ module CrystalRobots::Compiler
     end
 
     def sqrt(n : Int32) : Int32
-      Math.isqrt(n.abs).to_i32
+      Math.isqrt(n.to_i64.abs).to_i32
     end
 
     def sin(degree : Int32) : Int32
@@ -110,6 +110,14 @@ module CrystalRobots::Compiler
     private record Function, params : Array(String), body : Array(Int32)
 
     @@puts_out = [] of String
+
+    # The class-level capture is for the CLI and specs; a battlefield host
+    # keeps its own bounded output and turns this off.
+    CAPTURE_LIMIT = 10_000
+    property capture = true
+
+    # Deeper than this and a robot is recursing without end.
+    MAX_CALL_DEPTH = 200
 
     # Everything `puts` wrote since `puts_clear`, one line per call.
     def self.puts_out : String
@@ -304,7 +312,7 @@ module CrystalRobots::Compiler
       when :paren
         eval(@program.arg(i, 1))
       when :neg
-        0 - int(eval(@program.arg(i, 1)))
+        0 &- int(eval(@program.arg(i, 1)))
       when :mul, :add, :cmp, :eq, :and, :or
         binop(@program.type(@program.arg(i, 1)), eval(@program.arg(i, 0)), eval(@program.arg(i, 2)))
       when :assign
@@ -393,11 +401,10 @@ module CrystalRobots::Compiler
       when Type::SubOperator then a &- b
       when Type::MulOperator then a &* b
       when Type::FloorDivOperator, Type::DivOperator
-        raise RuntimeError.new("division by zero") if b == 0
-        a // b
+        # CROBOTS returns 0 on division by zero; MIN // -1 wraps like the ops above
+        b == 0 ? 0 : (b == -1 ? 0 &- a : a // b)
       when Type::ModOperator
-        raise RuntimeError.new("division by zero") if b == 0
-        a % b
+        b == 0 || b == -1 ? 0 : a % b
       when Type::EqOperator  then a == b ? 1 : 0
       when Type::NeOperator  then a != b ? 1 : 0
       when Type::LtOperator  then a < b ? 1 : 0
@@ -414,6 +421,7 @@ module CrystalRobots::Compiler
 
     private def call(name : String, args : Array(Value)) : Value
       fn = @functions[name]? || raise RuntimeError.new("undefined function #{name}")
+      raise RuntimeError.new("call depth exceeded #{MAX_CALL_DEPTH} in #{name}") if @frames.size > MAX_CALL_DEPTH
       if fn.params.size != args.size
         raise RuntimeError.new("#{name} expects #{fn.params.size} arguments, got #{args.size}")
       end
@@ -434,7 +442,7 @@ module CrystalRobots::Compiler
     private def builtin(name : String, args : Array(Value)) : Value
       case name
       when "puts"
-        @@puts_out << args[0].to_s
+        @@puts_out << args[0].to_s if @capture && @@puts_out.size < CAPTURE_LIMIT
         @host.puts(args[0])
         0
       when "damage" then @host.damage

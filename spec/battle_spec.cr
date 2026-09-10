@@ -102,4 +102,42 @@ describe CrystalRobots::Battle do
     f.robots[0].restarts.should be > 1
     f.robots[0].output.first.should eq "1"
   end
+
+  it "does not fill the interpreter's shared puts buffer" do
+    CrystalRobots::Compiler::Interpreter.puts_clear
+    field("puts 1\n", IDLE, limit: 3000_i64).run
+    CrystalRobots::Compiler::Interpreter.puts_out.should eq ""
+  end
+
+  it "marks a robot failed after repeated runtime errors instead of scoring it" do
+    recursive = "def f(n)\n  f(n + 1)\nend\nmain(\"R\") do\n  f(1)\nend\n"
+    f = field(recursive, IDLE, limit: 200_000_i64).run
+    f.robots[0].error.not_nil!.should contain "call depth exceeded"
+    f.robots[0].active.should be_false
+    f.winner.not_nil!.name.should eq "r1"
+  end
+
+  it "survives extreme builtin arguments" do
+    f = field(IDLE, IDLE)
+    f.robots.each { |r| r.active = true }
+    f.place(0, 100, 100)
+    f.place(1, 300, 100)
+    # Int32::MIN normalizes to 2147483648 % 360 = 128 degrees, nothing there
+    f.scan(f.robots[0], Int32::MIN, Int32::MIN).should eq 0
+    f.scan(f.robots[0], Int32::MAX - 127, Int32::MAX).should eq 200 # 2147483520 % 360 = 0
+    f.drive(f.robots[0], Int32::MIN, Int32::MAX).should eq 1
+    f.robots[0].d_heading.should eq(Int32::MIN.to_i64.abs % 360)
+    f.robots[0].d_speed.should eq 100
+    f.cannon(f.robots[0], Int32::MIN, Int32::MAX).should eq 1
+    f.move_missiles
+  end
+
+  it "keeps missile identity in frames" do
+    f = field("main(\"A\") do\n  cannon(0, 100)\n  while true\n    sleep\n  end\nend\n", IDLE, limit: 600_i64)
+    f.run
+    seen = f.frames.flat_map(&.missiles)
+    seen.should_not be_empty
+    seen.map(&.owner).uniq.should eq [0]
+    seen.map(&.slot).uniq.should eq [0]
+  end
 end

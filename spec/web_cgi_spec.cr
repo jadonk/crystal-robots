@@ -1,5 +1,6 @@
 require "./spec_helper"
 require "../src/web/cgi"
+require "uri"
 
 private def run_cgi(caps : String, path : String, method = "GET", query = "", body = "", script = "/ext/robots") : String
   env = {
@@ -43,7 +44,7 @@ describe CrystalRobots::Web::CGI do
     reply.should contain "main(\"Counter\") do"
     reply.should contain "## Derivation"
     reply.should contain "  0 lex "
-    reply.lines.last.should eq "```"
+    reply.should contain "Checks passed"
   end
 
   it "returns 404 for an unknown example" do
@@ -72,6 +73,50 @@ describe CrystalRobots::Web::CGI do
     again.should eq page
     first = run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000&frame=0")
     first.should contain "## Frame 1 of"
+    page.should contain "line thin color" # trails
+    # animation first, static frame second, result last
+    page.index("<svg ").not_nil!.should be < page.index("```pikchr").not_nil!
+    page.index("```pikchr").not_nil!.should be < page.index("## Result").not_nil!
+    page.should contain "<animate attributeName=\"cx\""
+    page.should contain "repeatCount=\"indefinite\""
+  end
+
+  it "lets a pasted robot fight and reports its problems" do
+    src = URI.encode_www_form("main(\"Me\") do\n  while true\n    drive(90, 50)\n  end\nend\n")
+    page = run_cgi("o", "/battle", "GET", "r=target&src=#{src}&seed=1&limit=1500")
+    page.should contain "# Battle: yours vs target"
+    page.should contain "src=main"
+    broken = run_cgi("o", "/battle", "GET", "src=#{URI.encode_www_form("puts nope\n")}&limit=300")
+    broken.should contain "| yours | failed |"
+    broken.should contain "undefined variable or function nope at 1:6"
+    checked = run_cgi("o", "/parse", "POST", "", "source=puts+nope")
+    checked.should contain "**Problems:**"
+  end
+
+  it "cannot be broken out of a code fence or a table by user text" do
+    evil = URI.encode_www_form("puts 1\n```\n# injected heading\n<script>x</script>\n")
+    page = run_cgi("o", "/parse", "POST", "", "source=#{evil}")
+    # the whole user text sits inside a fence one backtick longer than its own
+    page.should contain "````crystal\nputs 1\n```\n# injected heading\n<script>x</script>\n````\n"
+    outside = page.split("````").each_slice(2).map(&.first).join
+    outside.should_not contain "injected"
+    outside.should_not contain "<script>"
+    fight = run_cgi("o", "/battle", "GET", "src=#{URI.encode_www_form("main(\"M\") do\n  puts \"a | b <b>c</b> `d`\"\n  while true\n    sleep\n  end\nend\n")}&limit=300")
+    fight.should contain "puts a &#124; b &lt;b&gt;c&lt;/b&gt; &#96;d&#96;"
+  end
+
+  it "bounds the request body and the source size" do
+    big = "x" * 70_000
+    run_cgi("o", "/parse", "POST", "", "source=#{big}").should start_with "Status: 400 Bad Request"
+    huge = "source=" + URI.encode_www_form("puts 1\n" * 4_000)
+    run_cgi("o", "/parse", "POST", "", huge).should contain "the limit is 20000"
+    run_cgi("o", "/parse", "GET", "source=puts+1").should contain "Nothing to parse"
+  end
+
+  it "answers 400 to invalid UTF-8 instead of crashing" do
+    run_cgi("o", "/parse", "POST", "", "source=\xff\xfe").should start_with "Status: 400 Bad Request"
+    run_cgi("o", "/battle", "GET", "r=\xff").should start_with "Status: 400 Bad Request"
+    run_cgi("o", "/examples/\xff").should start_with "Status: 400 Bad Request"
   end
 
   it "re-roots links under a session preview path" do

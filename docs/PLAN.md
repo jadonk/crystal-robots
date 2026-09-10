@@ -24,7 +24,34 @@ compiler work is fixed alongside the migration, not after it.
 | 2026-09-10 | `-m MATCHES --seed N -l CYCLES` runs matches from the CLI; `GET /battle` renders any frame of a match in Pikchr under the Fossil chrome |
 | 2026-09-10 | Preview verified by the user at `/ext/preview/session-<root>/`; the parse form's POST went to the site root because Fossil does not rewrite raw HTML `action` attributes; fixed by using the full `SCRIPT_NAME` |
 
-Spec suite: 59 examples green with `-Dwasmer`.
+| 2026-09-10 | Phase 2 remainder: `Compiler::Checker` reports undefined names, call arity, misplaced `return`/`break` and duplicate `def` with locations; the battlefield, `-t`, `-i` and the web pages use it |
+| 2026-09-10 | Battle page takes a pasted robot ("yours") and draws each robot's trail over the frames so far |
+
+| 2026-09-10 | Phase 4 done: the WASM emitter covers globals, constants, locals, user functions of any arity, if/elsif/else, while/until/break, case/when, all builtins as `env` imports, floored `//` and `%` with CROBOTS's divide-by-zero-is-zero; every example compiles; differential specs run three terminating robots under wasmer and the interpreter with the same scripted host and compare output and builtin call logs |
+
+| 2026-09-10 | Review fixes from the trunk-ops merge of 39d4b976: user text can no longer close a code fence or inject markup (fence sized to the text, prose escaped), parse is POST only, request body capped at 64 KB before allocation, source capped at 20 KB, parser pass budget of 20000, invalid UTF-8 and any other failure answer 400/500 instead of crashing, menu and extroot use `/ext/crystal-robots`, `/docs/` no longer ignored for the git mirror |
+
+| 2026-09-10 | Review fixes from the trunk-ops merge of 85c46a57: the interpreter's shared puts buffer is off for battle hosts and capped elsewhere; a robot fiber rescues everything, marks the robot failed and unwinds; repeated runtime errors also fail the robot; a call-depth limit turns unbounded recursion into a runtime error; angle normalization and integer ops are overflow-safe |
+| 2026-09-10 | Battle page reordered (replay on top, static frame, result at the bottom) and given a smooth replay: one SVG with native SMIL animation over 400 keyframes, no script, inside the Fossil chrome |
+
+Spec suite: 77 examples green with `-Dwasmer`.
+
+**Animation approach.** Fossil serves our Markdown with a script-src policy
+that only allows scripts carrying its nonce, and it passes raw HTML blocks
+through. Three ways to animate under that: (1) SVG with SMIL `<animate>`
+elements, no script at all, keyframes interpolated by the browser; (2) CSS
+keyframe animations in an inline `<style>`; (3) a small script using the
+`FOSSIL_NONCE` Fossil hands the CGI, which allows real player controls.
+The page uses (1) now: it is the simplest, it is smooth, and the same
+keyframe data can later feed (3) for play/pause/scrub without changing
+the simulation. Pikchr stays for the static, printable frame and the
+teaching view; it cannot animate.
+
+Interpreter and WASM agree by construction on: floored division, division
+by zero yielding 0 (as CROBOTS), logical `&&`/`||` evaluating both sides
+and yielding 0/1, implicit function return being the last expression
+statement executed with loops resetting it to 0. Strings are rejected by
+the WASM emitter (`puts "text"`), which the examples never use.
 
 Deliberate deviation from CROBOTS: the scanner normalizes both angles in
 the wrap-around branch, so a scan at 359 sees a robot at 0 as the manual
@@ -245,10 +272,12 @@ subset and a port of the CROBOTS manual sections, published by the existing
   `.fossil-settings/ignore-glob`.
 - Optional: keep the GitHub mirror alive with `fossil git export`.
 - `ameba` lint, GPL headers, version bump, installation and usage sections.
-- `.gitignore` ignores `/docs/` (the old `crystal docs` output dir), which
-  would hide `docs/PLAN.md` and `docs/PARSER.md` from a git mirror. Point
-  `crystal docs` at another directory and drop that rule when the ignore
-  rules move to `.fossil-settings/ignore-glob`.
+- `/docs/` was dropped from `.gitignore` so the git mirror carries
+  `docs/*.md`. `crystal docs` (the API reference from the doc comments)
+  still goes to `public/`, which stays ignored. How the API docs get built
+  and surfaced is to be worked out with the Ollama-Codex project, which
+  has a `build-docs` step that embeds `crystal docs` output into its
+  binary and serves it at `/ext/docs`; the same shape would fit here.
 - Preview builds: `agent-tool session-preview` needs the session binding
   from the primary repository, so it runs on the host (Thread UI button or
   the coordinator), not from inside the sandboxed session checkout.
@@ -264,16 +293,13 @@ operator-precedence variant) is dropped.
 
 ## 5. Immediate next steps
 
-1. Phase 2 remainder: semantic checks (undefined names, builtin arity)
-   reported before a match starts, so a typo shows on the battle page
-   instead of as a runtime restart loop.
-2. Phase 4 remainder: variables, functions and control flow in the WASM
-   emitter, wasmer-hosted robots bound to the same `Host`, then the
-   differential spec against the interpreter.
-3. Phase 5 polish: let the battle page take a pasted robot next to the
-   examples; consider a compact all-frames strip (small multiples) so a
-   match can be read at a glance without clicking through frames.
-4. Phase 7 migration items.
+1. WASM robots on the battlefield: needs instruction-level interleaving,
+   which the wasmer shard cannot provide without metering; options are
+   the emitter inserting a yield import every statement, or one match per
+   wasm robot at motion-cycle granularity. Decide before building.
+2. Phase 5 polish: saved robots (Fossil-backed) instead of the pasted
+   source travelling in the query string.
+3. Phase 7 migration items.
 
 ## 6. Order of work
 

@@ -3,9 +3,9 @@
 #
 #   scripts/install_extroot.sh /path/to/extroot
 #
-# Creates the symlink <extroot>/robots -> <checkout>/bin/crystal-robots, so
-# `fossil server --extroot /path/to/extroot` serves the app at /ext/robots
-# and a rebuild (`shards build`) is the deploy.
+# Creates the symlink <extroot>/crystal-robots -> <checkout>/bin/crystal-robots,
+# so `fossil server --extroot /path/to/extroot` serves the app at
+# /ext/crystal-robots and a rebuild (`shards build`) is the deploy.
 set -e
 extroot="$1"
 if [ -z "$extroot" ]; then
@@ -19,5 +19,5 @@ if [ ! -x "$bin" ]; then
   exit 1
 fi
 mkdir -p "$extroot"
-ln -sfn "$bin" "$extroot/robots"
-echo "$extroot/robots -> $bin"
+ln -sfn "$bin" "$extroot/crystal-robots"
+echo "$extroot/crystal-robots -> $bin"

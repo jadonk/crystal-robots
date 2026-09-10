@@ -6,6 +6,8 @@
 # emits a full HTML page. Identity is `FOSSIL_USER`, permissions are
 # `FOSSIL_CAPABILITIES`, both supplied by Fossil.
 require "http/params"
+require "html"
+require "uri"
 require "../compiler"
 require "../battle/field"
 
@@ -36,8 +38,19 @@ module CrystalRobots::Web
       if (i = sn.index("/ext/"))
         sn[i..].rstrip('/')
       else
-        "/ext/robots"
+        "/ext/crystal-robots"
       end
+    end
+
+    # Request bounds: the body is capped before it is allocated, sources are
+    # capped before they are parsed (a 20 KB robot parses in well under a
+    # second), and a battle is capped by its cycle limit (a 500k-cycle match
+    # of four robots takes about four seconds).
+    BODY_LIMIT   = 65_536
+    SOURCE_LIMIT = 20_000
+    PASTE_LIMIT  =  6_000 # a pasted robot travels in the battle page's links
+
+    class BadRequest < Exception
     end
 
     # The full request path for raw HTML attributes (form actions). Fossil
@@ -78,26 +91,45 @@ module CrystalRobots::Web
     end
 
     def query : HTTP::Params
-      HTTP::Params.parse(env["QUERY_STRING"]? || "")
+      HTTP::Params.parse(utf8!(env["QUERY_STRING"]?) || "")
     end
 
     def body : String
       length = (env["CONTENT_LENGTH"]? || "0").to_i? || 0
       return "" if length <= 0
+      raise BadRequest.new("request body larger than #{BODY_LIMIT} bytes") if length > BODY_LIMIT
       buffer = Bytes.new(length)
       read = @in.read_fully?(buffer) || 0
-      String.new(buffer[0, read])
+      text = String.new(buffer[0, read])
+      raise BadRequest.new("request body is not valid UTF-8") unless text.valid_encoding?
+      text
     end
 
+    # Query and form values must be valid UTF-8 before anything looks at them.
+    private def utf8!(value : String?) : String?
+      return value if value.nil? || value.valid_encoding?
+      raise BadRequest.new("request is not valid UTF-8")
+    end
+
+    # Every request gets a reply: 400 for bad input, 500 for anything else.
     def serve : Nil
+      route
+    rescue e : BadRequest
+      plain("400 Bad Request", "400 Bad Request: #{e.message}")
+    rescue e
+      plain("500 Internal Server Error", "500 Internal Server Error: #{e.class}: #{e.message}")
+    end
+
+    def route : Nil
       return forbidden unless allowed?("oh")
+      raise BadRequest.new("path is not valid UTF-8") unless path.valid_encoding?
       case path
       when ""
         reply(overview)
       when "version"
         reply("crystal-robots #{CrystalRobots::VERSION}\n")
       when "parse"
-        source = method == "POST" ? HTTP::Params.parse(body)["source"]? : query["source"]?
+        source = method == "POST" ? HTTP::Params.parse(body)["source"]? : nil
         reply(parse_page(source || ""))
       when "battle"
         reply(battle_page)
@@ -122,8 +154,26 @@ module CrystalRobots::Web
       @out << "<p>403 Forbidden. <a href=\"/login\">Log in</a> to access this resource.</p>"
     end
 
+    def plain(status : String, text : String) : Nil
+      @out << "Status: " << status << "\r\nContent-Type: text/plain\r\n\r\n" << text << "\n"
+    end
+
     def not_found : Nil
-      reply("# Not found\n\nNo such page: `#{path}`. [Back](#{link_base})\n", "404 Not Found")
+      reply("# Not found\n\nNo such page: #{inline(path)}. [Back](#{link_base})\n", "404 Not Found")
+    end
+
+    # User text inside Markdown prose or a table cell: HTML-escaped, with
+    # the characters that would start markup or split a table neutralized.
+    def inline(text : String) : String
+      HTML.escape(text).gsub('|', "&#124;").gsub('`', "&#96;").gsub('*', "&#42;").gsub('_', "&#95;").gsub('[', "&#91;")
+    end
+
+    # User text inside a code fence: the fence is longer than any run of
+    # backticks in the text, so the text cannot close it.
+    def fenced(text : String, info : String = "") : String
+      longest = text.scan(/`+/).max_of? { |m| m[0].size } || 0
+      fence = "`" * Math.max(3, longest + 1)
+      "#{fence}#{info}\n#{text.chomp}\n#{fence}\n"
     end
 
     def overview : String
@@ -154,7 +204,7 @@ module CrystalRobots::Web
     def example_page(name : String, src : String) : String
       String.build do |md|
         md << "# #{name}.cr\n\n[All examples](#{link_base})\n\n"
-        md << "```crystal\n" << src << "\n```\n\n"
+        md << fenced(src, "crystal") << "\n"
         md << derivation_section(src)
       end
     end
@@ -163,9 +213,11 @@ module CrystalRobots::Web
       String.build do |md|
         md << "# Parse\n\n[Back](#{link_base})\n\n"
         if source.strip.empty?
-          md << "Nothing to parse.\n"
+          md << "Nothing to parse. Use the form on the [overview](#{link_base}).\n"
+        elsif source.size > SOURCE_LIMIT
+          md << "That is #{source.size} characters; the limit is #{SOURCE_LIMIT}.\n"
         else
-          md << "```crystal\n" << source << "\n```\n\n"
+          md << fenced(source, "crystal") << "\n"
           md << derivation_section(source)
         end
       end
@@ -174,21 +226,28 @@ module CrystalRobots::Web
     WEB_CYCLE_LIMIT = 100_000_i64
     WEB_CYCLE_MAX   = 500_000_i64
     ROBOT_COLORS    = ["0x4C97FF", "0xFF8C1A", "0x59C059", "0xFFAB19"]
+    ANIM_FRAMES     =  400 # keyframes recorded per match; SMIL interpolates between them
+    ANIM_SECONDS    = 24.0
 
     # `GET /battle` without robots shows the form; with `r=` parameters it
     # runs one seeded match and renders a frame of it in Pikchr.
     def battle_page : String
       q = query
       names = q.fetch_all("r").select { |n| EXAMPLES.has_key?(n) }.first(4)
-      return battle_form if names.empty?
+      pasted = (q["src"]? || "").strip
+      pasted = "" if pasted.size > PASTE_LIMIT
+      return battle_form if names.empty? && pasted.empty?
       seed = (q["seed"]?.try(&.to_u64?) || 1_u64)
       limit = (q["limit"]?.try(&.to_i64?) || WEB_CYCLE_LIMIT).clamp(MOTION_STEP, WEB_CYCLE_MAX)
       entries = names.map { |n| {n, EXAMPLES[n]} }
-      field = Battle::Field.new(entries, seed: seed, limit: limit, max_frames: 120)
+      entries.unshift({"yours", pasted}) unless pasted.empty?
+      entries = entries.first(4)
+      entries << entries[0] if entries.size == 1 # CROBOTS clones a lone robot
+      field = Battle::Field.new(entries, seed: seed, limit: limit, max_frames: ANIM_FRAMES)
       field.run
       frame_count = field.frames.size
       frame = (q["frame"]?.try(&.to_i?) || frame_count - 1).clamp(0, frame_count - 1)
-      render_battle(field, names, seed, limit, frame)
+      render_battle(field, names, pasted, seed, limit, frame)
     end
 
     private MOTION_STEP = Battle::MOTION_CYCLES.to_i64
@@ -202,22 +261,40 @@ module CrystalRobots::Web
           checked = {"counter", "rabbit"}.includes?(name) ? " checked" : ""
           md << "<label><input type=\"checkbox\" name=\"r\" value=\"#{name}\"#{checked}> #{name}</label><br>\n"
         end
+        md << "<p>Or paste your own robot (it fights as <b>yours</b>):</p>\n"
+        md << "<textarea name=\"src\" rows=\"10\" cols=\"70\" maxlength=\"#{PASTE_LIMIT}\"></textarea><br>\n"
         md << "<label>Seed <input type=\"number\" name=\"seed\" value=\"1\" min=\"0\"></label>\n"
         md << "<label>Cycle limit <input type=\"number\" name=\"limit\" value=\"#{WEB_CYCLE_LIMIT}\" min=\"#{MOTION_STEP}\" max=\"#{WEB_CYCLE_MAX}\"></label>\n"
         md << "<button type=\"submit\">Fight</button>\n</form>\n"
       end
     end
 
-    def battle_link(names : Array(String), seed : UInt64, limit : Int64, frame : Int32) : String
-      "#{link_base}/battle?#{names.map { |n| "r=#{n}" }.join("&")}&seed=#{seed}&limit=#{limit}&frame=#{frame}"
+    def battle_link(names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32) : String
+      params = names.map { |n| "r=#{n}" }
+      params << "src=#{URI.encode_www_form(pasted)}" unless pasted.empty?
+      "#{link_base}/battle?#{params.join("&")}&seed=#{seed}&limit=#{limit}&frame=#{frame}"
     end
 
-    def render_battle(field : Battle::Field, names : Array(String), seed : UInt64, limit : Int64, frame : Int32) : String
+    def render_battle(field : Battle::Field, names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32) : String
       f = field.frames[frame]
       last = field.frames.size - 1
       String.build do |md|
-        md << "# Battle: #{names.join(" vs ")}\n\n"
-        md << "[Pick again](#{link_base}/battle) · seed #{seed} · limit #{limit} · #{field.cycles} cycles run\n\n"
+        md << "# Battle: #{field.robots.map(&.name).join(" vs ")}\n\n"
+        md << "[Pick again](#{link_base}/battle) · seed #{seed} · limit #{limit} · #{field.cycles} cycles run · #{ANIM_SECONDS.to_i} second replay, looping\n\n"
+        md << svg_animation(field) << "\n\n"
+        md << "## Frame #{frame + 1} of #{last + 1} (cycle #{f.cycle})\n\n"
+        nav = [] of String
+        nav << "[first](#{battle_link(names, pasted, seed, limit, 0)})" if frame > 0
+        nav << "[previous](#{battle_link(names, pasted, seed, limit, frame - 1)})" if frame > 0
+        nav << "[next](#{battle_link(names, pasted, seed, limit, frame + 1)})" if frame < last
+        nav << "[last](#{battle_link(names, pasted, seed, limit, last)})" if frame < last
+        md << nav.join(" · ") << "\n\n" unless nav.empty?
+        md << "```pikchr\n" << pikchr_frame(f, field.frames[0..frame]) << "```\n\n"
+        md << "| Robot | x | y | heading | speed | damage | scan |\n| --- | --- | --- | --- | --- | --- | --- |\n"
+        f.robots.each do |r|
+          md << "| #{r.name} | #{r.x // Battle::CLICK} | #{r.y // Battle::CLICK} | #{r.heading} | #{r.speed} | #{r.damage}% | #{r.scan} |\n"
+        end
+        md << "\n## Result\n\n"
         if (w = field.winner)
           md << "**Winner: #{w.name}**\n\n"
         elsif field.active.empty?
@@ -229,33 +306,99 @@ module CrystalRobots::Web
         field.robots.each do |r|
           status = r.error ? "failed" : (r.active ? "active" : "destroyed")
           note = r.error || r.output.first?.try { |line| "puts #{line}" } || ""
-          md << "| #{r.name} | #{status} | #{r.damage}% | #{r.cycles} | #{r.restarts} | #{note} |\n"
-        end
-        md << "\n## Frame #{frame + 1} of #{last + 1} (cycle #{f.cycle})\n\n"
-        nav = [] of String
-        nav << "[first](#{battle_link(names, seed, limit, 0)})" if frame > 0
-        nav << "[previous](#{battle_link(names, seed, limit, frame - 1)})" if frame > 0
-        nav << "[next](#{battle_link(names, seed, limit, frame + 1)})" if frame < last
-        nav << "[last](#{battle_link(names, seed, limit, last)})" if frame < last
-        md << nav.join(" · ") << "\n\n" unless nav.empty?
-        md << "```pikchr\n" << pikchr_frame(f) << "```\n\n"
-        md << "| Robot | x | y | heading | speed | damage | scan |\n| --- | --- | --- | --- | --- | --- | --- |\n"
-        f.robots.each do |r|
-          md << "| #{r.name} | #{r.x // Battle::CLICK} | #{r.y // Battle::CLICK} | #{r.heading} | #{r.speed} | #{r.damage}% | #{r.scan} |\n"
+          md << "| #{r.name} | #{status} | #{r.damage}% | #{r.cycles} | #{r.restarts} | #{inline(note)} |\n"
         end
         field.robots.each do |r|
           next if r.output.empty?
-          md << "\n## #{r.name} output\n\n```\n" << r.output.first(20).join("\n") << "\n```\n"
+          md << "\n## #{r.name} output\n\n" << fenced(r.output.first(20).join("\n"))
         end
       end
     end
 
-    # One frame of the field as a Pikchr diagram: 4 inches for 1000 meters.
-    def pikchr_frame(f : Battle::Frame) : String
+    # The whole match as one SVG with native (SMIL) animation: no script,
+    # so it works under Fossil's content security policy. Positions are
+    # keyframes at each recorded frame, interpolated linearly in between;
+    # missiles switch discretely. Fossil passes raw HTML blocks through.
+    def svg_animation(field : Battle::Field) : String
+      frames = field.frames
+      total = Math.max(1_i64, frames.last.cycle)
+      key_times = frames.map { |f| (f.cycle.to_f / total).round(4) }.join(';')
+      dur = "#{ANIM_SECONDS}s"
+      String.build do |svg|
+        svg << %(<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -30 1060 1060" width="520" height="520" role="img" aria-label="battle replay">\n)
+        svg << %(<rect x="0" y="0" width="1000" height="1000" fill="#f4f4f0" stroke="#888" stroke-width="3"/>\n)
+        field.robots.each_with_index do |robot, i|
+          color = "#" + ROBOT_COLORS[i % ROBOT_COLORS.size][2..]
+          xs = frames.map { |f| f.robots[i].x // Battle::CLICK }
+          ys = frames.map { |f| 1000 - f.robots[i].y // Battle::CLICK }
+          alive = frames.map { |f| f.robots[i].active ? "1" : "0.3" }
+          svg << %(<polyline fill="none" stroke="#{color}" stroke-opacity="0.35" stroke-width="3" points=")
+          xs.each_with_index { |x, k| svg << x << ',' << ys[k] << ' ' }
+          svg << %("/>\n)
+          svg << %(<circle r="14" fill="#{color}" stroke="#000" stroke-width="2">\n)
+          svg << animate("cx", xs.join(';'), key_times, dur, "linear")
+          svg << animate("cy", ys.join(';'), key_times, dur, "linear")
+          svg << animate("opacity", alive.join(';'), key_times, dur, "discrete")
+          svg << "</circle>\n"
+          svg << %(<text font-size="30" font-family="sans-serif" text-anchor="middle" fill="#222">#{HTML.escape(robot.name)}\n)
+          svg << animate("x", xs.join(';'), key_times, dur, "linear")
+          svg << animate("y", ys.map { |y| y - 24 }.join(';'), key_times, dur, "linear")
+          svg << "</text>\n"
+        end
+        field.robots.each_index do |owner|
+          Battle::MIS_ROBOT.times do |slot|
+            xs = [] of Int32
+            ys = [] of Int32
+            rs = [] of Int32
+            ops = [] of String
+            last_x = 0
+            last_y = 0
+            frames.each do |f|
+              m = f.missiles.find { |st| st.owner == owner && st.slot == slot }
+              if m
+                last_x = m.x // Battle::CLICK
+                last_y = 1000 - m.y // Battle::CLICK
+                rs << (m.exploding ? 40 : 7)
+                ops << (m.exploding ? "0.25" : "1")
+              else
+                rs << 0
+                ops << "0"
+              end
+              xs << last_x
+              ys << last_y
+            end
+            next if rs.all?(&.zero?)
+            svg << %(<circle r="0" fill="#d00" stroke="#d00" stroke-width="2">\n)
+            svg << animate("cx", xs.join(';'), key_times, dur, "discrete")
+            svg << animate("cy", ys.join(';'), key_times, dur, "discrete")
+            svg << animate("r", rs.join(';'), key_times, dur, "discrete")
+            svg << animate("fill-opacity", ops.join(';'), key_times, dur, "discrete")
+            svg << "</circle>\n"
+          end
+        end
+        svg << "</svg>"
+      end
+    end
+
+    private def animate(attr : String, values : String, key_times : String, dur : String, mode : String) : String
+      %(<animate attributeName="#{attr}" values="#{values}" keyTimes="#{key_times}" dur="#{dur}" calcMode="#{mode}" repeatCount="indefinite"/>\n)
+    end
+
+    # One frame of the field as a Pikchr diagram: 4 inches for 1000 meters,
+    # with each robot's trail over the frames so far.
+    def pikchr_frame(f : Battle::Frame, history : Array(Battle::Frame) = [f]) : String
       scale = 4.0 / (Battle::MAX_X * Battle::CLICK)
       String.build do |pik|
         pik << "F: box wid 4 ht 4 fill 0xF4F4F0 color 0x888888\n"
         pik << "text \"1000 m\" small at F.n + (0, 0.12)\n"
+        f.robots.each_with_index do |r, i|
+          points = history.map { |h| h.robots[i] }.map { |s| {(s.x * scale).round(3), (s.y * scale).round(3)} }.uniq
+          next if points.size < 2
+          color = ROBOT_COLORS[i % ROBOT_COLORS.size]
+          pik << "line thin color #{color} from F.sw + (#{points[0][0]}, #{points[0][1]})"
+          points[1..].each { |(x, y)| pik << " then to F.sw + (#{x}, #{y})" }
+          pik << "\n"
+        end
         f.robots.each_with_index do |r, i|
           x = (r.x * scale).round(3)
           y = (r.y * scale).round(3)
@@ -288,9 +431,16 @@ module CrystalRobots::Web
         begin
           program = Compiler::Parser.new(src).program
           md << "#{program.passes} passes, #{program.size} nodes.\n\n"
-          md << "```\n" << program.derivation << "```\n"
+          md << fenced(program.derivation.chomp)
+          problems = Compiler::Checker.check(program)
+          if problems.empty?
+            md << "\nChecks passed: every name is defined and every call has the right number of arguments.\n"
+          else
+            md << "\n**Problems:**\n\n"
+            problems.each { |problem| md << "- #{inline(problem.to_s)}\n" }
+          end
         rescue e : Compiler::Parser::Error
-          md << "**Parse error:** #{e.message}\n\n"
+          md << "**Parse error:** #{inline(e.message.to_s)}\n\n"
           program = Compiler::Program.new(src)
           begin
             Compiler::Parser.lex(program)
@@ -298,7 +448,7 @@ module CrystalRobots::Web
             end
           rescue Compiler::Parser::Error
           end
-          md << "```\n" << program.derivation << "```\n" unless program.passes == 0
+          md << fenced(program.derivation.chomp) unless program.passes == 0
         end
       end
     end

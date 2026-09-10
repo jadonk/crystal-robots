@@ -9,6 +9,7 @@
 #
 # See `docs/PARSER.md` for the design.
 require "./parser.cr"
+require "./checker.cr"
 require "./interpreter.cr"
 require "./wasm_emitter.cr"
 
