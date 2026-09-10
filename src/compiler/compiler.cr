@@ -1,35 +1,53 @@
-# TODO: Write documentation for `CrystalRobots::Compiler`
 # Crystal Robots compiler
 #
-# ## Description
+# The compiler accepts a small subset of the [Crystal Programming
+# Language](https://crystal-lang.org): one source file, no macros, integer
+# arithmetic, the robot builtins. It targets WebAssembly and a reference
+# interpreter, and it is built to be *looked at*: every token kind is one
+# reserved Unicode glyph, and parsing is a sequence of string rewrites over
+# those glyphs. `Program#derivation` prints every pass.
 #
-# The Crystal Robots compiler accepts a limited subset of the [Crystal Programming Language](https://crystal-lang.org). The entire program must be a single source file. No macro operations are supported. The compile machine code targets [WebAssembly](https://webassembly.org/) and calls various functions in a browser-based simulation
-#
-# ## Features missing
+# See `docs/PARSER.md` for the design.
 require "./parser.cr"
 require "./interpreter.cr"
 require "./wasm_emitter.cr"
 
 module CrystalRobots::Compiler
+  # One glyph per token kind. The comment shows the glyph.
   enum Type : Int32
-    Invalid = 0x0001F30B # 🌋
-    String  = 0x0001F40D # 🐍
-    Number  = 0x00002116 # №
+    Invalid    = 0x0001F30B # 🌋
+    String     = 0x0001F40D # 🐍
+    Number     = 0x00002116 # №
+    Identifier = 0x0001D465 # 𝑥
+    Newline    = 0x000023CE # ⏎  newline, `;`, end of input
+    Comma      = 0x0000FF0C # ，
+    PassToken  = 0x00000156 # Ŗ  separates pass strings inside `Program#source`
 
-    Operator         = 0x0000229A # ⊚
+    OpenParen  = 0x000027EE # ⟮
+    CloseParen = 0x000027EF # ⟯
+
+    Assign    = 0x0000FF1D # ＝
+    AddAssign = 0x00002795 # ➕
+    SubAssign = 0x00002796 # ➖
+    MulAssign = 0x00002716 # ✖
+    ModAssign = 0x00002052 # ⁒
+
     AddOperator      = 0x00002295 # ⊕
     SubOperator      = 0x00002296 # ⊖
     MulOperator      = 0x00002297 # ⊗
     FloorDivOperator = 0x00002298 # ⊘
+    DivOperator      = 0x0000FF0F # ／
+    ModOperator      = 0x0000FF05 # ％
     EqOperator       = 0x0000225F # ≟
     NeOperator       = 0x00002260 # ≠
     GtOperator       = 0x0000227B # ≻
     LtOperator       = 0x0000227A # ≺
+    GeOperator       = 0x0000227D # ≽
+    LeOperator       = 0x0000227C # ≼
     AndOperator      = 0x00002227 # ∧
     OrOperator       = 0x00002228 # ∨
     XorOperator      = 0x000022BB # ⊻
 
-    Keyword        = 0x0001F511 # 🔑
     BeginKeyword   = 0x0001F512 # 🔒
     BreakKeyword   = 0x0001F513 # 🔓
     CaseKeyword    = 0x0001F514 # 🔔
@@ -48,216 +66,214 @@ module CrystalRobots::Compiler
     ThenKeyword    = 0x0001F521 # 🔡
     TrueKeyword    = 0x0001F522 # 🔢
     WhileKeyword   = 0x0001F523 # 🔣
+    UntilKeyword   = 0x0001F502 # 🔂
+    WhenKeyword    = 0x0001F536 # 🔶
+    ReturnKeyword  = 0x000021A9 # ↩
+    MainKeyword    = 0x0001F3C1 # 🏁
+    GlobalKeyword  = 0x0001F310 # 🌐
 
-    Builtin       = 0x00002208 # ∈
-    ZeroArgMethod = 0x00002209 # ∉
-    OneArgMethod  = 0x0000220A # ∊
-    TwoArgMethod  = 0x0000220B # ∋
-    Whitespace    = 0x00002422 # ␢
-    Comment       = 0x0001F4AC # 💬
-    OpenParen     = 0x000027EE # ⟮
-    CloseParen    = 0x000027EF # ⟯
-    Expression    = 0x0001F611 # 😑
+    ZeroArgMethod = 0x00002209 # ∉  damage speed loc_x loc_y sleep
+    OneArgMethod  = 0x0000220A # ∊  puts rand sqrt sin cos tan atan
+    TwoArgMethod  = 0x0000220B # ∋  scan cannon drive
 
-    PassToken = 0x00000156 # œ
+    Expression = 0x0001F611 # 😑  any reduced value
 
-    Statement        = 0x00002762 # ❢
-    ZeroArgStatement = 0x00002763 # ❣
-    OneArgStatement  = 0x00002764 # ❤
-    TwoArgStatement  = 0x00002765 # ❥
-    Program          = 0x000023F9 # ⏹
+    IfHead    = 0x0001F178 # 🅸
+    ElsifHead = 0x0001F174 # 🅴
+    WhileHead = 0x0001F186 # 🆆
+    UntilHead = 0x0001F184 # 🆄
+    CaseHead  = 0x0001F172 # 🅲
+    WhenHead  = 0x0001F182 # 🆂
+    DefHead   = 0x0001F173 # 🅳
+    MainHead  = 0x0001F17C # 🅼
+
+    Statement = 0x00002762 # ❢
+    Program   = 0x000023F9 # ⏹
+
+    def glyph : Char
+      value.chr
+    end
   end
 
-  # A `Program` is the result of parsing the source file and used for generating code or interpreting.
+  # Interpreter values: the language is integer only, strings exist for
+  # `puts` and the robot name.
+  alias Value = Int32 | String
+
+  # A `Program` is the source text plus every pass of the tokenizer, kept as
+  # one string so the whole derivation can be printed.
   #
-  # A `Program` should look like string, but some of the characters will point to another
-  # a subset of characters that provide more detail about what they represent. When the source has been fully
-  # parsed, the final character will point to a sequence of statements.
-  #
-  # To speed up implementation, I'll start with just making new strings, but, eventually, I'll do some
-  # smart allocation and fill in the empty space.
-  #
-  # `source` holds the string of the source program along with the generated tokens.
-  # `ast` is an array of Node associated to each generated token pointing to regions in the string.
-  # `pc` is the index to the current token when adding or interpreting. -1 is unintialized.
-  # `stack` is an array of indexes used for returning from calls.
-  # `walkmode` is the mode used for enumeration and .to_s String conversion operation.
-  # `pass` is an array of indexes for the first token for each pass of tokenization.
+  # `text` is the robot source. `source` is `text` followed, for each pass,
+  # by a `Ŗ` separator and that pass's glyph string; `pass[k]` is the offset
+  # of pass k's glyph string inside `source`. `ast` holds every `Node` ever
+  # created. `layers[k]` lists, for each glyph position of pass k, the index
+  # of the node that glyph stands for. `rules[k]` names the grammar rule that
+  # produced pass k (`:lex` for pass 0).
   class Program
-    property source, ast, pc, stack, walkmode, pass
-
-    # A `Node` is meant to be kept in an array. It is synonomous with a token.
-    # Each `Node` has a token `type` to reflect what was found.
-    # The `start` is the origin offset in source string, including generated tokens.
-    # The `count` is the length of the string matched.
-    # The `nxt` is the origin offset in the array to the next token such that tokens that
-    # have been combined can be skipped. If it isn't initialized, it is set to -1 and that
-    # simply means that the next token is just the next one in the array.
+    # A `Node` is one glyph in one pass. Level 0 nodes come from the lexer
+    # and `start`/`count` are character offsets into the source text. A node
+    # made by pass k has level k and `start`/`count` cover the glyph run it
+    # replaced in pass k-1, as absolute offsets into `source`, so
+    # `Program#value` returns that run. `rule` names the grammar rule that
+    # produced the node, which is what emitters dispatch on.
     struct Node
-      property type, start, count, nxt
+      property type : Type, start : Int32, count : Int32, level : Int32, rule : Symbol
 
-      def initialize(@type : Type, @start : Int32 = -1, @count : Int32 = 0, @nxt : Int32 = -1)
+      def initialize(@type : Type, @start : Int32 = -1, @count : Int32 = 0, @level : Int32 = 0, @rule : Symbol = :lex)
       end
 
       def to_s(io : IO)
-        io << "'" << @type.value.chr << "' from " << @start << " length " << @count << " next " << @nxt
+        io << "'" << @type.glyph << "' from " << @start << " length " << @count << " level " << @level << " rule " << @rule
       end
     end
 
-    include Enumerable(Node)
+    getter text : String
+    getter source : String
+    getter ast = [] of Node
+    getter pass = [] of Int32
+    getter layers = [] of Array(Int32)
+    getter rules = [] of Symbol
 
-    enum WalkMode
-      Follow
-      Linear
-      Top
+    def initialize(@text : String)
+      @source = @text
     end
 
-    def push(type : Type, start : Int32 = -1, count : Int32 = -1, nxt : Int32 = -1)
-      node = Node.new(type, start, count, nxt)
-      @ast.push(node)
-      # TODO: @source needs to be pre-allocated and should be able to take new characters
-      @source = @source + "#{type.value.chr}"
+    # Append a node and return its index.
+    def push(type : Type, start : Int32 = -1, count : Int32 = 0, level : Int32 = 0, rule : Symbol = :lex) : Int32
+      @ast << Node.new(type, start, count, level, rule)
+      @ast.size - 1
     end
 
-    def initialize(@source : String,
-                   @ast : Array(Node) = [] of Node,
-                   @pc : Int32 = -1,
-                   @stack : Array(Int32) = [] of Int32,
-                   @walkmode : WalkMode = WalkMode::Follow,
-                   @pass : Array(Int32) = [] of Int32)
-      push(Type::PassToken, 0, @source.size)
-      @pass.push(@source.size)
+    # Record a finished pass: its glyph string goes onto `source`.
+    def add_pass(layer : Array(Int32), rule : Symbol) : Nil
+      @source += Type::PassToken.glyph.to_s
+      @pass << @source.size
+      @source += glyphs(layer)
+      @layers << layer
+      @rules << rule
     end
 
-    def each(&)
-      if walkmode == WalkMode::Top
-        pass = @pass[-1].not_nil!
-        @pc = pass
-      end
-      while true
-        yield self
-        case walkmode
-        when WalkMode::Follow | WalkMode::Top
-          if node.nxt > 0
-            @pc = node.nxt
-          else
-            inc
-          end
-        when WalkMode::Linear
-          inc
+    def glyphs(layer : Array(Int32)) : String
+      String.build { |io| layer.each { |i| io << @ast[i].type.glyph } }
+    end
+
+    # Node indexes of the latest pass.
+    def current : Array(Int32)
+      @layers.last? || [] of Int32
+    end
+
+    def passes : Int32
+      @layers.size
+    end
+
+    def parsed? : Bool
+      current.size == 1 && @ast[current[0]].type == Type::Program
+    end
+
+    def root : Int32
+      raise "program is not parsed" unless parsed?
+      current[0]
+    end
+
+    # The latest glyph string.
+    def to_s(io : IO)
+      io << glyphs(current)
+    end
+
+    # One line per pass: the pass number, the rule, the glyph string.
+    def derivation : String
+      String.build do |io|
+        @layers.each_with_index do |layer, k|
+          io << k.to_s.rjust(3) << ' ' << @rules[k].to_s.ljust(11) << ' ' << glyphs(layer) << '\n'
         end
-        if !test_pc
-          break
-        end
       end
     end
 
-    def [](i : Int32)
+    def [](i : Int32) : Node
       @ast[i]
     end
 
-    def [](start : Int32, count : Int32)
-      src = @source.not_nil!
-      src[start, count]
+    def node(i : Int32) : Node
+      @ast[i]
     end
 
-    def node
-      node(@pc)
+    def type(i : Int32) : Type
+      @ast[i].type
     end
 
-    def node(pc : Int32)
-      x = @ast[pc].not_nil!
-      Log.d "node @#{pc}: #{x}"
-      x
+    def start(i : Int32) : Int32
+      @ast[i].start
     end
 
-    # Return the value pointed to by the node
-    def value(n : Node)
-      @source[n.start, n.count]
+    def count(i : Int32) : Int32
+      @ast[i].count
     end
 
-    def value(i : Int32)
-      value(node(i))
-    end
-
-    def value
-      value(node)
-    end
-
-    def type(i : Int32)
-      node(i).type
-    end
-
-    def start(i : Int32)
-      node(i).start
-    end
-
-    def count(i : Int32)
-      node(i).count
-    end
-
-    def size
+    def size : Int32
       @ast.size
     end
 
-    def inc
-      @pc += 1
+    # The text a node covers: the lexeme for level 0, the replaced glyph
+    # run for higher levels.
+    def value(n : Node) : String
+      @source[n.start, n.count]
     end
 
-    def inc(i : Int32)
-      @pc += i
+    def value(i : Int32) : String
+      value(@ast[i])
     end
 
-    def jump(pc : PC)
-      @pc = pc
+    # The lexeme of a level 0 node, or of the first level 0 node under it.
+    def lexeme(i : Int32) : String
+      n = @ast[i]
+      return value(n) if n.level == 0
+      lexeme(children(i)[0])
     end
 
-    # We know for every call, pass is reduced by 1
-    def call(i : Int32)
-      @stack.push(@pc)
-      @pc = i
+    # Indexes of the nodes a reduction replaced, in order. Empty for level 0.
+    def children(i : Int32) : Array(Int32)
+      n = @ast[i]
+      return [] of Int32 if n.level == 0
+      layer = @layers[n.level - 1]
+      pos = n.start - @pass[n.level - 1]
+      layer[pos, n.count]
     end
 
-    def return
-      @pc = @stack.pop
+    # The n-th child of node i.
+    def arg(i : Int32, n : Int32) : Int32
+      kids = children(i)
+      raise "node #{i} has no child #{n}" unless n < kids.size
+      kids[n]
     end
 
-    def test_pc(pc : Int32)
-      pc >= 0 && pc < size
+    # The source text offset where node i begins.
+    def origin(i : Int32) : Int32
+      n = @ast[i]
+      return n.start if n.level == 0
+      kids = children(i)
+      kids.empty? ? 0 : origin(kids[0])
     end
 
-    def test_pc
-      test_pc(@pc)
+    # 1-based line and column of a text offset.
+    def line_col(offset : Int32) : {Int32, Int32}
+      before = @text[0, offset]
+      {before.count('\n') + 1, offset - (before.rindex('\n') || -1)}
     end
 
-    def arg(pc : Int32, n : Int32)
-      m = @ast[pc].not_nil!
-      i = m.start
-      arg_pc = i + n
-      if !test_pc(arg_pc)
-        raise "Invalid argument pointer #{arg_pc}"
-      end
-      node(arg_pc)
-    end
-
-    # Program#arg(0) should return the first Node pointed to by the current Node
-    def arg(n : Int32)
-      arg(@pc, n)
-    end
-
-    def to_s(io : IO)
-      s = @ast.map { |token| token.type.value.chr }.join
-      io << "#{s} pc: #{@pc} pass: #{@pass} stack: #{@stack}"
+    def location(i : Int32) : {Int32, Int32}
+      line_col(origin(i))
     end
   end
 
-  # TODO: decide how we want to call the compiler and remove this method
-  def self.compile_to_wasm(source : String)
-    Bytes[]
+  # Parse and run `source` in the interpreter against a `NullHost`.
+  # Returns the exit status (0 on success).
+  def self.interpret(source : String) : Int32
+    program = Parser.new(source).program
+    Interpreter.execute(program)
   end
 
-  # TODO: decide how we want to call the interpreter and remove this method
-  def self.interpret(source : String)
-    Bytes[]
+  # Parse `source` and emit a WebAssembly module.
+  def self.compile_to_wasm(source : String) : Bytes
+    program = Parser.new(source).program
+    WASM_Emitter.new(program).to_wasm
   end
 end

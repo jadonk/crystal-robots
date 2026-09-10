@@ -1,11 +1,15 @@
-# TODO: Write documentation for `CrystalRobots::Compiler::WASM_Emitter`
-
+# WebAssembly emitter, derived from chasm's binary encoder.
+#
+# Today it emits a module with one `env.puts` import and one exported `run`
+# function whose body is the program's top-level `puts` statements, with
+# full integer expressions. Functions, variables, control flow and the
+# robot builtins arrive with Phase 4 of `docs/PLAN.md`.
 module CrystalRobots::Compiler
   class WASM_Emitter
-    @code : Bytes
+    class Unsupported < Exception
+    end
 
     def initialize(@program : Program)
-      @code = Bytes[]
     end
 
     # https://en.wikipedia.org/wiki/LEB128
@@ -28,15 +32,10 @@ module CrystalRobots::Compiler
     def signedLEB128(n : Int32) : Bytes
       buffer = Bytes[]
       more = true
-      isNegative = n.negative?
-      bitCount = n.bit_length
       while more
-        byte = n & 0x7f
+        byte = (n & 0x7f).to_u8
         n = n >> 7
-        if isNegative
-          n = n | -(1 << (bitCount - 8))
-        end
-        if (n == 0 && (byte & 0x40) == 0) || (n == -1 && (byte & 0x40) != 0x40)
+        if (n == 0 && (byte & 0x40) == 0) || (n == -1 && (byte & 0x40) != 0)
           more = false
         else
           byte = byte | 0x80
@@ -111,18 +110,19 @@ module CrystalRobots::Compiler
       F32_gt    = 0x5e
       F32_le    = 0x5f
       F32_ge    = 0x60
-      I32_add   = 0x6a # I32 arithmatic
+      I32_add   = 0x6a # I32 arithmetic
       I32_sub   = 0x6b
       I32_mul   = 0x6c
       I32_div_s = 0x6d
-      I32_div_u = 0x63
+      I32_div_u = 0x6e
+      I32_rem_s = 0x6f
       I32_and   = 0x71
       I32_or    = 0x72
       I32_xor   = 0x73
       I32_shl   = 0x74
       I32_shr_s = 0x75
       I32_shr_u = 0x76
-      F32_add   = 0x92 # F32 arithmatic
+      F32_add   = 0x92 # F32 arithmetic
       F32_sub   = 0x93
       F32_mul   = 0x94
       F32_div   = 0x95
@@ -155,9 +155,9 @@ module CrystalRobots::Compiler
       createSection(Section::Type,
         Bytes[4] +                                                          # num types = 4
         Bytes[FunctionType, 0, 0] +                                         # func type 0, 0 params, 0 results
-        Bytes[FunctionType, 0, 1, Valtype::I32] +                           # func type 0, 0 params, 1 result (i32)
-        Bytes[FunctionType, 1, Valtype::I32, 1, Valtype::I32] +             # func type 1, 1 params (i32), 1 result (i32)
-        Bytes[FunctionType, 2, Valtype::I32, Valtype::I32, 1, Valtype::I32] # func type 2, 2 params (i32, i32), 1 result (i32)
+        Bytes[FunctionType, 0, 1, Valtype::I32] +                           # func type 1, 0 params, 1 result (i32)
+        Bytes[FunctionType, 1, Valtype::I32, 1, Valtype::I32] +             # func type 2, 1 params (i32), 1 result (i32)
+        Bytes[FunctionType, 2, Valtype::I32, Valtype::I32, 1, Valtype::I32] # func type 3, 2 params (i32, i32), 1 result (i32)
       )
     end
 
@@ -190,27 +190,75 @@ module CrystalRobots::Compiler
       )
     end
 
+    # The body of `run`: every top-level `puts` statement, in order. `puts`
+    # returns an i32 which is dropped; the function itself returns 0.
     def codeFromAst(program : Program)
       code = Bytes[0] # local decl count = 0
-      program.walkmode = Program::WalkMode::Top
-      program.each do |p|
-        t = p.node.type.not_nil!
-        case t
-        when Type::OneArgStatement
-          a = p.arg(1)
-          case t
-          when Type::Number
-            code += Bytes[Opcodes::I32_const.value]
-            code += signedLEB128(t.value.to_i32)
-          else
-            raise "Unsupported argument type: #{t} at #{p.pc}"
-          end
-          code += Bytes[Opcodes::Call.value]
-          code += unsignedLEB128(0)
+      program.children(program.root).each do |stmt|
+        unless program[stmt].rule == :exprstmt
+          raise Unsupported.new("statement #{program[stmt].rule} is not supported in WASM yet")
         end
+        expr = program.arg(stmt, 0)
+        rule = program[expr].rule
+        unless (rule == :command1 || rule == :call1) && program.lexeme(program.arg(expr, 0)) == "puts"
+          raise Unsupported.new("only puts statements are supported in WASM yet, got #{rule}")
+        end
+        arg = program.children(expr).find { |k| program.type(k) != Type::OneArgMethod && program.type(k) != Type::OpenParen && program.type(k) != Type::CloseParen }.not_nil!
+        code += expression(program, arg)
+        code += Bytes[Opcodes::Call.value] + unsignedLEB128(0)
+        code += Bytes[Opcodes::Drop.value] unless program.children(program.root).last == stmt
       end
-      code += Bytes[Opcodes::End]
+      code += Bytes[Opcodes::End.value]
       code
+    end
+
+    # Emit code that leaves the value of expression node i on the stack.
+    def expression(program : Program, i : Int32) : Bytes
+      n = program[i]
+      case n.rule
+      when :lex
+        case n.type
+        when Type::Number
+          Bytes[Opcodes::I32_const.value] + signedLEB128(program.value(n).to_i32)
+        else
+          raise Unsupported.new("#{n.type} is not supported in WASM yet")
+        end
+      when :literal
+        Bytes[Opcodes::I32_const.value] + signedLEB128(program.type(program.arg(i, 0)) == Type::TrueKeyword ? 1 : 0)
+      when :paren
+        expression(program, program.arg(i, 1))
+      when :neg
+        Bytes[Opcodes::I32_const.value, 0] + expression(program, program.arg(i, 1)) + Bytes[Opcodes::I32_sub.value]
+      when :mul, :add, :cmp, :eq, :and, :or
+        expression(program, program.arg(i, 0)) +
+          expression(program, program.arg(i, 2)) +
+          Bytes[opcode(program.type(program.arg(i, 1))).value]
+      else
+        raise Unsupported.new("expression #{n.rule} is not supported in WASM yet")
+      end
+    end
+
+    # Note: `//` maps to i32.div_s, which truncates toward zero, while the
+    # interpreter floors. They differ only for negative operands.
+    def opcode(op : Type) : Opcodes
+      case op
+      when Type::AddOperator                         then Opcodes::I32_add
+      when Type::SubOperator                         then Opcodes::I32_sub
+      when Type::MulOperator                         then Opcodes::I32_mul
+      when Type::FloorDivOperator, Type::DivOperator then Opcodes::I32_div_s
+      when Type::ModOperator                         then Opcodes::I32_rem_s
+      when Type::EqOperator                          then Opcodes::I32_eq
+      when Type::NeOperator                          then Opcodes::I32_neq
+      when Type::LtOperator                          then Opcodes::I32_lt_s
+      when Type::GtOperator                          then Opcodes::I32_gt_s
+      when Type::LeOperator                          then Opcodes::I32_le_s
+      when Type::GeOperator                          then Opcodes::I32_ge_s
+      when Type::AndOperator                         then Opcodes::I32_and
+      when Type::OrOperator                          then Opcodes::I32_or
+      when Type::XorOperator                         then Opcodes::I32_xor
+      else
+        raise Unsupported.new("operator #{op} is not supported in WASM yet")
+      end
     end
 
     # the code section contains vectors of functions

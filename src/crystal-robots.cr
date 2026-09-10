@@ -176,6 +176,7 @@ module CrystalRobots
 
   class CLI
     @robot_to_compile : String | Nil
+    @robot_to_trace : String | Nil
     @robots_to_battle : Array(String) | Nil
     @port : UInt32 | Nil
     @outfile : String | Nil
@@ -195,17 +196,58 @@ module CrystalRobots
         return 0
       end
 
+      if (trace = @robot_to_trace)
+        source = File.read(trace)
+        begin
+          program = Compiler::Parser.new(source).program
+          puts program.derivation
+        rescue e : Compiler::Parser::Error
+          STDERR.puts e.message
+          return 1
+        end
+        return 0
+      end
+
       if !@robot_to_compile.nil?
         STDERR.puts "Compiling #{@robot_to_compile}"
         source = File.read("#{@robot_to_compile}")
-        parser = Compiler::Parser.new(source)
-        binfile = Compiler::WASM_Emitter.new(parser.program).to_wasm
+        begin
+          parser = Compiler::Parser.new(source)
+          binfile = Compiler::WASM_Emitter.new(parser.program).to_wasm
+        rescue e : Compiler::Parser::Error | Compiler::WASM_Emitter::Unsupported
+          STDERR.puts e.message
+          return 1
+        end
         if @outfile.nil?
           STDOUT.write(binfile)
         else
           File.write("#{@outfile}", binfile)
         end
         return 0
+      end
+
+      if @interpreter && (robots = @robots_to_battle)
+        status = 0
+        robots.each do |file|
+          source = File.read(file)
+          begin
+            program = Compiler::Parser.new(source).program
+            interpreter = Compiler::Interpreter.new(program, Compiler::NullHost.new, @cycles)
+            Compiler::Interpreter.puts_clear
+            begin
+              interpreter.run
+              puts "#{file}: finished after #{interpreter.steps} steps"
+            rescue Compiler::Interpreter::StepLimit
+              puts "#{file}: stopped at the #{@cycles} step limit"
+            end
+            captured = Compiler::Interpreter.puts_out
+            puts captured unless captured.empty?
+          rescue e : Compiler::Parser::Error | Compiler::Interpreter::RuntimeError
+            STDERR.puts "#{file}: #{e.message}"
+            status = 1
+          end
+        end
+        return status
       end
 
       if @robots_to_battle.nil?
@@ -256,6 +298,10 @@ module CrystalRobots
       end
       parser.on "-i", "--interpret", "Run robots in interpreter" do
         @interpreter = true
+      end
+      parser.on "-t ROBOT", "--trace=ROBOT", "Print the parser derivation of ROBOT, one line per pass" do |robot|
+        @robot_to_trace = robot
+        parser.stop
       end
       parser.on "-c ROBOT", "--compile=ROBOT", "Compile robot source only and output WebAssembly (WASM)" do |robot|
         @robot_to_compile = robot
