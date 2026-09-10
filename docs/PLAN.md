@@ -92,12 +92,19 @@ passes, and the five examples still build with the prelude.
    real pipeline, and bring the 25 existing specs to green or rewrite the
    ones that encoded the abandoned API.
 
-### Phase 1: language front end
+### Phase 1: language front end (the multipass tokenizer)
 
-Lexer and parser producing an AST for the subset in section 2, with
-line:column error messages. A semantic pass resolves names into locals,
-globals, constants, user functions and builtins, and checks builtin arity.
-Golden spec: all five examples parse; one spec per grammar production.
+Decision 2026-09-10: keep and finish the novel design, a **progressive
+multipass tokenizer** over reserved Unicode glyphs driven by the existing
+regex grammar table. The logic is worked out in `docs/PARSER.md` and proven
+by `scripts/multipass_prototype.cr`, which reduces all six example robots to
+the Program glyph with correct precedence and associativity. Port it into
+`src/compiler`: extend `Type` with the new glyphs, give `Program` per-pass
+layers in place of `nxt`, record the producing rule on each node, turn
+`Parser.tokenize` into one reduction pass, and rewrite the parser specs
+around pass strings. Golden spec: all six examples parse; one spec per rule.
+A small semantic pass afterwards resolves identifiers into locals, globals,
+constants and user functions and checks builtin arity.
 
 ### Phase 2: reference interpreter
 
@@ -111,7 +118,8 @@ runs end to end against a stub host.
 
 ### Phase 3: battlefield simulation
 
-Port CROBOTS physics: 1000x1000 field, motion cycles, acceleration, turning
+Port the physics from the CROBOTS source referenced in the README (Tom
+Poindexter's `crobots`), not from memory: 1000x1000 field, motion cycles, acceleration, turning
 limit, wall collisions, missile flight, explosion radii and damage, scanner
 resolution, reload. Seeded RNG for reproducible matches. Robots execute N
 instructions per motion cycle. `-m` runs multiple matches and tallies wins.
@@ -128,49 +136,66 @@ Differential spec: for every example, interpreter trace == WASM trace. Add a
 
 ### Phase 5: Fossil + CGI hosting (primary)
 
-Fossil serves everything: the repository, embedded docs, and the robots web
-app as a CGI extension under `/ext`. Fossil 2.27 (`--extroot DIR`) is what
-this environment already uses for session previews, so the preview URL and
-the production deployment are the same mechanism.
+Modeled on Ollama-Codex (`https://ollama.openbeagle.org/ollama`) and
+GP-Crystal (`.../gp-crystal`), which are the reference deployments on this
+host. The shape, item by item:
 
-Architecture that fits CGI: **stateless per request**. A request submits
-robot sources, the process compiles them, runs one seeded match to the cycle
-limit, and returns the whole trace as JSON. The browser replays the trace on
-a canvas. No long-lived server state, no SSE, no sockets. Deterministic
-matches (Phase 3) make this cheap to re-run and easy to cache.
+1. **One binary.** `shards build` produces `bin/crystal-robots` (the shard
+   target). The same executable is the CLI, the CGI and any future daemon.
+   Mode selection: if `GATEWAY_INTERFACE` is set, serve the CGI request;
+   otherwise dispatch on `argv[0]` (so compatibility symlinks such as
+   `bin/robots-cgi` or `bin/robots-battle` can select a mode) and then on
+   the normal option parser. The session preview builds exactly this target
+   from `shard.yml`, so the preview and production run the same binary.
+2. **Deploy location.** Fossil serves the repository directly
+   (`fossil server --extroot DIR`, or a Fossil CGI file with an `extroot:`
+   line); no Apache or nginx in front. The extroot holds a **symlink**
+   `robots -> <checkout>/bin/crystal-robots`, the same way Ollama-Codex's
+   `/var/www/cgi-bin/ollama-codex` is a symlink to its `bin/`. A rebuild is
+   the deploy; the CGI spawns fresh per request. URL: `/ext/robots/...`.
+   The repo carries `fossil-skin/mainmenu` with a `Robots /ext/robots/ * {}`
+   line so the app is in the Fossil menu.
+3. **Login.** `FOSSIL_USER` is the identity and `FOSSIL_CAPABILITIES` the
+   permission set, both provided by Fossil; the CGI never handles
+   credentials. Gate as GP-Crystal does: `s`/`a` imply everything, `v`
+   expands to `eoih`, `u` to `oh`; read routes need `o` or `h`, routes that
+   save robots need `i`. The repository's own anonymous/nobody grants decide
+   what the public can do, not code.
+4. **Emit under the Fossil chrome.** Replies are
+   `Content-Type: text/x-markdown` Markdown, so Fossil wraps them in the
+   skin, renders Pikchr fences, and applies its own CSP and nonce. The
+   battlefield renders as **Pikchr**: the field, robot positions, headings,
+   missiles and explosions at a chosen cycle, plus a scoreboard table, the
+   way GP-Crystal draws blocks. Forms are plain HTML inside the Markdown.
+   Links are built from `SCRIPT_NAME` from its `/ext/` segment onward, so
+   they stay correct under `/ext/robots` and under
+   `/ext/preview/<session>/`.
+5. **Routes.** `GET /` overview and example list; `GET /examples/<name>`
+   source plus its parse derivation (the pass trace, the teaching view);
+   `POST /compile` errors or the WASM size and the trace;
+   `POST /battle` runs one seeded match and renders the Pikchr replay
+   (cycle selectable by query parameter) and the outcome; `GET /version`.
+6. **Fossil subprocesses.** When the CGI shells out to `fossil` (to read a
+   robot from the repo), scrub `GATEWAY_INTERFACE`, `PATH_INFO`,
+   `QUERY_STRING` and `REQUEST_METHOD` from the child environment, as both
+   reference projects do, or Fossil treats the call as a CGI request.
+7. **State.** First version keeps no state between requests. Later
+   candidates, in order of preference: robots stored in the repository
+   (versioned files or unversioned `fossil uv`), a cookie carrying the
+   match seed and robot selection, then the Fossil config table for
+   per-user saved robots keyed by `FOSSIL_USER`. All three are compatible
+   with the per-request CGI model. (Design notes below.)
 
-1. **Transport-agnostic core.** A `Web::Router` that maps a plain
-   `Request(method, path, query, headers, body)` to a `Response`. Adapters:
-   `Web::CGI` (reads the CGI environment and stdin, writes status, headers and
-   body to stdout) and, later, `Web::HTTP` for `HTTP::Server`. The router is
-   unit-tested without either transport.
-2. **Routes.** `GET /` page shell; `GET /static/*` assets embedded in the
-   binary with Crystal's `read_file` macro so deployment is one executable;
-   `GET /examples` and `GET /examples/:name` from the bundled example robots;
-   `POST /compile` returns WASM bytes or structured errors with line:column;
-   `POST /battle` returns the match trace JSON; `GET /version`.
-3. **CGI entry.** `crystal-robots --cgi` runs the CGI adapter. Fossil passes
-   `PATH_INFO`, `QUERY_STRING`, `REQUEST_METHOD`, `CONTENT_LENGTH`, plus
-   `FOSSIL_USER` and `FOSSIL_CAPABILITIES`; the app uses `FOSSIL_USER` for
-   attribution of saved robots and `SCRIPT_NAME` to build relative links so
-   it works under any mount point (including the session preview path).
-4. **Deployment recipe.** An `extroot/` directory in the repo with a small
-   wrapper script that execs the built binary with `--cgi`, and README
-   instructions for both `fossil server --extroot` and a classic Fossil CGI
-   file (`repository:` plus `extroot:` directives) behind althttpd, Apache or
-   nginx. The session preview validates this path before any merge.
-5. **Docs through Fossil.** README and `docs/*.md` are served by Fossil's
-   embedded documentation (`/doc/trunk/...`). The `crystal docs` API output
-   is published as Fossil unversioned files or a `www/` tree rather than a
-   GitLab pages job.
-6. **Saved robots.** Decide later between Fossil unversioned files, ticket
-   attachments, or a small SQLite file next to the repository. Not needed for
-   the first deployable version.
-
-A thin version of steps 1 through 4 (page shell, examples, version) should
-land right after Phase 0 so the preview URL shows something real while the
-compiler matures; `/compile` and `/battle` light up as Phases 1 through 4
-finish.
+**Why "stateless" was said, and what it actually implies.** Fossil starts a
+new CGI process per request and buffers the whole reply before sending it.
+So nothing lives in memory between requests, and a reply cannot stream.
+That rules out a long-running simulation pushing frames to the browser
+from the CGI itself. It does not rule out state: cookies, the Fossil
+database and files all work. Ollama-Codex gets live updates through a
+separate daemon on port 8443 that the CGI cannot provide; if a live replay
+is ever wanted here, the same sidecar approach applies. For a deterministic
+match that completes in milliseconds, one request that returns the whole
+result is simpler and fits Fossil better, which is why it is the first cut.
 
 ### Phase 5b: direct hosting and static export (secondary)
 
@@ -200,44 +225,28 @@ subset and a port of the CROBOTS manual sections, published by the existing
 - Optional: keep the GitHub mirror alive with `fossil git export`.
 - `ameba` lint, GPL headers, version bump, installation and usage sections.
 
-## 4. Open decision: parser architecture
+## 4. Parser architecture: decided
 
-Two ways to reach Phase 1.
-
-**A. Finish the string-rewriting design.** Keep `Program` as glyph string plus
-`Node` array and complete the pass-through logic in `Parser.map`. It matches
-the original exploration ("taking control over a programming language
-itself") and keeps the Unicode token glyphs, which are a nice visual for
-teaching. Cost: the pass-through and skip logic has been the blocker across
-the WIP commits from 2024-11 through 2025-04, precedence is encoded as regex
-ordering, and identifiers, assignment and nested calls all need new reduction
-rules that are hard to express as flat regexes.
-
-**B. Conventional lexer plus recursive-descent (Pratt) parser to a typed
-AST.** Roughly 400 lines of Crystal for the subset in section 2, well
-understood, easy to give good error messages, and every emitter (WASM, dot,
-Crystal, RISC-V) walks the same tree. The `Type` glyphs can remain as token
-kinds so the tokenizer output is still printable the same way. Cost: the
-current `Program`/`Parser` code is replaced rather than completed, and the
-existing parser specs are rewritten.
-
-Recommendation: **B**. It unblocks Phases 2 through 6, and the teaching value
-of "see the tokens, see the tree, see the bytes" is preserved by the dot
-emitter. If the exploration of the string-rewriting design matters more than
-delivery speed, choose A and budget Phase 1 at two to three times the effort.
+2026-09-10: option A, the progressive multipass tokenizer using reserved
+UTF-8 glyphs and the existing regex grammar table. The unresolved logic is
+now written down in `docs/PARSER.md` and demonstrated by
+`scripts/multipass_prototype.cr`. The alternative that was offered (a
+hand-written recursive-descent parser, of which a "Pratt parser" is the
+operator-precedence variant) is dropped.
 
 ## 5. Immediate next steps
 
-1. Phase 0 items 1 and 2 (wasmer pin, skippable wasmer specs). No decision
-   needed.
-2. Thin Phase 5 skeleton: router, CGI adapter, `--cgi` flag, `extroot/`
-   wrapper, page shell and `/examples`, verified through the session
-   preview URL. No decision needed.
-3. Confirm A or B in section 4.
-4. Start Phase 1 with the lexer, which is needed under either choice.
+1. Phase 0 items 1 and 2 (wasmer pin, skippable wasmer specs).
+2. Phase 1: port the prototype into `src/compiler` and bring the parser
+   specs to green on pass strings.
+3. Phase 5 skeleton: `GATEWAY_INTERFACE` mode, capability gate, Markdown
+   reply, overview and example routes with the parse trace, `extroot/`
+   symlink recipe, `fossil-skin/mainmenu`; verified through the session
+   preview URL.
 
 ## 6. Order of work
 
-Phase 0, then the Phase 5 skeleton, then Phases 1 through 4 with the CGI
-routes gaining `/compile` and `/battle` as each lands, then Phase 7
+Phase 0, then Phase 1 (front end) and the Phase 5 skeleton side by side so
+the parse trace is visible in the browser early, then Phases 2 through 4
+with `/compile` and `/battle` lighting up as each lands, then Phase 7
 migration items, then Phase 5b and Phase 6.
