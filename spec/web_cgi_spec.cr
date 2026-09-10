@@ -58,8 +58,26 @@ describe CrystalRobots::Web::CGI do
     bad.should contain "at 1:1"
   end
 
+  it "shows the battle form and runs a seeded match with a Pikchr frame" do
+    form = run_cgi("o", "/battle")
+    form.should contain "name=\"r\" value=\"counter\""
+    form.should contain "action=\"/ext/robots/battle\""
+    page = run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000")
+    page.should contain "# Battle: counter vs target"
+    page.should contain "```pikchr"
+    page.should contain "R1: circle"
+    page.should contain "| counter |"
+    page.should contain "[Pick again](/ext/robots/battle)"
+    again = run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000")
+    again.should eq page
+    first = run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000&frame=0")
+    first.should contain "## Frame 1 of"
+  end
+
   it "re-roots links under a session preview path" do
     reply = run_cgi("o", "/", "GET", "", "", "/crystal-robots/ext/preview/session-abc")
     reply.should contain "[counter.cr](/ext/preview/session-abc/examples/counter)"
+    # raw HTML is not rewritten by Fossil, so the form needs the full path
+    reply.should contain "action=\"/crystal-robots/ext/preview/session-abc/parse\""
   end
 end

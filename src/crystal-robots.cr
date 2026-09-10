@@ -1,5 +1,6 @@
 # TODO: Write documentation for `CrystalRobots`
 require "./compiler"
+require "./battle/field"
 require "option_parser"
 require "wait_group"
 
@@ -181,7 +182,7 @@ module CrystalRobots
     @port : UInt32 | Nil
     @outfile : String | Nil
 
-    def initialize(@run_parser = true, @matches = 1, @cycles = 500_000, @exit = false, @interpreter = false, @robot_to_compile = nil, @robots_to_battle = nil, @port = nil, @outfile = nil)
+    def initialize(@run_parser = true, @matches = 1, @cycles = 500_000, @seed = 1_u64, @exit = false, @interpreter = false, @robot_to_compile = nil, @robots_to_battle = nil, @port = nil, @outfile = nil)
     end
 
     def run
@@ -271,7 +272,10 @@ module CrystalRobots
         return 1
       end
 
-      # TODO: Call for battle
+      if Robot.num_robots == 0
+        return run_matches(@robots_to_battle.not_nil!)
+      end
+
       puts "Start by running each of #{@robots_to_battle}"
       Robot.robots.not_nil!
       WaitGroup.wait do |wg|
@@ -282,6 +286,48 @@ module CrystalRobots
           end
         end
       end
+    end
+
+    # Run `@matches` seeded matches on the CROBOTS battlefield and print a
+    # summary in the style of `crobots -m`.
+    def run_matches(files : Array(String)) : Int32
+      entries = [] of {String, String}
+      files.each do |file|
+        unless File.exists?(file)
+          STDERR.puts "#{file}: no such file"
+          return 1
+        end
+        entries << {File.basename(file, ".cr"), File.read(file)}
+      end
+      if entries.size == 1
+        puts "only one robot? cloning a second from #{files[0]}"
+        entries << entries[0]
+      end
+      wins = Array(Int32).new(entries.size, 0)
+      ties = Array(Int32).new(entries.size, 0)
+      1.upto(@matches) do |m|
+        field = Battle::Field.new(entries, seed: @seed + m - 1, limit: @cycles.to_i64)
+        field.run
+        survivors = field.active
+        puts "Match #{m}: seed #{@seed + m - 1}, cycles = #{field.cycles}"
+        field.robots.each do |r|
+          if (err = r.error)
+            puts "  #{r.name}: #{err}"
+          end
+        end
+        if survivors.empty?
+          puts "  mutual destruction"
+        else
+          survivors.each { |r| puts "  survivor #{r.name}: damage=#{r.damage}%" }
+        end
+        field.robots.each_with_index do |r, i|
+          next unless r.active
+          survivors.size == 1 ? (wins[i] += 1) : (ties[i] += 1)
+        end
+      end
+      puts "Cumulative score:"
+      entries.each_with_index { |(name, _), i| puts "  #{name}: wins=#{wins[i]} ties=#{ties[i]}" }
+      0
     end
 
     def customize_parser(parser)
@@ -311,14 +357,13 @@ module CrystalRobots
         @outfile = outfile
       end
       parser.on "-m MATCHES", "--matches=MATCHES", "Run MATCHES matches" do |matches|
-        # TODO: run the battlefield simulator repeatedly
-        puts "Running #{matches} matches"
         @matches = matches.to_i32
       end
       parser.on "-l CYCLES", "--limit=CYCLES", "Set virtual machine cycle limit to CYCLES. Default is 500,000." do |cycles|
-        # TODO: count cycles and enable setting the limit
-        puts "Limiting virtual machine cycles to #{cycles}"
         @cycles = cycles.to_i32
+      end
+      parser.on "--seed=SEED", "Random seed for the first match (default 1); later matches add 1" do |seed|
+        @seed = seed.to_u64
       end
       parser.on "-p PORT", "--port=PORT", "Serve web interface on port PORT" do |port|
         # TODO: implement web server

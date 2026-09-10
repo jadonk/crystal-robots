@@ -7,6 +7,7 @@
 # `FOSSIL_CAPABILITIES`, both supplied by Fossil.
 require "http/params"
 require "../compiler"
+require "../battle/field"
 
 module CrystalRobots::Web
   # The example robots, embedded at compile time so the CGI needs no
@@ -37,6 +38,14 @@ module CrystalRobots::Web
       else
         "/ext/robots"
       end
+    end
+
+    # The full request path for raw HTML attributes (form actions). Fossil
+    # rewrites Markdown link targets with the repository prefix, but not
+    # attributes inside raw HTML, so those need `SCRIPT_NAME` verbatim.
+    def form_base : String
+      sn = (env["SCRIPT_NAME"]? || "").rstrip('/')
+      sn.includes?("/ext/") ? sn : link_base
     end
 
     def user : String
@@ -90,6 +99,8 @@ module CrystalRobots::Web
       when "parse"
         source = method == "POST" ? HTTP::Params.parse(body)["source"]? : query["source"]?
         reply(parse_page(source || ""))
+      when "battle"
+        reply(battle_page)
       when /\Aexamples\/([a-z_]+)\z/
         name = $1
         if (src = EXAMPLES[name]?)
@@ -129,8 +140,9 @@ module CrystalRobots::Web
         EXAMPLES.each_key do |name|
           md << "- [#{name}.cr](#{base}/examples/#{name})\n"
         end
+        md << "\n## Battle\n\n[Pick robots and fight](#{base}/battle) on the CROBOTS battlefield.\n"
         md << "\n## Parse your own\n\n"
-        md << "<form method=\"post\" action=\"#{base}/parse\">\n"
+        md << "<form method=\"post\" action=\"#{form_base}/parse\">\n"
         md << "<textarea name=\"source\" rows=\"12\" cols=\"70\">puts 2 + (1 + 2) // 2 * 4</textarea><br>\n"
         md << "<button type=\"submit\">Parse</button>\n"
         md << "</form>\n\n"
@@ -155,6 +167,116 @@ module CrystalRobots::Web
         else
           md << "```crystal\n" << source << "\n```\n\n"
           md << derivation_section(source)
+        end
+      end
+    end
+
+    WEB_CYCLE_LIMIT = 100_000_i64
+    WEB_CYCLE_MAX   = 500_000_i64
+    ROBOT_COLORS    = ["0x4C97FF", "0xFF8C1A", "0x59C059", "0xFFAB19"]
+
+    # `GET /battle` without robots shows the form; with `r=` parameters it
+    # runs one seeded match and renders a frame of it in Pikchr.
+    def battle_page : String
+      q = query
+      names = q.fetch_all("r").select { |n| EXAMPLES.has_key?(n) }.first(4)
+      return battle_form if names.empty?
+      seed = (q["seed"]?.try(&.to_u64?) || 1_u64)
+      limit = (q["limit"]?.try(&.to_i64?) || WEB_CYCLE_LIMIT).clamp(MOTION_STEP, WEB_CYCLE_MAX)
+      entries = names.map { |n| {n, EXAMPLES[n]} }
+      field = Battle::Field.new(entries, seed: seed, limit: limit, max_frames: 120)
+      field.run
+      frame_count = field.frames.size
+      frame = (q["frame"]?.try(&.to_i?) || frame_count - 1).clamp(0, frame_count - 1)
+      render_battle(field, names, seed, limit, frame)
+    end
+
+    private MOTION_STEP = Battle::MOTION_CYCLES.to_i64
+
+    def battle_form : String
+      String.build do |md|
+        md << "# Battle\n\n[Back](#{link_base})\n\n"
+        md << "Pick up to four robots. The match is deterministic for a seed, so a result page can be shared and replayed.\n\n"
+        md << "<form method=\"get\" action=\"#{form_base}/battle\">\n"
+        EXAMPLES.each_key do |name|
+          checked = {"counter", "rabbit"}.includes?(name) ? " checked" : ""
+          md << "<label><input type=\"checkbox\" name=\"r\" value=\"#{name}\"#{checked}> #{name}</label><br>\n"
+        end
+        md << "<label>Seed <input type=\"number\" name=\"seed\" value=\"1\" min=\"0\"></label>\n"
+        md << "<label>Cycle limit <input type=\"number\" name=\"limit\" value=\"#{WEB_CYCLE_LIMIT}\" min=\"#{MOTION_STEP}\" max=\"#{WEB_CYCLE_MAX}\"></label>\n"
+        md << "<button type=\"submit\">Fight</button>\n</form>\n"
+      end
+    end
+
+    def battle_link(names : Array(String), seed : UInt64, limit : Int64, frame : Int32) : String
+      "#{link_base}/battle?#{names.map { |n| "r=#{n}" }.join("&")}&seed=#{seed}&limit=#{limit}&frame=#{frame}"
+    end
+
+    def render_battle(field : Battle::Field, names : Array(String), seed : UInt64, limit : Int64, frame : Int32) : String
+      f = field.frames[frame]
+      last = field.frames.size - 1
+      String.build do |md|
+        md << "# Battle: #{names.join(" vs ")}\n\n"
+        md << "[Pick again](#{link_base}/battle) · seed #{seed} · limit #{limit} · #{field.cycles} cycles run\n\n"
+        if (w = field.winner)
+          md << "**Winner: #{w.name}**\n\n"
+        elsif field.active.empty?
+          md << "**Mutual destruction.**\n\n"
+        else
+          md << "**Cycle limit reached: #{field.active.map(&.name).join(", ")} survive.**\n\n"
+        end
+        md << "| Robot | Status | Damage | Instructions | Restarts | Note |\n| --- | --- | --- | --- | --- | --- |\n"
+        field.robots.each do |r|
+          status = r.error ? "failed" : (r.active ? "active" : "destroyed")
+          note = r.error || r.output.first?.try { |line| "puts #{line}" } || ""
+          md << "| #{r.name} | #{status} | #{r.damage}% | #{r.cycles} | #{r.restarts} | #{note} |\n"
+        end
+        md << "\n## Frame #{frame + 1} of #{last + 1} (cycle #{f.cycle})\n\n"
+        nav = [] of String
+        nav << "[first](#{battle_link(names, seed, limit, 0)})" if frame > 0
+        nav << "[previous](#{battle_link(names, seed, limit, frame - 1)})" if frame > 0
+        nav << "[next](#{battle_link(names, seed, limit, frame + 1)})" if frame < last
+        nav << "[last](#{battle_link(names, seed, limit, last)})" if frame < last
+        md << nav.join(" · ") << "\n\n" unless nav.empty?
+        md << "```pikchr\n" << pikchr_frame(f) << "```\n\n"
+        md << "| Robot | x | y | heading | speed | damage | scan |\n| --- | --- | --- | --- | --- | --- | --- |\n"
+        f.robots.each do |r|
+          md << "| #{r.name} | #{r.x // Battle::CLICK} | #{r.y // Battle::CLICK} | #{r.heading} | #{r.speed} | #{r.damage}% | #{r.scan} |\n"
+        end
+        field.robots.each do |r|
+          next if r.output.empty?
+          md << "\n## #{r.name} output\n\n```\n" << r.output.first(20).join("\n") << "\n```\n"
+        end
+      end
+    end
+
+    # One frame of the field as a Pikchr diagram: 4 inches for 1000 meters.
+    def pikchr_frame(f : Battle::Frame) : String
+      scale = 4.0 / (Battle::MAX_X * Battle::CLICK)
+      String.build do |pik|
+        pik << "F: box wid 4 ht 4 fill 0xF4F4F0 color 0x888888\n"
+        pik << "text \"1000 m\" small at F.n + (0, 0.12)\n"
+        f.robots.each_with_index do |r, i|
+          x = (r.x * scale).round(3)
+          y = (r.y * scale).round(3)
+          color = r.active ? ROBOT_COLORS[i % ROBOT_COLORS.size] : "0xAAAAAA"
+          pik << "R#{i}: circle rad 0.07 fill #{color} color black at F.sw + (#{x}, #{y})\n"
+          if r.active
+            dx = (0.25 * Battle.lcos(r.heading) / 100000.0).round(3)
+            dy = (0.25 * Battle.lsin(r.heading) / 100000.0).round(3)
+            pik << "line from R#{i} to R#{i} + (#{dx}, #{dy}) thick color #{color}\n"
+          end
+          label = r.active ? "#{r.name} #{r.damage}%" : "#{r.name} X"
+          pik << "text \"#{label}\" small at R#{i}.n + (0, 0.12)\n"
+        end
+        f.missiles.each do |m|
+          x = (m.x * scale).round(3)
+          y = (m.y * scale).round(3)
+          if m.exploding
+            pik << "circle rad 0.16 thin dashed color red at F.sw + (#{x}, #{y})\n"
+          else
+            pik << "dot color red at F.sw + (#{x}, #{y})\n"
+          end
         end
       end
     end

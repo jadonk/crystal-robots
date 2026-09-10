@@ -33,6 +33,7 @@ later, battles) needs the wasmer runtime; see Development below.
 ```
 bin/crystal-robots -t examples/counter.cr           # print the parser derivation, one line per pass
 bin/crystal-robots -i -l 5000 examples/counter.cr   # run robots in the interpreter, 5000 steps each
+bin/crystal-robots -m 3 -l 100000 --seed 7 examples/counter.cr examples/rabbit.cr   # three seeded matches
 bin/crystal-robots -c examples/test.cr -o test.wasm # compile a robot to WebAssembly
 GATEWAY_INTERFACE=CGI/1.1 bin/crystal-robots        # serve the web app (Fossil does this for you)
 ```
@@ -53,7 +54,8 @@ scripts/install_extroot.sh /path/to/extroot      # symlinks extroot/robots -> bi
 fossil server crystal-robots.fossil --extroot /path/to/extroot --port 8080
 ```
 
-Then browse to `http://localhost:8080/ext/robots/`. A rebuild is the deploy:
+Then browse to `http://localhost:8080/ext/robots/`: pick example robots,
+run a seeded match, and step through its frames drawn in Pikchr. A rebuild is the deploy:
 the CGI runs fresh on every request. To put the app in the Fossil menu, paste
 `fossil-skin/mainmenu` into Admin, Skins, Main Menu. Who may use the app is
 decided by the repository's user capabilities: reading needs `o` or `h`

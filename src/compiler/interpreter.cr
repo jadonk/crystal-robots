@@ -127,6 +127,10 @@ module CrystalRobots::Compiler
 
     getter program : Program, host : Host, steps : Int32
 
+    # Called on every step. The battlefield uses it to hand control back to
+    # the scheduler between robots (see `Battle::Robot`).
+    property on_step : Proc(Nil)? = nil
+
     def initialize(@program : Program, @host : Host = NullHost.new, @step_limit : Int32 = 1_000_000)
       @globals = {} of String => Value
       @constants = {} of String => Value
@@ -192,6 +196,9 @@ module CrystalRobots::Compiler
     private def step : Nil
       @steps += 1
       raise StepLimit.new("step limit #{@step_limit} reached") if @steps > @step_limit
+      if (hook = @on_step)
+        hook.call
+      end
     end
 
     private def truthy?(v : Value) : Bool
