@@ -35,6 +35,7 @@ bin/crystal-robots -t examples/counter.cr           # print the parser derivatio
 bin/crystal-robots -i -l 5000 examples/counter.cr   # run robots in the interpreter, 5000 steps each
 bin/crystal-robots -m 3 -l 100000 --seed 7 examples/counter.cr examples/rabbit.cr   # three seeded matches
 bin/crystal-robots -c examples/sniper.cr -o sniper.wasm # compile a robot to WebAssembly (imports env.scan, env.cannon, ...)
+bin/crystal-robots -c examples/sniper.cr --ticks -o sniper.wasm # also import env.tick(n) and charge CROBOTS cycles
 GATEWAY_INTERFACE=CGI/1.1 bin/crystal-robots        # serve the web app (Fossil does this for you)
 ```
 
@@ -55,8 +56,16 @@ fossil server crystal-robots.fossil --extroot /path/to/extroot --port 8080
 ```
 
 Then browse to `http://localhost:8080/ext/crystal-robots/`: pick example robots or
-paste your own, run a seeded match, and step through its frames drawn in
-Pikchr with each robot's trail. A rebuild is the deploy:
+paste your own, run a seeded match, watch the replay, and step through its
+frames drawn in Pikchr with each robot's trail.
+
+To keep a robot, create a wiki page named `robot/<name>` whose Markdown
+contains exactly one fenced code block; that block is the robot. It then
+appears on the overview and in the battle picker under `<name>`.
+
+Cycles are charged the way the CROBOTS virtual machine did: one per
+operand fetch, operator, store, branch and statement, two per builtin
+call, three around a user function call. `-l` limits those cycles. A rebuild is the deploy:
 the CGI runs fresh on every request. To put the app in the Fossil menu, paste
 `fossil-skin/mainmenu` into Admin, Skins, Main Menu (the deployed menu calls it "Run"). Who may use the app is
 decided by the repository's user capabilities: reading needs `o` or `h`

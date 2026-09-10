@@ -17,6 +17,7 @@ require "semantic_version"
     getter last_puts : String
     getter puts_out = [] of String
     getter host : CrystalRobots::Compiler::Host
+    getter ticks = 0_i64
 
     def initialize(@last_puts = "", @host = CrystalRobots::Compiler::NullHost.new)
     end
@@ -36,6 +37,7 @@ require "semantic_version"
       h = @host
       env = {} of String => Wasmer::WithExtern
       env["puts"] = Wasmer::Function.new(store, type: t1, &->wasm_puts(Array(Wasmer::Value)))
+      env["tick"] = fn(store, t1) { |a| @ticks += a[0].as_i; 0 }
       env["scan"] = fn(store, t2) { |a| h.scan(a[0].as_i, a[1].as_i) }
       env["cannon"] = fn(store, t2) { |a| h.cannon(a[0].as_i, a[1].as_i) }
       env["drive"] = fn(store, t2) { |a| h.drive(a[0].as_i, a[1].as_i) }
@@ -65,9 +67,11 @@ require "semantic_version"
       [Wasmer::Value.new(0)]
     end
 
-    # Compile and run `source`; returns everything it printed.
-    def run(source : String) : Array(String)
-      i = load_wasm(CrystalRobots::Compiler.compile_to_wasm(source))
+    # Compile and run `source`; returns everything it printed. With `costs`
+    # the module carries cycle accounting and `ticks` totals it.
+    def run(source : String, costs : CrystalRobots::Compiler::Interpreter::Costs? = nil) : Array(String)
+      program = CrystalRobots::Compiler::Parser.new(source).program
+      i = load_wasm(CrystalRobots::Compiler::WASM_Emitter.new(program, costs).to_wasm)
       i.function("run").not_nil!.call
       @puts_out
     end

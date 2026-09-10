@@ -178,6 +178,7 @@ module CrystalRobots
   class CLI
     @robot_to_compile : String | Nil
     @robot_to_trace : String | Nil
+    @ticks = false
     @robots_to_battle : Array(String) | Nil
     @port : UInt32 | Nil
     @outfile : String | Nil
@@ -217,7 +218,8 @@ module CrystalRobots
         source = File.read("#{@robot_to_compile}")
         begin
           parser = Compiler::Parser.new(source)
-          binfile = Compiler::WASM_Emitter.new(parser.program).to_wasm
+          costs = @ticks ? Compiler::Interpreter::Costs.crobots : nil
+          binfile = Compiler::WASM_Emitter.new(parser.program, costs).to_wasm
         rescue e : Compiler::Parser::Error | Compiler::WASM_Emitter::Unsupported
           STDERR.puts e.message
           return 1
@@ -359,6 +361,9 @@ module CrystalRobots
       end
       parser.on "-c ROBOT", "--compile=ROBOT", "Compile robot source only and output WebAssembly (WASM); see -o" do |robot|
         @robot_to_compile = robot
+      end
+      parser.on "--ticks", "With -c: import env.tick and charge CROBOTS cycles, so a host can count or schedule" do
+        @ticks = true
       end
       parser.on "-o OUTFILE", "--output=OUTFILE", "Write compiled robot to OUTFILE" do |outfile|
         @outfile = outfile

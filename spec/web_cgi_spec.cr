@@ -73,12 +73,15 @@ describe CrystalRobots::Web::CGI do
     again.should eq page
     first = run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000&frame=0")
     first.should contain "## Frame 1 of"
-    page.should contain "line thin color" # trails
+    moved = run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=40000")
+    moved.should contain "line thin color" # trails, once a robot has moved
     # animation first, static frame second, result last
     page.index("<svg ").not_nil!.should be < page.index("```pikchr").not_nil!
     page.index("```pikchr").not_nil!.should be < page.index("## Result").not_nil!
-    page.should contain "<animate attributeName=\"cx\""
+    page.should contain "<animateTransform attributeName=\"transform\" type=\"translate\""
+    page.should contain "type=\"rotate\""
     page.should contain "repeatCount=\"indefinite\""
+    page.should contain "| cannon |"
   end
 
   it "lets a pasted robot fight and reports its problems" do
@@ -133,6 +136,43 @@ describe CrystalRobots::Web::CGI do
     page.should contain "stroke-dashoffset"
     page.should contain "&fps=10&frame="
     run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000&fps=99999").should contain "frames at 120 per second"
+  end
+
+  it "offers robots saved as wiki pages and battles them" do
+    pages = {
+      "robot/spinner" => "# Spinner\n\nTurns forever.\n\n```crystal\nmain(\"Spinner\") do\n  while true\n    drive(90, 30)\n  end\nend\n```\n",
+      "robot/broken"  => "two blocks\n\n```\nputs 1\n```\n\n```\nputs 2\n```\n",
+      "Home"          => "not a robot",
+    }
+    wiki = CrystalRobots::Web::WikiRobots.new(-> { pages.keys }, ->(name : String) { pages["robot/" + name]? })
+    wiki.names.should eq ["broken", "spinner"]
+    wiki.source("spinner").not_nil!.should start_with "main(\"Spinner\")"
+    wiki.source("broken").should be_nil
+    wiki.source("Home").should be_nil
+    env = {"PATH_INFO" => "/", "SCRIPT_NAME" => "/ext/robots", "FOSSIL_CAPABILITIES" => "oh", "FOSSIL_USER" => "jkridner"}
+    reply = IO::Memory.new
+    cgi = CrystalRobots::Web::CGI.new(env, reply)
+    cgi.wiki = wiki
+    cgi.serve
+    reply.to_s.should contain "[spinner](/ext/robots/wiki/spinner)"
+    reply = IO::Memory.new
+    cgi = CrystalRobots::Web::CGI.new(env.merge({"PATH_INFO" => "/battle", "QUERY_STRING" => "w=spinner&r=target&limit=1500"}), reply)
+    cgi.wiki = wiki
+    cgi.serve
+    reply.to_s.should contain "# Battle: target vs spinner"
+    reply.to_s.should contain "w=spinner"
+    reply = IO::Memory.new
+    cgi = CrystalRobots::Web::CGI.new(env.merge({"PATH_INFO" => "/wiki/spinner"}), reply)
+    cgi.wiki = wiki
+    cgi.serve
+    reply.to_s.should contain "# spinner"
+    reply.to_s.should contain "Checks passed"
+  end
+
+  it "unwraps headings so rotations take the short way round" do
+    cgi = CrystalRobots::Web::CGI.new({} of String => String, IO::Memory.new)
+    cgi.unwrap([350, 10, 20, 200, 190]).should eq [350, 370, 380, 560, 550]
+    cgi.unwrap([-10, -350]).should eq [-10, 10]
   end
 
   it "re-roots links under a session preview path" do

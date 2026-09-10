@@ -122,5 +122,25 @@ describe "WASM back end" do
       actual_host.log.should eq expected_host.log
       expected.should_not be_empty
     end
+
+    wasmer_it "charges the same cycles as the interpreter on #{name}" do
+      program = CrystalRobots::Compiler::Parser.new(source).program
+      interpreter = CrystalRobots::Compiler::Interpreter.new(program, TraceHost.new, 1_000_000)
+      interpreter.capture = false
+      interpreter.run
+      w = WASMSpec.new(host: TraceHost.new)
+      w.run(source, CrystalRobots::Compiler::Interpreter::Costs.crobots)
+      w.ticks.should eq interpreter.steps
+      interpreter.steps.should be > 10
+    end
+  end
+
+  it "leaves cycle accounting out unless asked" do
+    program = CrystalRobots::Compiler::Parser.new("puts 1 + 2").program
+    plain = W.new(program).to_wasm
+    ticking = W.new(program, CrystalRobots::Compiler::Interpreter::Costs.crobots).to_wasm
+    String.new(plain).should_not contain "tick"
+    String.new(ticking).should contain "tick"
+    ticking.size.should be > plain.size
   end
 end

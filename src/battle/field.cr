@@ -88,7 +88,7 @@ module CrystalRobots::Battle
 
   # Snapshot types for the replay trace.
   record RobotState, name : String, x : Int32, y : Int32, heading : Int32, speed : Int32,
-    damage : Int32, scan : Int32, active : Bool
+    damage : Int32, scan : Int32, active : Bool, cannon : Int32, fired : Bool
   record MissileState, owner : Int32, slot : Int32, x : Int32, y : Int32, exploding : Bool
   record Frame, cycle : Int64, robots : Array(RobotState), missiles : Array(MissileState)
 
@@ -107,6 +107,9 @@ module CrystalRobots::Battle
     property speed = 0, accel = 0, d_speed = 0
     property heading = 0, d_heading = 0
     property damage = 0, scan = 0, reload = 0
+    # Where the cannon last fired; CROBOTS keeps no turret state, only the
+    # missile's heading, so this exists for the display.
+    property cannon_dir = 0, fired = false
     getter missiles : Array(Missile)
     getter output = [] of String
     getter error : String? = nil
@@ -214,7 +217,7 @@ module CrystalRobots::Battle
     end
 
     def state : RobotState
-      RobotState.new(@name, @x, @y, @heading, @speed, @damage, @scan, @active)
+      RobotState.new(@name, @x, @y, @heading, @speed, @damage, @scan, @active, @cannon_dir, @fired)
     end
   end
 
@@ -557,6 +560,8 @@ module CrystalRobots::Battle
       robot.missiles.each do |m|
         next unless m.stat.avail?
         robot.reload = RELOAD
+        robot.cannon_dir = degree
+        robot.fired = true
         m.stat = MissileStatus::Flying
         m.beg_x = m.cur_x = robot.x
         m.beg_y = m.cur_y = robot.y

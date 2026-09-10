@@ -119,6 +119,26 @@ module CrystalRobots::Compiler
     # Deeper than this and a robot is recursing without end.
     MAX_CALL_DEPTH = 200
 
+    # What a program is charged, in cycles, for each kind of work. The
+    # default follows the CROBOTS virtual machine, which charged one cycle
+    # per instruction: a FETCH or CONST per operand, one BINOP per operator,
+    # one STORE per assignment, FRAME + FCALL + RETSUB around a call, one
+    # BRANCH per condition, and a CHOP at the end of an expression
+    # statement. `Costs.statements` is the older model: one cycle per
+    # statement, nothing else.
+    record Costs, fetch : Int32 = 1, operator : Int32 = 1, store : Int32 = 1,
+      builtin : Int32 = 2, call : Int32 = 3, branch : Int32 = 1, statement : Int32 = 1 do
+      def self.crobots : Costs
+        new
+      end
+
+      def self.statements : Costs
+        new(fetch: 0, operator: 0, store: 0, builtin: 0, call: 0, branch: 0, statement: 1)
+      end
+    end
+
+    property costs : Costs = Costs.crobots
+
     # Everything `puts` wrote since `puts_clear`, one line per call.
     def self.puts_out : String
       @@puts_out.join("\n")
@@ -174,7 +194,10 @@ module CrystalRobots::Compiler
       expr = @program.arg(stmt, 0)
       if @program[stmt].rule == :exprstmt && @program[expr].rule == :assign
         name = @program.lexeme(@program.arg(expr, 0))
-        @constants[name] = eval(@program.arg(expr, 2))
+        value = eval(@program.arg(expr, 2))
+        tick(@costs.store)
+        @constants[name] = value
+        tick(@costs.statement)
       else
         @frames << @constants
         begin
@@ -201,11 +224,15 @@ module CrystalRobots::Compiler
       @program.children(block).select { |i| @program.type(i) == Type::Statement }
     end
 
-    private def step : Nil
-      @steps += 1
-      raise StepLimit.new("step limit #{@step_limit} reached") if @steps > @step_limit
-      if (hook = @on_step)
-        hook.call
+    # Charge `n` cycles; the hook runs once per cycle so a scheduler sees
+    # every one of them.
+    private def tick(n : Int32) : Nil
+      n.times do
+        @steps += 1
+        raise StepLimit.new("step limit #{@step_limit} reached") if @steps > @step_limit
+        if (hook = @on_step)
+          hook.call
+        end
       end
     end
 
@@ -216,15 +243,19 @@ module CrystalRobots::Compiler
     # Execute one statement. Returns the value of an expression statement so
     # a function body can return its last expression.
     def exec(stmt : Int32) : Value?
-      step
       n = @program[stmt]
       case n.rule
       when :exprstmt
-        eval(@program.arg(stmt, 0))
+        value = eval(@program.arg(stmt, 0))
+        tick(@costs.statement)
+        value
       when :return
         kids = @program.children(stmt)
-        raise ReturnSignal.new(kids.size > 2 ? eval(kids[1]) : 0)
+        value = kids.size > 2 ? eval(kids[1]) : 0
+        tick(@costs.branch)
+        raise ReturnSignal.new(value)
       when :break
+        tick(@costs.branch)
         raise BreakSignal.new("break")
       when :if
         exec_if(stmt)
@@ -253,6 +284,7 @@ module CrystalRobots::Compiler
         when Type::IfHead, Type::ElsifHead
           break if taken
           taken = truthy?(eval(@program.arg(k, 1)))
+          tick(@costs.branch)
         when Type::ElseKeyword
           break if taken
           taken = true
@@ -269,8 +301,9 @@ module CrystalRobots::Compiler
       body = body_of(stmt)
       begin
         loop do
-          step # an empty loop body must still consume the step budget
-          break unless truthy?(eval(cond)) == while_true
+          test = truthy?(eval(cond)) == while_true
+          tick(@costs.branch) # an empty loop body must still consume the budget
+          break unless test
           body.each { |s| exec(s) }
         end
       rescue BreakSignal
@@ -289,6 +322,7 @@ module CrystalRobots::Compiler
         when Type::WhenHead
           break if done
           taken = eval(@program.arg(k, 1)) == subject
+          tick(@costs.branch)
           done = true if taken
         when Type::ElseKeyword
           break if done
@@ -308,15 +342,22 @@ module CrystalRobots::Compiler
       when :lex
         eval_leaf(i)
       when :literal
+        tick(@costs.fetch)
         @program.type(@program.arg(i, 0)) == Type::TrueKeyword ? 1 : 0
       when :paren
         eval(@program.arg(i, 1))
       when :neg
-        0 &- int(eval(@program.arg(i, 1)))
+        value = 0 &- int(eval(@program.arg(i, 1)))
+        tick(@costs.operator)
+        value
       when :mul, :add, :cmp, :eq, :and, :or
-        binop(@program.type(@program.arg(i, 1)), eval(@program.arg(i, 0)), eval(@program.arg(i, 2)))
+        value = binop(@program.type(@program.arg(i, 1)), eval(@program.arg(i, 0)), eval(@program.arg(i, 2)))
+        tick(@costs.operator)
+        value
       when :assign
-        assign(@program.lexeme(@program.arg(i, 0)), eval(@program.arg(i, 2)))
+        value = eval(@program.arg(i, 2))
+        tick(@costs.store)
+        assign(@program.lexeme(@program.arg(i, 0)), value)
       when :opassign
         name = @program.lexeme(@program.arg(i, 0))
         op = case @program.type(@program.arg(i, 1))
@@ -325,17 +366,24 @@ module CrystalRobots::Compiler
              when Type::MulAssign then Type::MulOperator
              else                      Type::ModOperator
              end
-        assign(name, binop(op, lookup(name), eval(@program.arg(i, 2))))
+        value = binop(op, lookup(name), eval(@program.arg(i, 2)))
+        tick(@costs.fetch + @costs.operator + @costs.store)
+        assign(name, value)
       when :call0
+        tick(@costs.builtin)
         builtin(@program.lexeme(i), [] of Value)
       when :call1, :command1, :call2, :command2
         kids = @program.children(i)
         args = kids[1..].reject { |k| {Type::OpenParen, Type::CloseParen, Type::Comma}.includes?(@program.type(k)) }
-        builtin(@program.lexeme(kids[0]), args.map { |k| eval(k) })
+        values = args.map { |k| eval(k) }
+        tick(@costs.builtin)
+        builtin(@program.lexeme(kids[0]), values)
       when :call
         kids = @program.children(i)
         args = kids[2..].reject { |k| {Type::CloseParen, Type::Comma}.includes?(@program.type(k)) }
-        call(@program.lexeme(kids[0]), args.map { |k| eval(k) })
+        values = args.map { |k| eval(k) }
+        tick(@costs.call)
+        call(@program.lexeme(kids[0]), values)
       else
         raise RuntimeError.new("cannot evaluate #{n.rule}")
       end
@@ -344,10 +392,16 @@ module CrystalRobots::Compiler
     private def eval_leaf(i : Int32) : Value
       n = @program[i]
       case n.type
-      when Type::Number     then @program.value(n).to_i32
-      when Type::String     then @program.value(n)[1...-1]
-      when Type::Identifier then identifier(@program.value(n))
+      when Type::Number
+        tick(@costs.fetch)
+        @program.value(n).to_i32
+      when Type::String
+        tick(@costs.fetch)
+        @program.value(n)[1...-1]
+      when Type::Identifier
+        identifier(@program.value(n))
       when Type::ZeroArgMethod
+        tick(@costs.builtin)
         builtin(@program.value(n), [] of Value)
       else
         raise RuntimeError.new("#{n.type} is not a value")
@@ -357,8 +411,14 @@ module CrystalRobots::Compiler
     # A bare identifier is a variable, a constant, or a call to a
     # zero-parameter function.
     private def identifier(name : String) : Value
-      return lookup(name) if defined?(name)
-      return call(name, [] of Value) if @functions.has_key?(name)
+      if defined?(name)
+        tick(@costs.fetch)
+        return lookup(name)
+      end
+      if @functions.has_key?(name)
+        tick(@costs.call) # a bare call is an FCALL, not a FETCH
+        return call(name, [] of Value)
+      end
       raise RuntimeError.new("undefined variable or function #{name}")
     end
 

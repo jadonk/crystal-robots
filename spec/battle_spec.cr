@@ -64,7 +64,12 @@ describe CrystalRobots::Battle do
     f.robots.each { |r| r.active = true }
     f.place(0, 100, 100)
     f.place(1, 300, 100)
-    f.cannon(a, 0, 200).should eq 1
+    f.cannon(a, 45, 200).should eq 1
+    a.cannon_dir.should eq 45
+    a.fired.should be_true
+    a.state.cannon.should eq 45
+    a.cannon_dir = 0 # keep the rest of the test on the x axis
+    a.missiles[0].head = 0
     f.cannon(a, 0, 200).should eq 0 # reloading
     a.reload.should eq B::RELOAD
     4.times { f.move_missiles }

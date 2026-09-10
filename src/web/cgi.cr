@@ -13,18 +13,65 @@ require "../battle/field"
 
 module CrystalRobots::Web
   # The example robots, embedded at compile time so the CGI needs no
-  # filesystem access. Order is the order they are listed.
-  EXAMPLES = {
-    "counter" => {{ read_file("#{__DIR__}/../../examples/counter.cr") }},
-    "rabbit"  => {{ read_file("#{__DIR__}/../../examples/rabbit.cr") }},
-    "rook"    => {{ read_file("#{__DIR__}/../../examples/rook.cr") }},
-    "sniper"  => {{ read_file("#{__DIR__}/../../examples/sniper.cr") }},
-    "target"  => {{ read_file("#{__DIR__}/../../examples/target.cr") }},
-    "test"    => {{ read_file("#{__DIR__}/../../examples/test.cr") }},
-  }
+  # filesystem access. The list is whatever `examples/*.cr` holds when the
+  # binary is built, in name order.
+  EXAMPLES = {% begin %}
+    {
+      {% for file in `ls examples/*.cr`.split.sort %}
+        {{ file.split("/").last.gsub(/\.cr$/, "") }} => {{ read_file(file) }},
+      {% end %}
+    }
+  {% end %}
+
+  # Robots saved as Fossil wiki pages. A page named `robot/<name>` holds
+  # Markdown with exactly one fenced code block, which is the robot source.
+  # Pages are read through the fossil binary with the CGI variables
+  # scrubbed, so fossil does not mistake the call for a CGI request.
+  class WikiRobots
+    PREFIX = "robot/"
+    FENCE  = /^(`{3,})[^\n]*\n(.*?)\n\1[ \t]*$/m
+
+    alias Lister = -> Array(String)
+    alias Reader = String -> String?
+
+    getter names : Array(String)
+
+    def initialize(@list : Lister, @read : Reader)
+      @names = @list.call.select(&.starts_with?(PREFIX)).map { |page| page[PREFIX.size..] }.sort
+    end
+
+    # The deployed repository, if Fossil told us where it is.
+    def self.for_repository(repository : String?) : WikiRobots
+      if repository && File.exists?(repository)
+        new(-> { fossil(["wiki", "list", "-R", repository]).lines.map(&.strip) },
+          ->(name : String) : String? { fossil(["wiki", "export", PREFIX + name, "-R", repository]) })
+      else
+        new(-> { [] of String }, ->(name : String) : String? { nil })
+      end
+    end
+
+    # The source of the robot, or nil if the page has no single fence.
+    def source(name : String) : String?
+      return nil unless @names.includes?(name)
+      page = @read.call(name)
+      return nil unless page
+      fences = page.scan(FENCE)
+      return nil unless fences.size == 1
+      fences[0][2]
+    end
+
+    private def self.fossil(args : Array(String)) : String
+      output = IO::Memory.new
+      scrub = {"GATEWAY_INTERFACE" => nil, "PATH_INFO" => nil, "QUERY_STRING" => nil, "REQUEST_METHOD" => nil,
+               "CONTENT_LENGTH" => nil, "SCRIPT_NAME" => nil, "HTTP_COOKIE" => nil}
+      Process.run("fossil", args, env: scrub, output: output, error: Process::Redirect::Close)
+      output.to_s
+    end
+  end
 
   class CGI
     getter env : Hash(String, String)
+    property wiki : WikiRobots { WikiRobots.for_repository(env["FOSSIL_REPOSITORY"]?) }
 
     def initialize(@env : Hash(String, String) = ENV.to_h, @out : IO = STDOUT, @in : IO = STDIN)
     end
@@ -155,6 +202,13 @@ module CrystalRobots::Web
         else
           not_found
         end
+      when /\Awiki\/(.+)\z/
+        name = URI.decode($1)
+        if (src = wiki.source(name))
+          reply(example_page(name, src))
+        else
+          not_found
+        end
       else
         not_found
       end
@@ -205,6 +259,10 @@ module CrystalRobots::Web
         EXAMPLES.each_key do |name|
           md << "- [#{name}.cr](#{base}/examples/#{name})\n"
         end
+        unless wiki.names.empty?
+          md << "\n## Saved robots\n\nWiki pages named `robot/<name>` whose one code block is the robot.\n\n"
+          wiki.names.each { |name| md << "- [#{inline(name)}](#{base}/wiki/#{URI.encode_path_segment(name)}) ([page](/wiki?name=#{URI.encode_www_form(WikiRobots::PREFIX + name)}))\n" }
+        end
         md << "\n## Battle\n\n[Pick robots and fight](#{base}/battle) on the CROBOTS battlefield.\n"
         md << "\n## Parse your own\n\n"
         md << "<form method=\"post\" action=\"#{form_base}/parse\">\n"
@@ -250,12 +308,14 @@ module CrystalRobots::Web
     def battle_page : String
       q = query
       names = q.fetch_all("r").select { |n| EXAMPLES.has_key?(n) }.first(4)
+      saved = q.fetch_all("w").select { |n| wiki.names.includes?(n) }.first(4)
       pasted = (q["src"]? || "").strip
       pasted = "" if pasted.size > PASTE_LIMIT
-      return battle_form if names.empty? && pasted.empty?
+      return battle_form if names.empty? && saved.empty? && pasted.empty?
       seed = (q["seed"]?.try(&.to_u64?) || 1_u64)
       limit = (q["limit"]?.try(&.to_i64?) || WEB_CYCLE_LIMIT).clamp(MOTION_STEP, WEB_CYCLE_MAX)
       entries = names.map { |n| {n, EXAMPLES[n]} }
+      saved.each { |n| entries << {n, wiki.source(n) || "# robot/#{n} has no single code block\n"} }
       entries.unshift({"yours", pasted}) unless pasted.empty?
       entries = entries.first(4)
       entries << entries[0] if entries.size == 1 # CROBOTS clones a lone robot
@@ -264,7 +324,7 @@ module CrystalRobots::Web
       frame_count = field.frames.size
       frame = (q["frame"]?.try(&.to_i?) || frame_count - 1).clamp(0, frame_count - 1)
       fps = (q["fps"]?.try(&.to_i?) || ANIM_FPS).clamp(1, ANIM_FPS_MAX)
-      render_battle(field, names, pasted, seed, limit, frame, fps)
+      render_battle(field, names, pasted, seed, limit, frame, fps, saved)
     end
 
     private MOTION_STEP = Battle::MOTION_CYCLES.to_i64
@@ -278,6 +338,12 @@ module CrystalRobots::Web
           checked = {"counter", "rabbit"}.includes?(name) ? " checked" : ""
           md << "<label><input type=\"checkbox\" name=\"r\" value=\"#{name}\"#{checked}> #{name}</label><br>\n"
         end
+        unless wiki.names.empty?
+          md << "<p>Saved robots (wiki pages <code>robot/&lt;name&gt;</code>):</p>\n"
+          wiki.names.each do |name|
+            md << "<label><input type=\"checkbox\" name=\"w\" value=\"#{HTML.escape(name)}\"> #{HTML.escape(name)}</label><br>\n"
+          end
+        end
         md << "<p>Or paste your own robot (it fights as <b>yours</b>):</p>\n"
         md << "<textarea name=\"src\" rows=\"10\" cols=\"70\" maxlength=\"#{PASTE_LIMIT}\"></textarea><br>\n"
         md << "<label>Seed <input type=\"number\" name=\"seed\" value=\"1\" min=\"0\"></label>\n"
@@ -287,13 +353,14 @@ module CrystalRobots::Web
       end
     end
 
-    def battle_link(names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32, fps : Int32 = ANIM_FPS) : String
+    def battle_link(names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32, fps : Int32 = ANIM_FPS, saved : Array(String) = [] of String) : String
       params = names.map { |n| "r=#{n}" }
+      saved.each { |n| params << "w=#{URI.encode_www_form(n)}" }
       params << "src=#{URI.encode_www_form(pasted)}" unless pasted.empty?
       "#{link_base}/battle?#{params.join("&")}&seed=#{seed}&limit=#{limit}&fps=#{fps}&frame=#{frame}"
     end
 
-    def render_battle(field : Battle::Field, names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32, fps : Int32 = ANIM_FPS) : String
+    def render_battle(field : Battle::Field, names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32, fps : Int32 = ANIM_FPS, saved : Array(String) = [] of String) : String
       f = field.frames[frame]
       last = field.frames.size - 1
       seconds = (field.frames.size.to_f / fps).round(1)
@@ -304,15 +371,15 @@ module CrystalRobots::Web
         md << svg_animation(field, fps) << "\n\n"
         md << "## Frame #{frame + 1} of #{last + 1} (cycle #{f.cycle})\n\n"
         nav = [] of String
-        nav << "[first](#{battle_link(names, pasted, seed, limit, 0, fps)})" if frame > 0
-        nav << "[previous](#{battle_link(names, pasted, seed, limit, frame - 1, fps)})" if frame > 0
-        nav << "[next](#{battle_link(names, pasted, seed, limit, frame + 1, fps)})" if frame < last
-        nav << "[last](#{battle_link(names, pasted, seed, limit, last, fps)})" if frame < last
+        nav << "[first](#{battle_link(names, pasted, seed, limit, 0, fps, saved)})" if frame > 0
+        nav << "[previous](#{battle_link(names, pasted, seed, limit, frame - 1, fps, saved)})" if frame > 0
+        nav << "[next](#{battle_link(names, pasted, seed, limit, frame + 1, fps, saved)})" if frame < last
+        nav << "[last](#{battle_link(names, pasted, seed, limit, last, fps, saved)})" if frame < last
         md << nav.join(" · ") << "\n\n" unless nav.empty?
         md << "```pikchr\n" << pikchr_frame(f, field.frames[0..frame]) << "```\n\n"
-        md << "| Robot | x | y | heading | speed | damage | scan |\n| --- | --- | --- | --- | --- | --- | --- |\n"
+        md << "| Robot | x | y | heading | speed | damage | scan | cannon |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n"
         f.robots.each do |r|
-          md << "| #{r.name} | #{r.x // Battle::CLICK} | #{r.y // Battle::CLICK} | #{r.heading} | #{r.speed} | #{r.damage}% | #{r.scan} |\n"
+          md << "| #{r.name} | #{r.x // Battle::CLICK} | #{r.y // Battle::CLICK} | #{r.heading} | #{r.speed} | #{r.damage}% | #{r.scan} | #{r.fired ? r.cannon : "-"} |\n"
         end
         md << "\n## Result\n\n"
         if (w = field.winner)
@@ -364,15 +431,30 @@ module CrystalRobots::Web
           svg << %(">\n)
           svg << animate("stroke-dashoffset", lengths.map { |l| (total - l).round(1) }.join(';'), key_times, dur, "linear")
           svg << "</polyline>\n"
-          svg << %(<circle r="14" fill="#{color}" stroke="#000" stroke-width="2">\n)
-          svg << animate("cx", xs.join(';'), key_times, dur, "linear")
-          svg << animate("cy", ys.join(';'), key_times, dur, "linear")
+          # the robot: one group translated along the path; inside it the
+          # body, the nose (drive heading), the scanner sweep and the cannon
+          # barrel rotate about the centre. Screen y points down, so a
+          # heading of h degrees is a rotation of -h.
+          svg << %(<g>\n)
+          svg << animate_transform("translate", xs.each_with_index.map { |x, k| "#{x} #{ys[k]}" }.join(';'), key_times, dur, "linear")
           svg << animate("opacity", alive.join(';'), key_times, dur, "discrete")
-          svg << "</circle>\n"
-          svg << %(<text font-size="30" font-family="sans-serif" text-anchor="middle" fill="#222">#{HTML.escape(robot.name)}\n)
-          svg << animate("x", xs.join(';'), key_times, dur, "linear")
-          svg << animate("y", ys.map { |y| y - 24 }.join(';'), key_times, dur, "linear")
-          svg << "</text>\n"
+          scans = frames.map { |f| -f.robots[i].scan }
+          svg << %(<line x1="0" y1="0" x2="160" y2="0" stroke="#{color}" stroke-opacity="0.45" stroke-width="2" stroke-dasharray="6 6">\n)
+          svg << animate_transform("rotate", scans.join(';'), key_times, dur, "discrete")
+          svg << "</line>\n"
+          svg << %(<circle r="14" fill="#{color}" stroke="#000" stroke-width="2"/>\n)
+          headings = unwrap(frames.map { |f| -f.robots[i].heading })
+          svg << %(<line x1="0" y1="0" x2="30" y2="0" stroke="#000" stroke-width="4" stroke-linecap="round">\n)
+          svg << animate_transform("rotate", headings.join(';'), key_times, dur, "linear")
+          svg << "</line>\n"
+          cannons = frames.map { |f| -f.robots[i].cannon }
+          shown = frames.map { |f| f.robots[i].fired ? "1" : "0" }
+          svg << %(<line x1="0" y1="0" x2="26" y2="0" stroke="#d00" stroke-width="6" stroke-linecap="butt">\n)
+          svg << animate_transform("rotate", cannons.join(';'), key_times, dur, "discrete")
+          svg << animate("opacity", shown.join(';'), key_times, dur, "discrete")
+          svg << "</line>\n"
+          svg << %(<text y="-24" font-size="30" font-family="sans-serif" text-anchor="middle" fill="#222">#{HTML.escape(robot.name)}</text>\n)
+          svg << "</g>\n"
         end
         field.robots.each_index do |owner|
           Battle::MIS_ROBOT.times do |slot|
@@ -413,6 +495,27 @@ module CrystalRobots::Web
       %(<animate attributeName="#{attr}" values="#{values}" keyTimes="#{key_times}" dur="#{dur}" calcMode="#{mode}" repeatCount="indefinite"/>\n)
     end
 
+    private def animate_transform(type : String, values : String, key_times : String, dur : String, mode : String) : String
+      %(<animateTransform attributeName="transform" type="#{type}" values="#{values}" keyTimes="#{key_times}" dur="#{dur}" calcMode="#{mode}" repeatCount="indefinite"/>\n)
+    end
+
+    # Angles for linear interpolation: each step takes the short way round,
+    # so a turn from 350 to 10 does not spin backwards through 180.
+    def unwrap(angles : Array(Int32)) : Array(Int32)
+      out_angles = [] of Int32
+      running = 0
+      angles.each_with_index do |a, k|
+        if k == 0
+          running = a
+        else
+          d = (a - angles[k - 1]) % 360 # floored: 0..359
+          running += d > 180 ? d - 360 : d
+        end
+        out_angles << running
+      end
+      out_angles
+    end
+
     # One frame of the field as a Pikchr diagram: 4 inches for 1000 meters,
     # with each robot's trail over the frames so far.
     def pikchr_frame(f : Battle::Frame, history : Array(Battle::Frame) = [f]) : String
@@ -434,9 +537,17 @@ module CrystalRobots::Web
           color = r.active ? ROBOT_COLORS[i % ROBOT_COLORS.size] : "0xAAAAAA"
           pik << "R#{i}: circle rad 0.07 fill #{color} color black at F.sw + (#{x}, #{y})\n"
           if r.active
+            sx = (0.6 * Battle.lcos(r.scan) / 100000.0).round(3)
+            sy = (0.6 * Battle.lsin(r.scan) / 100000.0).round(3)
+            pik << "line from R#{i} to R#{i} + (#{sx}, #{sy}) thin dotted color #{color}\n"
             dx = (0.25 * Battle.lcos(r.heading) / 100000.0).round(3)
             dy = (0.25 * Battle.lsin(r.heading) / 100000.0).round(3)
-            pik << "line from R#{i} to R#{i} + (#{dx}, #{dy}) thick color #{color}\n"
+            pik << "line from R#{i} to R#{i} + (#{dx}, #{dy}) thick color black\n"
+            if r.fired
+              cx = (0.2 * Battle.lcos(r.cannon) / 100000.0).round(3)
+              cy = (0.2 * Battle.lsin(r.cannon) / 100000.0).round(3)
+              pik << "line from R#{i} to R#{i} + (#{cx}, #{cy}) thick color red\n"
+            end
           end
           label = r.active ? "#{r.name} #{r.damage}%" : "#{r.name} X"
           pik << "text \"#{label}\" small at R#{i}.n + (0, 0.12)\n"
