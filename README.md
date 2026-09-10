@@ -56,8 +56,10 @@ fossil server crystal-robots.fossil --extroot /path/to/extroot --port 8080
 ```
 
 Then browse to `http://localhost:8080/ext/crystal-robots/`: pick example robots or
-paste your own, run a seeded match, watch the replay, and step through its
-frames drawn in Pikchr with each robot's trail.
+paste your own, run a seeded match, watch the replay at a chosen pace
+(cycles per second, 300 by default, roughly the original curses display),
+step through its frames drawn in Pikchr with each robot's trail, or run a
+series of matches for a score table like `crobots -m`.
 
 To keep a robot, create a wiki page named `robot/<name>` whose Markdown
 contains exactly one fenced code block; that block is the robot. It then

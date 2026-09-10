@@ -148,12 +148,27 @@ describe CrystalRobots::Web::CGI do
     end
   end
 
-  it "plays the replay at a chosen frame rate with growing trails" do
-    page = run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000&fps=10")
-    page.should contain "frames at 10 per second"
+  it "plays the replay at a chosen pace in cycles per second with growing trails" do
+    page = run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000&cps=100")
+    page.should contain "replay at 100 cycles per second (30.0 s)"
+    page.should contain "dur=\"30.0s\""
     page.should contain "stroke-dashoffset"
-    page.should contain "&fps=10&frame="
-    run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000&fps=99999").should contain "frames at 120 per second"
+    page.should contain "&cps=100&frame="
+    run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000&cps=99999").should contain "replay at 20000 cycles per second"
+    run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000").should contain "replay at 300 cycles per second (10.0 s)"
+  end
+
+  it "runs a series of matches with a score table like crobots -m" do
+    page = run_cgi("o", "/battle", "GET", "r=counter&r=rabbit&seed=4&limit=3000&matches=3")
+    page.should contain "# Series: counter vs rabbit"
+    page.should contain "seeds 4 to 6"
+    page.should contain "| counter |"
+    page.lines.count { |l| l.starts_with?("| 1 |") || l.starts_with?("| 2 |") || l.starts_with?("| 3 |") }.should eq 3
+    page.should contain "[replay](/ext/robots/battle?r=counter&r=rabbit&seed=5&limit=3000&cps=300&frame=0)"
+    # the series work cap trims the number of matches
+    capped = run_cgi("o", "/battle", "GET", "r=counter&r=rabbit&seed=4&limit=500000&matches=10")
+    capped.should contain "1 matches"
+    capped.should contain "9 more dropped"
   end
 
   it "offers robots saved as wiki pages and battles them" do

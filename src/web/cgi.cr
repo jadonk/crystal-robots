@@ -359,12 +359,19 @@ module CrystalRobots::Web
       end
     end
 
-    WEB_CYCLE_LIMIT = 100_000_i64
+    WEB_CYCLE_LIMIT =  60_000_i64 # about three minutes of replay at the default pace
     WEB_CYCLE_MAX   = 500_000_i64
     ROBOT_COLORS    = ["0x4C97FF", "0xFF8C1A", "0x59C059", "0xFFAB19"]
     ANIM_FRAMES     = 400 # keyframes recorded per match; SMIL interpolates between them
-    ANIM_FPS        =  20 # recorded frames played per second by default (`fps=`)
-    ANIM_FPS_MAX    = 120
+    # Replay pace in CROBOTS cycles per second (`cps=`). At 300 a motion
+    # update lands every 50 ms: a robot at full speed crosses the field in
+    # about seven seconds and a missile covers its 700 m range in under a
+    # second, which is the feel of the original curses display.
+    ANIM_CPS     =    300
+    ANIM_CPS_MAX = 20_000
+    # A series like `crobots -m`: seeds seed, seed+1, ... with a total work cap.
+    MATCHES_MAX      =          10
+    SERIES_CYCLE_MAX = 600_000_i64
 
     # `GET /battle` without robots shows the form; with `r=` parameters it
     # runs one seeded match and renders a frame of it in Pikchr.
@@ -382,12 +389,17 @@ module CrystalRobots::Web
       entries.unshift({"yours", pasted}) unless pasted.empty?
       entries = entries.first(4)
       entries << entries[0] if entries.size == 1 # CROBOTS clones a lone robot
+      matches = (q["matches"]?.try(&.to_i?) || 1).clamp(1, MATCHES_MAX)
+      if matches > 1
+        allowed = Math.min(matches, (SERIES_CYCLE_MAX // limit).to_i32).clamp(1, MATCHES_MAX)
+        return series_page(entries, names, saved, pasted, seed, limit, allowed, matches - allowed)
+      end
       field = Battle::Field.new(entries, seed: seed, limit: limit, max_frames: ANIM_FRAMES)
       field.run
       frame_count = field.frames.size
       frame = (q["frame"]?.try(&.to_i?) || frame_count - 1).clamp(0, frame_count - 1)
-      fps = (q["fps"]?.try(&.to_i?) || ANIM_FPS).clamp(1, ANIM_FPS_MAX)
-      render_battle(field, names, pasted, seed, limit, frame, fps, saved)
+      cps = (q["cps"]?.try(&.to_i?) || ANIM_CPS).clamp(1, ANIM_CPS_MAX)
+      render_battle(field, names, pasted, seed, limit, frame, cps, saved)
     end
 
     private MOTION_STEP = Battle::MOTION_CYCLES.to_i64
@@ -417,33 +429,34 @@ module CrystalRobots::Web
         md << "<textarea name=\"src\" rows=\"10\" cols=\"70\" maxlength=\"#{PASTE_LIMIT}\"></textarea><br>\n"
         md << "<label>Seed <input type=\"number\" name=\"seed\" value=\"1\" min=\"0\"></label>\n"
         md << "<label>Cycle limit <input type=\"number\" name=\"limit\" value=\"#{WEB_CYCLE_LIMIT}\" min=\"#{MOTION_STEP}\" max=\"#{WEB_CYCLE_MAX}\"></label>\n"
-        md << "<label>Replay frames per second <input type=\"number\" name=\"fps\" value=\"#{ANIM_FPS}\" min=\"1\" max=\"#{ANIM_FPS_MAX}\"></label>\n"
+        md << "<label>Replay speed, cycles per second <input type=\"number\" name=\"cps\" value=\"#{ANIM_CPS}\" min=\"1\" max=\"#{ANIM_CPS_MAX}\"></label>\n"
+        md << "<label>Matches <input type=\"number\" name=\"matches\" value=\"1\" min=\"1\" max=\"#{MATCHES_MAX}\"></label> (more than one gives a score table like <code>crobots -m</code>, seeds counting up from the seed)\n"
         md << "<button type=\"submit\">Fight</button>\n</form>\n"
       end
     end
 
-    def battle_link(names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32, fps : Int32 = ANIM_FPS, saved : Array(String) = [] of String) : String
+    def battle_link(names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32, cps : Int32 = ANIM_CPS, saved : Array(String) = [] of String) : String
       params = names.map { |n| "r=#{n}" }
       saved.each { |n| params << "w=#{URI.encode_www_form(n)}" }
       params << "src=#{URI.encode_www_form(pasted)}" unless pasted.empty?
-      "#{link_base}/battle?#{params.join("&")}&seed=#{seed}&limit=#{limit}&fps=#{fps}&frame=#{frame}"
+      "#{link_base}/battle?#{params.join("&")}&seed=#{seed}&limit=#{limit}&cps=#{cps}&frame=#{frame}"
     end
 
-    def render_battle(field : Battle::Field, names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32, fps : Int32 = ANIM_FPS, saved : Array(String) = [] of String) : String
+    def render_battle(field : Battle::Field, names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32, cps : Int32 = ANIM_CPS, saved : Array(String) = [] of String) : String
       f = field.frames[frame]
       last = field.frames.size - 1
-      seconds = (field.frames.size.to_f / fps).round(1)
+      seconds = (field.cycles.to_f / cps).round(1)
       String.build do |md|
         md << "# Battle: #{field.robots.map { |r| inline(r.name) }.join(" vs ")}\n\n"
         md << "[Pick again](#{link_base}/battle) · seed #{seed} · limit #{limit} · #{field.cycles} cycles run · "
-        md << "#{field.frames.size} frames at #{fps} per second (#{seconds} s), looping\n\n"
-        md << svg_animation(field, fps) << "\n\n"
+        md << "replay at #{cps} cycles per second (#{seconds} s), looping\n\n"
+        md << svg_animation(field, cps) << "\n\n"
         md << "## Frame #{frame + 1} of #{last + 1} (cycle #{f.cycle})\n\n"
         nav = [] of String
-        nav << "[first](#{battle_link(names, pasted, seed, limit, 0, fps, saved)})" if frame > 0
-        nav << "[previous](#{battle_link(names, pasted, seed, limit, frame - 1, fps, saved)})" if frame > 0
-        nav << "[next](#{battle_link(names, pasted, seed, limit, frame + 1, fps, saved)})" if frame < last
-        nav << "[last](#{battle_link(names, pasted, seed, limit, last, fps, saved)})" if frame < last
+        nav << "[first](#{battle_link(names, pasted, seed, limit, 0, cps, saved)})" if frame > 0
+        nav << "[previous](#{battle_link(names, pasted, seed, limit, frame - 1, cps, saved)})" if frame > 0
+        nav << "[next](#{battle_link(names, pasted, seed, limit, frame + 1, cps, saved)})" if frame < last
+        nav << "[last](#{battle_link(names, pasted, seed, limit, last, cps, saved)})" if frame < last
         md << nav.join(" · ") << "\n\n" unless nav.empty?
         md << "```pikchr\n" << pikchr_frame(f, field.frames[0..frame]) << "```\n\n"
         md << "| Robot | x | y | heading | speed | damage | scan | cannon |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n"
@@ -471,17 +484,55 @@ module CrystalRobots::Web
       end
     end
 
+    # `crobots -m`: several seeded matches and a cumulative score, each
+    # match linking to its own replay.
+    def series_page(entries : Array({String, String}), names : Array(String), saved : Array(String), pasted : String, seed : UInt64, limit : Int64, matches : Int32, trimmed : Int32 = 0) : String
+      wins = Array(Int32).new(entries.size, 0)
+      ties = Array(Int32).new(entries.size, 0)
+      rows = [] of String
+      matches.times do |m|
+        s = seed + m
+        field = Battle::Field.new(entries, seed: s, limit: limit, max_frames: 2)
+        field.run
+        survivors = field.active
+        field.robots.each_with_index do |r, i|
+          next unless r.active
+          survivors.size == 1 ? (wins[i] += 1) : (ties[i] += 1)
+        end
+        outcome = if (w = field.winner)
+                    "#{inline(w.name)} wins"
+                  elsif survivors.empty?
+                    "mutual destruction"
+                  else
+                    "limit: #{survivors.map { |r| inline(r.name) }.join(", ")} survive"
+                  end
+        damage = field.robots.map { |r| "#{inline(r.name)} #{r.error ? "failed" : "#{r.damage}%"}" }.join(", ")
+        replay = battle_link(names, pasted, s, limit, 0, ANIM_CPS, saved)
+        rows << "| #{m + 1} | #{s} | #{field.cycles} | #{outcome} | #{damage} | [replay](#{replay}) |"
+      end
+      String.build do |md|
+        md << "# Series: #{entries.map { |(n, _)| inline(n) }.join(" vs ")}\n\n"
+        md << "[Pick again](#{link_base}/battle) · #{matches} matches · seeds #{seed} to #{seed + matches - 1} · limit #{limit} cycles each"
+        md << " · #{trimmed} more dropped to keep the series under #{SERIES_CYCLE_MAX} cycles; lower the limit for more matches" if trimmed > 0
+        md << "\n\n"
+        md << "## Score\n\n| Robot | Wins | Ties |\n| --- | --- | --- |\n"
+        entries.each_with_index { |(n, _), i| md << "| #{inline(n)} | #{wins[i]} | #{ties[i]} |\n" }
+        md << "\n## Matches\n\n| # | Seed | Cycles | Outcome | Damage | |\n| --- | --- | --- | --- | --- | --- |\n"
+        rows.each { |row| md << row << "\n" }
+      end
+    end
+
     # The whole match as one SVG with native (SMIL) animation: no script,
     # so it works under Fossil's content security policy. Positions are
     # keyframes at each recorded frame, interpolated linearly in between;
     # missiles switch discretely. Fossil passes raw HTML blocks through.
-    def svg_animation(field : Battle::Field, fps : Int32 = ANIM_FPS) : String
+    def svg_animation(field : Battle::Field, cps : Int32 = ANIM_CPS) : String
       frames = field.frames
-      steps = Math.max(1, frames.size - 1)
-      # every recorded frame gets the same screen time, so playback speed is
-      # frames per second regardless of how long the match ran
-      key_times = frames.each_index.map { |k| (k.to_f / steps).round(5) }.join(';')
-      dur = "#{(frames.size.to_f / fps).round(3)}s"
+      total = Math.max(1_i64, frames.last.cycle)
+      # screen time is proportional to cycles, so the pace is a fixed number
+      # of CROBOTS cycles per second however many frames were recorded
+      key_times = frames.map { |f| (f.cycle.to_f / total).round(5) }.join(';')
+      dur = "#{(total.to_f / cps).round(3)}s"
       String.build do |svg|
         svg << %(<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -30 1060 1060" width="520" height="520" role="img" aria-label="battle replay">\n)
         svg << %(<rect x="0" y="0" width="1000" height="1000" fill="#f4f4f0" stroke="#888" stroke-width="3"/>\n)
