@@ -237,6 +237,13 @@ subset and a port of the CROBOTS manual sections, published by the existing
   `.fossil-settings/ignore-glob`.
 - Optional: keep the GitHub mirror alive with `fossil git export`.
 - `ameba` lint, GPL headers, version bump, installation and usage sections.
+- `.gitignore` ignores `/docs/` (the old `crystal docs` output dir), which
+  would hide `docs/PLAN.md` and `docs/PARSER.md` from a git mirror. Point
+  `crystal docs` at another directory and drop that rule when the ignore
+  rules move to `.fossil-settings/ignore-glob`.
+- Preview builds: `agent-tool session-preview` needs the session binding
+  from the primary repository, so it runs on the host (Thread UI button or
+  the coordinator), not from inside the sandboxed session checkout.
 
 ## 4. Parser architecture: decided
 
