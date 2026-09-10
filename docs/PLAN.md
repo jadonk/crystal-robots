@@ -27,7 +27,15 @@ compiler work is fixed alongside the migration, not after it.
 | 2026-09-10 | Phase 2 remainder: `Compiler::Checker` reports undefined names, call arity, misplaced `return`/`break` and duplicate `def` with locations; the battlefield, `-t`, `-i` and the web pages use it |
 | 2026-09-10 | Battle page takes a pasted robot ("yours") and draws each robot's trail over the frames so far |
 
-Spec suite: 62 examples green with `-Dwasmer`.
+| 2026-09-10 | Phase 4 done: the WASM emitter covers globals, constants, locals, user functions of any arity, if/elsif/else, while/until/break, case/when, all builtins as `env` imports, floored `//` and `%` with CROBOTS's divide-by-zero-is-zero; every example compiles; differential specs run three terminating robots under wasmer and the interpreter with the same scripted host and compare output and builtin call logs |
+
+Spec suite: 69 examples green with `-Dwasmer`.
+
+Interpreter and WASM agree by construction on: floored division, division
+by zero yielding 0 (as CROBOTS), logical `&&`/`||` evaluating both sides
+and yielding 0/1, implicit function return being the last expression
+statement executed with loops resetting it to 0. Strings are rejected by
+the WASM emitter (`puts "text"`), which the examples never use.
 
 Deliberate deviation from CROBOTS: the scanner normalizes both angles in
 the wrap-around branch, so a scan at 359 sees a robot at 0 as the manual
@@ -267,9 +275,10 @@ operator-precedence variant) is dropped.
 
 ## 5. Immediate next steps
 
-1. Phase 4 remainder: variables, functions and control flow in the WASM
-   emitter, wasmer-hosted robots bound to the same `Host`, then the
-   differential spec against the interpreter.
+1. WASM robots on the battlefield: needs instruction-level interleaving,
+   which the wasmer shard cannot provide without metering; options are
+   the emitter inserting a yield import every statement, or one match per
+   wasm robot at motion-cycle granularity. Decide before building.
 2. Phase 5 polish: saved robots (Fossil-backed) instead of the pasted
    source travelling in the query string.
 3. Phase 7 migration items.

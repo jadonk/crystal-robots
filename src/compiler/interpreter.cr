@@ -393,11 +393,9 @@ module CrystalRobots::Compiler
       when Type::SubOperator then a &- b
       when Type::MulOperator then a &* b
       when Type::FloorDivOperator, Type::DivOperator
-        raise RuntimeError.new("division by zero") if b == 0
-        a // b
+        b == 0 ? 0 : a // b # CROBOTS returns 0 on division by zero
       when Type::ModOperator
-        raise RuntimeError.new("division by zero") if b == 0
-        a % b
+        b == 0 ? 0 : a % b
       when Type::EqOperator  then a == b ? 1 : 0
       when Type::NeOperator  then a != b ? 1 : 0
       when Type::LtOperator  then a < b ? 1 : 0

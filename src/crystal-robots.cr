@@ -356,11 +356,9 @@ module CrystalRobots
       end
       parser.on "-t ROBOT", "--trace=ROBOT", "Print the parser derivation of ROBOT, one line per pass" do |robot|
         @robot_to_trace = robot
-        parser.stop
       end
-      parser.on "-c ROBOT", "--compile=ROBOT", "Compile robot source only and output WebAssembly (WASM)" do |robot|
+      parser.on "-c ROBOT", "--compile=ROBOT", "Compile robot source only and output WebAssembly (WASM); see -o" do |robot|
         @robot_to_compile = robot
-        parser.stop
       end
       parser.on "-o OUTFILE", "--output=OUTFILE", "Write compiled robot to OUTFILE" do |outfile|
         @outfile = outfile

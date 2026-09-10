@@ -34,7 +34,7 @@ later, battles) needs the wasmer runtime; see Development below.
 bin/crystal-robots -t examples/counter.cr           # print the parser derivation, one line per pass
 bin/crystal-robots -i -l 5000 examples/counter.cr   # run robots in the interpreter, 5000 steps each
 bin/crystal-robots -m 3 -l 100000 --seed 7 examples/counter.cr examples/rabbit.cr   # three seeded matches
-bin/crystal-robots -c examples/test.cr -o test.wasm # compile a robot to WebAssembly
+bin/crystal-robots -c examples/sniper.cr -o sniper.wasm # compile a robot to WebAssembly (imports env.scan, env.cannon, ...)
 GATEWAY_INTERFACE=CGI/1.1 bin/crystal-robots        # serve the web app (Fossil does this for you)
 ```
 

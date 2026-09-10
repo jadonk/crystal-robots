@@ -239,32 +239,40 @@ describe CrystalRobots do
           0,                      # export kind
           1,                      # export func index
           10,                     # section "Code" - section code
-          8,                      # section size
+          11,                     # section size
           1,                      # num functions
-          6,                      # function body 0 - func body size
+          9,                      # function body 0 - func body size
           0,                      # local decl count
           0x41,                   # i32.const
           42,                     # i32 literal
           0x10,                   # call
-          0,                      # function index
+          0,                      # function index (env.puts)
+          0x1a,                   # drop the value puts returned
+          0x41,                   # i32.const
+          0,                      # run returns 0
           0x0b,                   # end
         ]
       end
 
       it "emits integer expressions" do
         f = C.compile_to_wasm("puts 1+2")
-        f[-8..].should eq Bytes[0x41, 1, 0x41, 2, 0x6a, 0x10, 0, 0x0b]
+        f[-11..].should eq Bytes[0x41, 1, 0x41, 2, 0x6a, 0x10, 0, 0x1a, 0x41, 0, 0x0b]
       end
 
       it "encodes negative constants" do
         f = C.compile_to_wasm("puts -1")
-        f[-8..].should eq Bytes[0x41, 0, 0x41, 1, 0x6b, 0x10, 0, 0x0b]
+        f[-11..].should eq Bytes[0x41, 0, 0x41, 1, 0x6b, 0x10, 0, 0x1a, 0x41, 0, 0x0b]
       end
 
       it "rejects what it cannot emit yet" do
-        expect_raises(C::WASM_Emitter::Unsupported) do
-          C.compile_to_wasm("x = 1")
+        expect_raises(C::WASM_Emitter::Unsupported, /strings/) do
+          C.compile_to_wasm("puts \"text\"")
         end
+      end
+
+      it "gives functions with many parameters their own type" do
+        f = C.compile_to_wasm("def f(a, b, c)\n  a + b + c\nend\nputs f(1, 2, 3)")
+        f[8, 4].should eq Bytes[1, 26, 5, 0x60] # type section with a fifth entry
       end
 
       wasmer_it "test function should load the emitted WASM" do
