@@ -148,9 +148,14 @@ module CrystalRobots::Compiler
       Parser.parse(@program)
     end
 
-    # More passes than this and the input is not a robot program; it stops
-    # a pathological source from monopolizing a CGI request.
+    # Work budgets. Every pass re-emits the glyphs it did not reduce, so the
+    # total number of glyphs emitted is the parser's cost; a long operator
+    # chain reduces one glyph per pass and would otherwise cost the square of
+    # its length. CROBOTS capped a robot at 1000 machine instructions; two
+    # million glyphs is a few hundred passes over a robot several times the
+    # size of the largest example, and well under a second of work.
     class_property max_passes = 20_000
+    class_property max_glyphs = 2_000_000
 
     def self.parse(p : Program) : Program
       lex(p)
@@ -164,6 +169,10 @@ module CrystalRobots::Compiler
         if p.passes > max_passes
           line, col = p.location(p.current[0])
           raise Error.new("Program needs more than #{max_passes} passes", line, col)
+        end
+        if p.emitted > max_glyphs
+          line, col = p.location(p.current[0])
+          raise Error.new("Program is too large to parse (more than #{max_glyphs} glyphs of work)", line, col)
         end
       end
       unless p.parsed?

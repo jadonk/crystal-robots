@@ -34,7 +34,21 @@ compiler work is fixed alongside the migration, not after it.
 | 2026-09-10 | Review fixes from the trunk-ops merge of 85c46a57: the interpreter's shared puts buffer is off for battle hosts and capped elsewhere; a robot fiber rescues everything, marks the robot failed and unwinds; repeated runtime errors also fail the robot; a call-depth limit turns unbounded recursion into a runtime error; angle normalization and integer ops are overflow-safe |
 | 2026-09-10 | Battle page reordered (replay on top, static frame, result at the bottom) and given a smooth replay: one SVG with native SMIL animation over 400 keyframes, no script, inside the Fossil chrome |
 
-Spec suite: 77 examples green with `-Dwasmer`.
+| 2026-09-10 | Review fixes from the trunk-ops merge of cdc29f87/61905033: the parser no longer re-copies the whole source every pass (append-only parts, joined lazily) and has a total-glyph work budget of two million on top of the pass budget, so cost is bounded by work done, not by input length alone; parse and battle require a named login (anonymous and nobody are refused with a Markdown 403) until the parser is opened up again; `fossil-skin/mainmenu` restored (my edit had truncated it); replay runs at a chosen frames-per-second (`fps=`, default 20) instead of a fixed duration, and trails grow with the robot instead of predicting its path |
+
+Spec suite: 81 examples green with `-Dwasmer`.
+
+**Size limits, and what CROBOTS did.** CROBOTS capped a robot at 1000
+machine instructions (`CODESPACE`), 500 stack entries (`DATASPACE`),
+8-character identifiers and 4 robots, and simply refused anything larger.
+The equivalent here is the glyph budget: every pass re-emits the glyphs it
+did not reduce, so the total emitted is the work done. A flat robot the
+size of `sniper` emits about sixty thousand glyphs; two million is a few
+hundred passes over a robot several times that size, and a long operator
+chain or deeply nested parentheses hit it in well under a second instead
+of running to the square of their length. Source is also capped at 20 KB
+by the web app. The parser itself stays the same simple loop; the budget
+is one comparison per pass.
 
 **Animation approach.** Fossil serves our Markdown with a script-src policy
 that only allows scripts carrying its nonce, and it passes raw HTML blocks

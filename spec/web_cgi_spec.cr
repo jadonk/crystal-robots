@@ -2,7 +2,7 @@ require "./spec_helper"
 require "../src/web/cgi"
 require "uri"
 
-private def run_cgi(caps : String, path : String, method = "GET", query = "", body = "", script = "/ext/robots") : String
+private def run_cgi(caps : String, path : String, method = "GET", query = "", body = "", script = "/ext/robots", user = "jkridner") : String
   env = {
     "GATEWAY_INTERFACE"   => "CGI/1.1",
     "REQUEST_METHOD"      => method,
@@ -10,7 +10,7 @@ private def run_cgi(caps : String, path : String, method = "GET", query = "", bo
     "QUERY_STRING"        => query,
     "SCRIPT_NAME"         => script,
     "FOSSIL_CAPABILITIES" => caps,
-    "FOSSIL_USER"         => "jkridner",
+    "FOSSIL_USER"         => user,
     "CONTENT_LENGTH"      => body.bytesize.to_s,
   }
   reply = IO::Memory.new
@@ -117,6 +117,22 @@ describe CrystalRobots::Web::CGI do
     run_cgi("o", "/parse", "POST", "", "source=\xff\xfe").should start_with "Status: 400 Bad Request"
     run_cgi("o", "/battle", "GET", "r=\xff").should start_with "Status: 400 Bad Request"
     run_cgi("o", "/examples/\xff").should start_with "Status: 400 Bad Request"
+  end
+
+  it "keeps parse and battle for logged-in users" do
+    ["anonymous", "nobody", ""].each do |who|
+      run_cgi("oh", "/parse", "POST", "", "source=puts+1", user: who).should start_with "Status: 403 Forbidden\r\nContent-Type: text/x-markdown"
+      run_cgi("oh", "/battle", "GET", "r=counter&r=target", user: who).should contain "[Log in](/login)"
+      run_cgi("oh", "/examples/target", user: who).should contain "# target.cr"
+    end
+  end
+
+  it "plays the replay at a chosen frame rate with growing trails" do
+    page = run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000&fps=10")
+    page.should contain "frames at 10 per second"
+    page.should contain "stroke-dashoffset"
+    page.should contain "&fps=10&frame="
+    run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000&fps=99999").should contain "frames at 120 per second"
   end
 
   it "re-roots links under a session preview path" do
