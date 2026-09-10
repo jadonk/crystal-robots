@@ -121,8 +121,13 @@ module CrystalRobots::Web
       !user.empty? && !{"anonymous", "nobody"}.includes?(user)
     end
 
+    # Fossil's login page returns to `g` afterwards.
+    def login_link(back : String = form_base + "/" + path) : String
+      "/login?g=#{URI.encode_www_form(back)}"
+    end
+
     def login_required : Nil
-      reply("# Log in first\n\nParsing and battles are available to logged-in users. [Log in](/login) and come back to the [overview](#{link_base}).\n", "403 Forbidden")
+      reply("# Log in first\n\nParsing and battles are available to logged-in users. [Log in](#{login_link}) to continue, or return to the [overview](#{link_base}).\n", "403 Forbidden")
     end
 
     # Fossil provides the effective capability string; the repository's own
@@ -263,12 +268,16 @@ module CrystalRobots::Web
           md << "\n## Saved robots\n\nWiki pages named `robot/<name>` whose one code block is the robot.\n\n"
           wiki.names.each { |name| md << "- [#{inline(name)}](#{base}/wiki/#{URI.encode_path_segment(name)}) ([page](/wiki?name=#{URI.encode_www_form(WikiRobots::PREFIX + name)}))\n" }
         end
-        md << "\n## Battle\n\n[Pick robots and fight](#{base}/battle) on the CROBOTS battlefield.\n"
-        md << "\n## Parse your own\n\n"
-        md << "<form method=\"post\" action=\"#{form_base}/parse\">\n"
-        md << "<textarea name=\"source\" rows=\"12\" cols=\"70\">puts 2 + (1 + 2) // 2 * 4</textarea><br>\n"
-        md << "<button type=\"submit\">Parse</button>\n"
-        md << "</form>\n\n"
+        if logged_in?
+          md << "\n## Battle\n\n[Pick robots and fight](#{base}/battle) on the CROBOTS battlefield.\n"
+          md << "\n## Parse your own\n\n"
+          md << "<form method=\"post\" action=\"#{form_base}/parse\">\n"
+          md << "<textarea name=\"source\" rows=\"12\" cols=\"70\">puts 2 + (1 + 2) // 2 * 4</textarea><br>\n"
+          md << "<button type=\"submit\">Parse</button>\n"
+          md << "</form>\n\n"
+        else
+          md << "\n## Battle and parse\n\nRunning battles and parsing your own robots needs a login: [log in](#{login_link(form_base)}) and this page will offer both.\n\n"
+        end
         md << "See [docs/PARSER.md](/doc/trunk/docs/PARSER.md) for how the passes work "
         md << "and [docs/PLAN.md](/doc/trunk/docs/PLAN.md) for what comes next.\n"
       end
@@ -565,13 +574,25 @@ module CrystalRobots::Web
     end
 
     # The pass-by-pass derivation, or the parse error with its location.
+    # The program is parsed exactly once, under the parser's budgets; on an
+    # error the passes it managed are shown, never a second unbounded run.
+    DERIVATION_LINES =  60 # passes shown: the first two thirds and the last third
+    DERIVATION_WIDTH = 300 # glyphs per line before an ellipsis
+
     def derivation_section(src : String) : String
       String.build do |md|
         md << "## Derivation\n\n"
+        program = Compiler::Program.new(src)
+        error = nil
         begin
-          program = Compiler::Parser.new(src).program
-          md << "#{program.passes} passes, #{program.size} nodes.\n\n"
-          md << fenced(program.derivation.chomp)
+          Compiler::Parser.parse(program)
+        rescue e : Compiler::Parser::Error
+          error = e
+        end
+        md << "**Parse error:** #{inline(error.message.to_s)}\n\n" if error
+        md << "#{program.passes} passes, #{program.size} nodes.\n\n" unless error
+        md << fenced(bounded_derivation(program)) if program.passes > 0
+        unless error
           problems = Compiler::Checker.check(program)
           if problems.empty?
             md << "\nChecks passed: every name is defined and every call has the right number of arguments.\n"
@@ -579,18 +600,20 @@ module CrystalRobots::Web
             md << "\n**Problems:**\n\n"
             problems.each { |problem| md << "- #{inline(problem.to_s)}\n" }
           end
-        rescue e : Compiler::Parser::Error
-          md << "**Parse error:** #{inline(e.message.to_s)}\n\n"
-          program = Compiler::Program.new(src)
-          begin
-            Compiler::Parser.lex(program)
-            while Compiler::Parser.reduce_once(program)
-            end
-          rescue Compiler::Parser::Error
-          end
-          md << fenced(program.derivation.chomp) unless program.passes == 0
         end
       end
+    end
+
+    # The derivation with long runs of passes and long lines elided, so the
+    # page stays readable and its size bounded whatever was submitted.
+    def bounded_derivation(program : Compiler::Program) : String
+      lines = program.derivation.lines
+      if lines.size > DERIVATION_LINES
+        head = DERIVATION_LINES * 2 // 3
+        tail = DERIVATION_LINES - head
+        lines = lines.first(head) + ["    ... #{lines.size - DERIVATION_LINES} passes elided ..."] + lines.last(tail)
+      end
+      lines.map { |line| line.size > DERIVATION_WIDTH ? line[0, DERIVATION_WIDTH] + " …(#{line.size - DERIVATION_WIDTH} more)" : line }.join('\n')
     end
   end
 end

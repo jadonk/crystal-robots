@@ -122,11 +122,29 @@ describe CrystalRobots::Web::CGI do
     run_cgi("o", "/examples/\xff").should start_with "Status: 400 Bad Request"
   end
 
-  it "keeps parse and battle for logged-in users" do
+  it "keeps parse and battle for logged-in users, and says so up front" do
     ["anonymous", "nobody", ""].each do |who|
       run_cgi("oh", "/parse", "POST", "", "source=puts+1", user: who).should start_with "Status: 403 Forbidden\r\nContent-Type: text/x-markdown"
-      run_cgi("oh", "/battle", "GET", "r=counter&r=target", user: who).should contain "[Log in](/login)"
+      run_cgi("oh", "/battle", "GET", "r=counter&r=target", user: who).should contain "[Log in](/login?g=%2Fext%2Frobots%2Fbattle)"
       run_cgi("oh", "/examples/target", user: who).should contain "# target.cr"
+      front = run_cgi("oh", "/", user: who)
+      front.should_not contain "<form"
+      front.should contain "[log in](/login?g=%2Fext%2Frobots)"
+    end
+    run_cgi("oh", "/").should contain "<form"
+  end
+
+  it "shows a bounded derivation from the one parse, even on a budget error" do
+    C::Parser.max_glyphs = 80_000
+    begin
+      page = run_cgi("o", "/parse", "POST", "", "source=" + URI.encode_www_form("puts " + "1+" * 400 + "1"))
+      page.should contain "**Parse error:** Program is too large to parse"
+      page.should contain "passes elided"
+      page.should contain "more)" # long lines cut
+      page.lines.count { |l| l =~ /^\s+\d+ / }.should be <= 60
+      page.size.should be < 60_000
+    ensure
+      C::Parser.max_glyphs = 2_000_000
     end
   end
 

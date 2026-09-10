@@ -166,12 +166,13 @@ module CrystalRobots::Compiler
         return p
       end
       while reduce_once(p)
+        # a budget error points at the parser's most recent reduction
         if p.passes > max_passes
-          line, col = p.location(p.current[0])
+          line, col = p.location(p.size - 1)
           raise Error.new("Program needs more than #{max_passes} passes", line, col)
         end
         if p.emitted > max_glyphs
-          line, col = p.location(p.current[0])
+          line, col = p.location(p.size - 1)
           raise Error.new("Program is too large to parse (more than #{max_glyphs} glyphs of work)", line, col)
         end
       end

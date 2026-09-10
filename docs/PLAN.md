@@ -40,7 +40,9 @@ compiler work is fixed alongside the migration, not after it.
 | 2026-09-10 | Saved robots: wiki pages named `robot/<name>` whose single code block is the source appear on the overview, on the battle form (`w=` parameter) and at `/wiki/<name>`; read through `fossil wiki list/export` with the CGI environment scrubbed |
 | 2026-09-10 | The examples list is generated at compile time from `examples/*.cr` by a macro; adding a file is enough |
 
-Spec suite: 87 examples green with `-Dwasmer`.
+| 2026-09-10 | Review fixes from the trunk-ops merge of 6e876706/58ba5789: the parse page parses once under the budgets and renders the passes it holds, elided to 60 lines of at most 300 glyphs, so the error path can no longer run unbounded; budget errors point at the parser's last reduction instead of 1:1; `fossil-skin/mainmenu` mirrors the deployed skin (Agents, Docs, Run for readers); the overview tells anonymous visitors up front that parse and battle need a login and the login links return to the page (`/login?g=`); the hot-loop 1000-term paste could not be reproduced (chains, nested parentheses and call chains all finish in 1 to 6 s at the 500k limit) |
+
+Spec suite: 89 examples green with `-Dwasmer`.
 
 **WASM robots on the battlefield, decided.** Cycle ticks are injected at
 every operation and builtin call in both engines (above), so a WASM robot
@@ -227,11 +229,11 @@ host. The shape, item by item:
 2. **Deploy location.** Fossil serves the repository directly
    (`fossil server --extroot DIR`, or a Fossil CGI file with an `extroot:`
    line); no Apache or nginx in front. The extroot holds a **symlink**
-   `robots -> <checkout>/bin/crystal-robots`, the same way Ollama-Codex's
+   `crystal-robots -> <checkout>/bin/crystal-robots`, the same way Ollama-Codex's
    `/var/www/cgi-bin/ollama-codex` is a symlink to its `bin/`. A rebuild is
-   the deploy; the CGI spawns fresh per request. URL: `/ext/robots/...`.
-   The repo carries `fossil-skin/mainmenu` with a `Robots /ext/robots/ * {}`
-   line so the app is in the Fossil menu.
+   the deploy; the CGI spawns fresh per request. URL: `/ext/crystal-robots/...`.
+   The repo carries `fossil-skin/mainmenu` mirroring the deployed menu
+   (Agents, Docs, Run) so the app is in the Fossil menu.
 3. **Login.** `FOSSIL_USER` is the identity and `FOSSIL_CAPABILITIES` the
    permission set, both provided by Fossil; the CGI never handles
    credentials. Gate as GP-Crystal does: `s`/`a` imply everything, `v`
@@ -245,7 +247,7 @@ host. The shape, item by item:
    missiles and explosions at a chosen cycle, plus a scoreboard table, the
    way GP-Crystal draws blocks. Forms are plain HTML inside the Markdown.
    Links are built from `SCRIPT_NAME` from its `/ext/` segment onward, so
-   they stay correct under `/ext/robots` and under
+   they stay correct under `/ext/crystal-robots` and under
    `/ext/preview/<session>/`.
 5. **Routes.** `GET /` overview and example list; `GET /examples/<name>`
    source plus its parse derivation (the pass trace, the teaching view);
