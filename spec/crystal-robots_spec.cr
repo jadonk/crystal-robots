@@ -1,7 +1,5 @@
 require "./spec_helper"
 
-alias C = CrystalRobots::Compiler
-
 describe CrystalRobots do
   it "has a valid version" do
     SemanticVersion.parse(CrystalRobots::VERSION)
@@ -188,9 +186,10 @@ describe CrystalRobots do
       it "gives up after the glyph budget on a long operator chain" do
         C::Parser.max_glyphs = 50_000
         begin
-          expect_raises(C::Parser::Error, /too large to parse/) do
+          error = expect_raises(C::Parser::Error, /too large to parse/) do
             C::Parser.new("puts " + "1+" * 2_000 + "1")
           end
+          error.col.should be > 1 # points at the parser's last reduction, not 1:1
         ensure
           C::Parser.max_glyphs = 2_000_000
         end

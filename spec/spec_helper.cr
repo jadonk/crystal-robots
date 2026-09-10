@@ -2,6 +2,8 @@ require "spec"
 require "../src/crystal-robots"
 require "semantic_version"
 
+alias C = CrystalRobots::Compiler
+
 # The wasmer runtime is optional. Specs that execute emitted WebAssembly
 # compile only when the `wasmer` flag is set (`crystal spec -Dwasmer`) and
 # are reported as pending otherwise, so `crystal spec` gives a signal on a

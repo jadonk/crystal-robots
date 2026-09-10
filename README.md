@@ -67,7 +67,9 @@ Cycles are charged the way the CROBOTS virtual machine did: one per
 operand fetch, operator, store, branch and statement, two per builtin
 call, three around a user function call. `-l` limits those cycles. A rebuild is the deploy:
 the CGI runs fresh on every request. To put the app in the Fossil menu, paste
-`fossil-skin/mainmenu` into Admin, Skins, Main Menu (the deployed menu calls it "Run"). Who may use the app is
+`fossil-skin/mainmenu` into Admin, Skins, Main Menu. It mirrors the deployed
+menu (Agents, Docs and a "Run" entry for this app); merge rather than
+replace if your skin has other rows. Who may use the app is
 decided by the repository's user capabilities: reading needs `o` or `h`
 (what anonymous usually has), saving robots (later) needs check-in (`i`).
 
