@@ -43,9 +43,11 @@ module CrystalRobots::Web
     end
 
     # Request bounds: the body is capped before it is allocated, sources are
-    # capped before they are parsed (a 20 KB robot parses in well under a
-    # second), and a battle is capped by its cycle limit (a 500k-cycle match
-    # of four robots takes about four seconds).
+    # capped by length before parsing and by the parser's glyph budget during
+    # it (flat robots parse in milliseconds; a pathological operator chain
+    # hits the budget instead of the square of its length), and a battle is
+    # capped by its cycle limit (a 500k-cycle match of four robots takes
+    # about four seconds). Parse and battle also need a real login.
     BODY_LIMIT   = 65_536
     SOURCE_LIMIT = 20_000
     PASTE_LIMIT  =  6_000 # a pasted robot travels in the battle page's links
@@ -63,6 +65,17 @@ module CrystalRobots::Web
 
     def user : String
       env["FOSSIL_USER"]? || ""
+    end
+
+    # Fossil's anonymous and nobody logins do not count. Parsing and
+    # battling are for named users until the parser's worst cases are
+    # bounded well enough to open them up.
+    def logged_in? : Bool
+      !user.empty? && !{"anonymous", "nobody"}.includes?(user)
+    end
+
+    def login_required : Nil
+      reply("# Log in first\n\nParsing and battles are available to logged-in users. [Log in](/login) and come back to the [overview](#{link_base}).\n", "403 Forbidden")
     end
 
     # Fossil provides the effective capability string; the repository's own
@@ -129,9 +142,11 @@ module CrystalRobots::Web
       when "version"
         reply("crystal-robots #{CrystalRobots::VERSION}\n")
       when "parse"
+        return login_required unless logged_in?
         source = method == "POST" ? HTTP::Params.parse(body)["source"]? : nil
         reply(parse_page(source || ""))
       when "battle"
+        return login_required unless logged_in?
         reply(battle_page)
       when /\Aexamples\/([a-z_]+)\z/
         name = $1
@@ -226,8 +241,9 @@ module CrystalRobots::Web
     WEB_CYCLE_LIMIT = 100_000_i64
     WEB_CYCLE_MAX   = 500_000_i64
     ROBOT_COLORS    = ["0x4C97FF", "0xFF8C1A", "0x59C059", "0xFFAB19"]
-    ANIM_FRAMES     =  400 # keyframes recorded per match; SMIL interpolates between them
-    ANIM_SECONDS    = 24.0
+    ANIM_FRAMES     = 400 # keyframes recorded per match; SMIL interpolates between them
+    ANIM_FPS        =  20 # recorded frames played per second by default (`fps=`)
+    ANIM_FPS_MAX    = 120
 
     # `GET /battle` without robots shows the form; with `r=` parameters it
     # runs one seeded match and renders a frame of it in Pikchr.
@@ -247,7 +263,8 @@ module CrystalRobots::Web
       field.run
       frame_count = field.frames.size
       frame = (q["frame"]?.try(&.to_i?) || frame_count - 1).clamp(0, frame_count - 1)
-      render_battle(field, names, pasted, seed, limit, frame)
+      fps = (q["fps"]?.try(&.to_i?) || ANIM_FPS).clamp(1, ANIM_FPS_MAX)
+      render_battle(field, names, pasted, seed, limit, frame, fps)
     end
 
     private MOTION_STEP = Battle::MOTION_CYCLES.to_i64
@@ -265,29 +282,32 @@ module CrystalRobots::Web
         md << "<textarea name=\"src\" rows=\"10\" cols=\"70\" maxlength=\"#{PASTE_LIMIT}\"></textarea><br>\n"
         md << "<label>Seed <input type=\"number\" name=\"seed\" value=\"1\" min=\"0\"></label>\n"
         md << "<label>Cycle limit <input type=\"number\" name=\"limit\" value=\"#{WEB_CYCLE_LIMIT}\" min=\"#{MOTION_STEP}\" max=\"#{WEB_CYCLE_MAX}\"></label>\n"
+        md << "<label>Replay frames per second <input type=\"number\" name=\"fps\" value=\"#{ANIM_FPS}\" min=\"1\" max=\"#{ANIM_FPS_MAX}\"></label>\n"
         md << "<button type=\"submit\">Fight</button>\n</form>\n"
       end
     end
 
-    def battle_link(names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32) : String
+    def battle_link(names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32, fps : Int32 = ANIM_FPS) : String
       params = names.map { |n| "r=#{n}" }
       params << "src=#{URI.encode_www_form(pasted)}" unless pasted.empty?
-      "#{link_base}/battle?#{params.join("&")}&seed=#{seed}&limit=#{limit}&frame=#{frame}"
+      "#{link_base}/battle?#{params.join("&")}&seed=#{seed}&limit=#{limit}&fps=#{fps}&frame=#{frame}"
     end
 
-    def render_battle(field : Battle::Field, names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32) : String
+    def render_battle(field : Battle::Field, names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32, fps : Int32 = ANIM_FPS) : String
       f = field.frames[frame]
       last = field.frames.size - 1
+      seconds = (field.frames.size.to_f / fps).round(1)
       String.build do |md|
         md << "# Battle: #{field.robots.map(&.name).join(" vs ")}\n\n"
-        md << "[Pick again](#{link_base}/battle) · seed #{seed} · limit #{limit} · #{field.cycles} cycles run · #{ANIM_SECONDS.to_i} second replay, looping\n\n"
-        md << svg_animation(field) << "\n\n"
+        md << "[Pick again](#{link_base}/battle) · seed #{seed} · limit #{limit} · #{field.cycles} cycles run · "
+        md << "#{field.frames.size} frames at #{fps} per second (#{seconds} s), looping\n\n"
+        md << svg_animation(field, fps) << "\n\n"
         md << "## Frame #{frame + 1} of #{last + 1} (cycle #{f.cycle})\n\n"
         nav = [] of String
-        nav << "[first](#{battle_link(names, pasted, seed, limit, 0)})" if frame > 0
-        nav << "[previous](#{battle_link(names, pasted, seed, limit, frame - 1)})" if frame > 0
-        nav << "[next](#{battle_link(names, pasted, seed, limit, frame + 1)})" if frame < last
-        nav << "[last](#{battle_link(names, pasted, seed, limit, last)})" if frame < last
+        nav << "[first](#{battle_link(names, pasted, seed, limit, 0, fps)})" if frame > 0
+        nav << "[previous](#{battle_link(names, pasted, seed, limit, frame - 1, fps)})" if frame > 0
+        nav << "[next](#{battle_link(names, pasted, seed, limit, frame + 1, fps)})" if frame < last
+        nav << "[last](#{battle_link(names, pasted, seed, limit, last, fps)})" if frame < last
         md << nav.join(" · ") << "\n\n" unless nav.empty?
         md << "```pikchr\n" << pikchr_frame(f, field.frames[0..frame]) << "```\n\n"
         md << "| Robot | x | y | heading | speed | damage | scan |\n| --- | --- | --- | --- | --- | --- | --- |\n"
@@ -319,11 +339,13 @@ module CrystalRobots::Web
     # so it works under Fossil's content security policy. Positions are
     # keyframes at each recorded frame, interpolated linearly in between;
     # missiles switch discretely. Fossil passes raw HTML blocks through.
-    def svg_animation(field : Battle::Field) : String
+    def svg_animation(field : Battle::Field, fps : Int32 = ANIM_FPS) : String
       frames = field.frames
-      total = Math.max(1_i64, frames.last.cycle)
-      key_times = frames.map { |f| (f.cycle.to_f / total).round(4) }.join(';')
-      dur = "#{ANIM_SECONDS}s"
+      steps = Math.max(1, frames.size - 1)
+      # every recorded frame gets the same screen time, so playback speed is
+      # frames per second regardless of how long the match ran
+      key_times = frames.each_index.map { |k| (k.to_f / steps).round(5) }.join(';')
+      dur = "#{(frames.size.to_f / fps).round(3)}s"
       String.build do |svg|
         svg << %(<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -30 1060 1060" width="520" height="520" role="img" aria-label="battle replay">\n)
         svg << %(<rect x="0" y="0" width="1000" height="1000" fill="#f4f4f0" stroke="#888" stroke-width="3"/>\n)
@@ -332,9 +354,16 @@ module CrystalRobots::Web
           xs = frames.map { |f| f.robots[i].x // Battle::CLICK }
           ys = frames.map { |f| 1000 - f.robots[i].y // Battle::CLICK }
           alive = frames.map { |f| f.robots[i].active ? "1" : "0.3" }
-          svg << %(<polyline fill="none" stroke="#{color}" stroke-opacity="0.35" stroke-width="3" points=")
+          # the trail is drawn as far as the robot has come: a dashed stroke
+          # whose visible length follows the path length at each frame
+          lengths = [0.0]
+          xs.each_index { |k| next if k == 0; lengths << lengths[k - 1] + Math.hypot(xs[k] - xs[k - 1], ys[k] - ys[k - 1]) }
+          total = Math.max(1.0, lengths.last)
+          svg << %(<polyline fill="none" stroke="#{color}" stroke-opacity="0.35" stroke-width="3" stroke-dasharray="#{total.round(1)}" points=")
           xs.each_with_index { |x, k| svg << x << ',' << ys[k] << ' ' }
-          svg << %("/>\n)
+          svg << %(">\n)
+          svg << animate("stroke-dashoffset", lengths.map { |l| (total - l).round(1) }.join(';'), key_times, dur, "linear")
+          svg << "</polyline>\n"
           svg << %(<circle r="14" fill="#{color}" stroke="#000" stroke-width="2">\n)
           svg << animate("cx", xs.join(';'), key_times, dur, "linear")
           svg << animate("cy", ys.join(';'), key_times, dur, "linear")

@@ -185,6 +185,24 @@ describe CrystalRobots do
         end
       end
 
+      it "gives up after the glyph budget on a long operator chain" do
+        C::Parser.max_glyphs = 50_000
+        begin
+          expect_raises(C::Parser::Error, /too large to parse/) do
+            C::Parser.new("puts " + "1+" * 2_000 + "1")
+          end
+        ensure
+          C::Parser.max_glyphs = 2_000_000
+        end
+      end
+
+      it "keeps source append-only and joins it lazily" do
+        p = C::Parser.new("x = 1 + 2").program
+        p.emitted.should eq p.layers.sum(&.size)
+        p.source.should start_with "x = 1 + 2Ŗ𝑥＝№⊕№⏎Ŗ"
+        p.source.should end_with "Ŗ⏹"
+      end
+
       it "parses every example robot" do
         Dir.glob("examples/*.cr").sort.each do |file|
           p = C::Parser.new(File.read(file)).program

@@ -128,14 +128,26 @@ module CrystalRobots::Compiler
     end
 
     getter text : String
-    getter source : String
     getter ast = [] of Node
     getter pass = [] of Int32
     getter layers = [] of Array(Int32)
     getter rules = [] of Symbol
 
+    # `source` is appended to on every pass. It is kept as parts and joined
+    # only when something reads it (error locations, node values), so a pass
+    # costs its own length and not the length of everything before it.
+    @parts : Array(String)
+    @joined : String?
+    @source_size : Int32
+
     def initialize(@text : String)
-      @source = @text
+      @parts = [@text]
+      @joined = @text
+      @source_size = @text.size
+    end
+
+    def source : String
+      @joined ||= @parts.join
     end
 
     # Append a node and return its index.
@@ -146,11 +158,21 @@ module CrystalRobots::Compiler
 
     # Record a finished pass: its glyph string goes onto `source`.
     def add_pass(layer : Array(Int32), rule : Symbol) : Nil
-      @source += Type::PassToken.glyph.to_s
-      @pass << @source.size
-      @source += glyphs(layer)
+      @parts << Type::PassToken.glyph.to_s
+      @source_size += 1
+      @pass << @source_size
+      g = glyphs(layer)
+      @parts << g
+      @source_size += g.size
+      @joined = nil
       @layers << layer
       @rules << rule
+    end
+
+    # Total glyphs emitted by every pass so far (the pass separators do not
+    # count): the parser's work so far.
+    def emitted : Int32
+      @source_size - @text.size - @layers.size
     end
 
     def glyphs(layer : Array(Int32)) : String
@@ -216,7 +238,7 @@ module CrystalRobots::Compiler
     # The text a node covers: the lexeme for level 0, the replaced glyph
     # run for higher levels.
     def value(n : Node) : String
-      @source[n.start, n.count]
+      source[n.start, n.count]
     end
 
     def value(i : Int32) : String
