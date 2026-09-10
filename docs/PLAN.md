@@ -20,7 +20,15 @@ compiler work is fixed alongside the migration, not after it.
 | 2026-09-10 | Phase 4 started: WASM emitter handles `puts` with full integer expressions, verified under wasmer |
 | 2026-09-10 | Phase 5 skeleton: CGI mode, capability gate, Markdown replies, overview, example and parse pages, `extroot` script, `fossil-skin/mainmenu` |
 
-Spec suite: 51 examples green with `-Dwasmer`.
+| 2026-09-10 | Phase 3 done: CROBOTS battlefield ported from `motion.c`, `intrins.c`, `main.c` as `Battle::Field`; robots interleave one interpreter step at a time in fibers; seeded, deterministic, with a frame trace |
+| 2026-09-10 | `-m MATCHES --seed N -l CYCLES` runs matches from the CLI; `GET /battle` renders any frame of a match in Pikchr under the Fossil chrome |
+| 2026-09-10 | Preview verified by the user at `/ext/preview/session-<root>/`; the parse form's POST went to the site root because Fossil does not rewrite raw HTML `action` attributes; fixed by using the full `SCRIPT_NAME` |
+
+Spec suite: 59 examples green with `-Dwasmer`.
+
+Deliberate deviation from CROBOTS: the scanner normalizes both angles in
+the wrap-around branch, so a scan at 359 sees a robot at 0 as the manual
+promises (the original never normalized and could not).
 
 ## 1. Where the code is today (2026-09-09 audit, kept for history)
 
@@ -256,13 +264,16 @@ operator-precedence variant) is dropped.
 
 ## 5. Immediate next steps
 
-1. Phase 3: battlefield simulation from the CROBOTS source, as a `Host`,
-   with a seeded RNG and a per-cycle trace; `POST /battle` renders it as
-   Pikchr under the Fossil chrome.
-2. Phase 2 remainder: semantic checks (undefined names, builtin arity)
-   reported before running; instruction slicing per robot per cycle.
-3. Phase 4 remainder: variables, functions and control flow in the WASM
-   emitter, then the differential spec against the interpreter.
+1. Phase 2 remainder: semantic checks (undefined names, builtin arity)
+   reported before a match starts, so a typo shows on the battle page
+   instead of as a runtime restart loop.
+2. Phase 4 remainder: variables, functions and control flow in the WASM
+   emitter, wasmer-hosted robots bound to the same `Host`, then the
+   differential spec against the interpreter.
+3. Phase 5 polish: let the battle page take a pasted robot next to the
+   examples; consider a compact all-frames strip (small multiples) so a
+   match can be read at a glance without clicking through frames.
+4. Phase 7 migration items.
 
 ## 6. Order of work
 
