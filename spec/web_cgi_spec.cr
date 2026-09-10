@@ -40,7 +40,7 @@ describe CrystalRobots::Web::CGI do
 
   it "shows an example with its derivation" do
     reply = run_cgi("o", "/examples/counter")
-    reply.should contain "# counter.cr"
+    reply.should contain "# counter\n"
     reply.should contain "main(\"Counter\") do"
     reply.should contain "## Derivation"
     reply.should contain "  0 lex "
@@ -126,7 +126,7 @@ describe CrystalRobots::Web::CGI do
     ["anonymous", "nobody", ""].each do |who|
       run_cgi("oh", "/parse", "POST", "", "source=puts+1", user: who).should start_with "Status: 403 Forbidden\r\nContent-Type: text/x-markdown"
       run_cgi("oh", "/battle", "GET", "r=counter&r=target", user: who).should contain "[Log in](/login?g=%2Fext%2Frobots%2Fbattle)"
-      run_cgi("oh", "/examples/target", user: who).should contain "# target.cr"
+      run_cgi("oh", "/examples/target", user: who).should contain "# target\n"
       front = run_cgi("oh", "/", user: who)
       front.should_not contain "<form"
       front.should contain "[log in](/login?g=%2Fext%2Frobots)"
@@ -162,12 +162,15 @@ describe CrystalRobots::Web::CGI do
       "robot/broken"  => "two blocks\n\n```\nputs 1\n```\n\n```\nputs 2\n```\n",
       "Home"          => "not a robot",
     }
+    pages["robot/bad \"name\""] = "```\nputs 1\n```\n"
+    pages["robot/huge"] = "```\n" + "puts 1\n" * 4_000 + "```\n"
     wiki = CrystalRobots::Web::WikiRobots.new(-> { pages.keys }, ->(name : String) { pages["robot/" + name]? })
-    wiki.names.should eq ["broken", "spinner"]
+    wiki.names.should eq ["broken", "huge", "spinner"] # the quoted name is not a robot name
+    wiki.source("huge").should be_nil                  # over the source size cap
     wiki.source("spinner").not_nil!.should start_with "main(\"Spinner\")"
     wiki.source("broken").should be_nil
     wiki.source("Home").should be_nil
-    env = {"PATH_INFO" => "/", "SCRIPT_NAME" => "/ext/robots", "FOSSIL_CAPABILITIES" => "oh", "FOSSIL_USER" => "jkridner"}
+    env = {"PATH_INFO" => "/", "SCRIPT_NAME" => "/ext/robots", "FOSSIL_CAPABILITIES" => "ohj", "FOSSIL_USER" => "jkridner"}
     reply = IO::Memory.new
     cgi = CrystalRobots::Web::CGI.new(env, reply)
     cgi.wiki = wiki
@@ -185,6 +188,28 @@ describe CrystalRobots::Web::CGI do
     cgi.serve
     reply.to_s.should contain "# spinner"
     reply.to_s.should contain "Checks passed"
+    # wiki reads need a login and the wiki-read capability
+    reply = IO::Memory.new
+    cgi = CrystalRobots::Web::CGI.new(env.merge({"PATH_INFO" => "/wiki/spinner", "FOSSIL_USER" => "anonymous"}), reply)
+    cgi.wiki = wiki
+    cgi.serve
+    reply.to_s.should start_with "Status: 403"
+    reply = IO::Memory.new
+    cgi = CrystalRobots::Web::CGI.new(env.merge({"PATH_INFO" => "/", "FOSSIL_CAPABILITIES" => "o"}), reply)
+    cgi.wiki = wiki
+    cgi.serve
+    reply.to_s.should_not contain "Saved robots"
+    reply = IO::Memory.new
+    cgi = CrystalRobots::Web::CGI.new(env.merge({"PATH_INFO" => "/battle", "QUERY_STRING" => "w=spinner&r=target&limit=300", "FOSSIL_CAPABILITIES" => "o"}), reply)
+    cgi.wiki = wiki
+    cgi.serve
+    reply.to_s.should contain "# Battle: target vs target" # w= ignored without wiki-read
+  end
+
+  it "escapes names in Pikchr labels" do
+    cgi = CrystalRobots::Web::CGI.new({} of String => String, IO::Memory.new)
+    cgi.pikchr_text(%q(a "quoted" \ name)).should eq %q(a \"quoted\" \\ name)
+    cgi.pikchr_text("x" * 100).size.should eq 40
   end
 
   it "unwraps headings so rotations take the short way round" do

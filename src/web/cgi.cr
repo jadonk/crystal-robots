@@ -30,14 +30,16 @@ module CrystalRobots::Web
   class WikiRobots
     PREFIX = "robot/"
     FENCE  = /^(`{3,})[^\n]*\n(.*?)\n\1[ \t]*$/m
+    # Names are what shows in headings, links and labels; keep them plain.
+    NAME = /\A[A-Za-z0-9][A-Za-z0-9 _.-]{0,39}\z/
 
     alias Lister = -> Array(String)
     alias Reader = String -> String?
 
     getter names : Array(String)
 
-    def initialize(@list : Lister, @read : Reader)
-      @names = @list.call.select(&.starts_with?(PREFIX)).map { |page| page[PREFIX.size..] }.sort
+    def initialize(@list : Lister, @read : Reader, @limit : Int32 = 20_000)
+      @names = @list.call.select(&.starts_with?(PREFIX)).map { |page| page[PREFIX.size..] }.select { |n| n =~ NAME }.sort
     end
 
     # The deployed repository, if Fossil told us where it is.
@@ -50,14 +52,16 @@ module CrystalRobots::Web
       end
     end
 
-    # The source of the robot, or nil if the page has no single fence.
+    # The source of the robot, or nil if the page has no single fence or the
+    # fence is larger than a pasted robot may be.
     def source(name : String) : String?
       return nil unless @names.includes?(name)
       page = @read.call(name)
       return nil unless page
       fences = page.scan(FENCE)
       return nil unless fences.size == 1
-      fences[0][2]
+      src = fences[0][2]
+      src.size <= @limit ? src : nil
     end
 
     private def self.fossil(args : Array(String)) : String
@@ -72,6 +76,17 @@ module CrystalRobots::Web
   class CGI
     getter env : Hash(String, String)
     property wiki : WikiRobots { WikiRobots.for_repository(env["FOSSIL_REPOSITORY"]?) }
+
+    # Saved robots are wiki pages, so seeing them needs Fossil's wiki-read
+    # capability (`j`); Setup and Admin imply it.
+    def wiki_visible? : Bool
+      allowed?("j")
+    end
+
+    # A Pikchr string literal: quotes and backslashes escaped, length kept sane.
+    def pikchr_text(text : String) : String
+      text[0, 40].gsub('\\', "\\\\").gsub('"', "\\\"")
+    end
 
     def initialize(@env : Hash(String, String) = ENV.to_h, @out : IO = STDOUT, @in : IO = STDIN)
     end
@@ -142,8 +157,8 @@ module CrystalRobots::Web
       caps = capabilities
       return true if caps.includes?('s') || caps.includes?('a')
       effective = caps
-      effective += "eoih" if caps.includes?('v')
-      effective += "oh" if caps.includes?('u')
+      effective += "eoihj" if caps.includes?('v')
+      effective += "ohj" if caps.includes?('u')
       needed.each_char.any? { |c| effective.includes?(c) }
     end
 
@@ -208,6 +223,8 @@ module CrystalRobots::Web
           not_found
         end
       when /\Awiki\/(.+)\z/
+        return login_required unless logged_in?
+        return forbidden unless wiki_visible?
         name = URI.decode($1)
         if (src = wiki.source(name))
           reply(example_page(name, src))
@@ -264,7 +281,7 @@ module CrystalRobots::Web
         EXAMPLES.each_key do |name|
           md << "- [#{name}.cr](#{base}/examples/#{name})\n"
         end
-        unless wiki.names.empty?
+        if wiki_visible? && !wiki.names.empty?
           md << "\n## Saved robots\n\nWiki pages named `robot/<name>` whose one code block is the robot.\n\n"
           wiki.names.each { |name| md << "- [#{inline(name)}](#{base}/wiki/#{URI.encode_path_segment(name)}) ([page](/wiki?name=#{URI.encode_www_form(WikiRobots::PREFIX + name)}))\n" }
         end
@@ -285,7 +302,7 @@ module CrystalRobots::Web
 
     def example_page(name : String, src : String) : String
       String.build do |md|
-        md << "# #{name}.cr\n\n[All examples](#{link_base})\n\n"
+        md << "# #{inline(name)}\n\n[All examples](#{link_base})\n\n"
         md << fenced(src, "crystal") << "\n"
         md << derivation_section(src)
       end
@@ -317,7 +334,7 @@ module CrystalRobots::Web
     def battle_page : String
       q = query
       names = q.fetch_all("r").select { |n| EXAMPLES.has_key?(n) }.first(4)
-      saved = q.fetch_all("w").select { |n| wiki.names.includes?(n) }.first(4)
+      saved = wiki_visible? ? q.fetch_all("w").select { |n| wiki.names.includes?(n) }.first(4) : [] of String
       pasted = (q["src"]? || "").strip
       pasted = "" if pasted.size > PASTE_LIMIT
       return battle_form if names.empty? && saved.empty? && pasted.empty?
@@ -347,7 +364,7 @@ module CrystalRobots::Web
           checked = {"counter", "rabbit"}.includes?(name) ? " checked" : ""
           md << "<label><input type=\"checkbox\" name=\"r\" value=\"#{name}\"#{checked}> #{name}</label><br>\n"
         end
-        unless wiki.names.empty?
+        if wiki_visible? && !wiki.names.empty?
           md << "<p>Saved robots (wiki pages <code>robot/&lt;name&gt;</code>):</p>\n"
           wiki.names.each do |name|
             md << "<label><input type=\"checkbox\" name=\"w\" value=\"#{HTML.escape(name)}\"> #{HTML.escape(name)}</label><br>\n"
@@ -374,7 +391,7 @@ module CrystalRobots::Web
       last = field.frames.size - 1
       seconds = (field.frames.size.to_f / fps).round(1)
       String.build do |md|
-        md << "# Battle: #{field.robots.map(&.name).join(" vs ")}\n\n"
+        md << "# Battle: #{field.robots.map { |r| inline(r.name) }.join(" vs ")}\n\n"
         md << "[Pick again](#{link_base}/battle) · seed #{seed} · limit #{limit} · #{field.cycles} cycles run · "
         md << "#{field.frames.size} frames at #{fps} per second (#{seconds} s), looping\n\n"
         md << svg_animation(field, fps) << "\n\n"
@@ -388,25 +405,25 @@ module CrystalRobots::Web
         md << "```pikchr\n" << pikchr_frame(f, field.frames[0..frame]) << "```\n\n"
         md << "| Robot | x | y | heading | speed | damage | scan | cannon |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n"
         f.robots.each do |r|
-          md << "| #{r.name} | #{r.x // Battle::CLICK} | #{r.y // Battle::CLICK} | #{r.heading} | #{r.speed} | #{r.damage}% | #{r.scan} | #{r.fired ? r.cannon : "-"} |\n"
+          md << "| #{inline(r.name)} | #{r.x // Battle::CLICK} | #{r.y // Battle::CLICK} | #{r.heading} | #{r.speed} | #{r.damage}% | #{r.scan} | #{r.fired ? r.cannon : "-"} |\n"
         end
         md << "\n## Result\n\n"
         if (w = field.winner)
-          md << "**Winner: #{w.name}**\n\n"
+          md << "**Winner: #{inline(w.name)}**\n\n"
         elsif field.active.empty?
           md << "**Mutual destruction.**\n\n"
         else
-          md << "**Cycle limit reached: #{field.active.map(&.name).join(", ")} survive.**\n\n"
+          md << "**Cycle limit reached: #{field.active.map { |r| inline(r.name) }.join(", ")} survive.**\n\n"
         end
         md << "| Robot | Status | Damage | Instructions | Restarts | Note |\n| --- | --- | --- | --- | --- | --- |\n"
         field.robots.each do |r|
           status = r.error ? "failed" : (r.active ? "active" : "destroyed")
           note = r.error || r.output.first?.try { |line| "puts #{line}" } || ""
-          md << "| #{r.name} | #{status} | #{r.damage}% | #{r.cycles} | #{r.restarts} | #{inline(note)} |\n"
+          md << "| #{inline(r.name)} | #{status} | #{r.damage}% | #{r.cycles} | #{r.restarts} | #{inline(note)} |\n"
         end
         field.robots.each do |r|
           next if r.output.empty?
-          md << "\n## #{r.name} output\n\n" << fenced(r.output.first(20).join("\n"))
+          md << "\n## #{inline(r.name)} output\n\n" << fenced(r.output.first(20).join("\n"))
         end
       end
     end
@@ -559,7 +576,7 @@ module CrystalRobots::Web
             end
           end
           label = r.active ? "#{r.name} #{r.damage}%" : "#{r.name} X"
-          pik << "text \"#{label}\" small at R#{i}.n + (0, 0.12)\n"
+          pik << "text \"#{pikchr_text(label)}\" small at R#{i}.n + (0, 0.12)\n"
         end
         f.missiles.each do |m|
           x = (m.x * scale).round(3)

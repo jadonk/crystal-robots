@@ -42,7 +42,9 @@ compiler work is fixed alongside the migration, not after it.
 
 | 2026-09-10 | Review fixes from the trunk-ops merge of 6e876706/58ba5789: the parse page parses once under the budgets and renders the passes it holds, elided to 60 lines of at most 300 glyphs, so the error path can no longer run unbounded; budget errors point at the parser's last reduction instead of 1:1; `fossil-skin/mainmenu` mirrors the deployed skin (Agents, Docs, Run for readers); the overview tells anonymous visitors up front that parse and battle need a login and the login links return to the page (`/login?g=`); the hot-loop 1000-term paste could not be reproduced (chains, nested parentheses and call chains all finish in 1 to 6 s at the 500k limit) |
 
-Spec suite: 89 examples green with `-Dwasmer`.
+| 2026-09-10 | Wiki robots hardened: sources over 20 KB are ignored, page names must be plain (letters, digits, space, `_ . -`, at most 40 characters) and are escaped in headings, tables and Pikchr labels anyway, the wiki view needs a login, and every wiki read needs Fossil's wiki-read capability (`j`) |
+
+Spec suite: 90 examples green with `-Dwasmer`.
 
 **WASM robots on the battlefield, decided.** Cycle ticks are injected at
 every operation and builtin call in both engines (above), so a WASM robot
