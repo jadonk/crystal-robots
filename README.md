@@ -61,7 +61,19 @@ frames drawn in Pikchr with each robot's trail.
 
 To keep a robot, create a wiki page named `robot/<name>` whose Markdown
 contains exactly one fenced code block; that block is the robot. It then
-appears on the overview and in the battle picker under `<name>`.
+appears on the overview (with its first paragraph as a description and a
+"fight" link), in the battle picker, and at `/ext/crystal-robots/wiki/<name>`
+with its derivation and checks. Five such robots ship in `robots/*.md`
+(hunter, circler, dodger, wallhugger, turret); publish them to a
+repository's wiki with:
+
+```
+scripts/publish_wiki_robots.sh -R /path/to/crystal-robots.fossil
+```
+
+A CROBOTS rule worth knowing when writing one: a heading change only takes
+at 50 percent speed or less. Ask for a turn while faster and the drive
+disengages, so slow down first (the shipped robots show both ways).
 
 Cycles are charged the way the CROBOTS virtual machine did: one per
 operand fetch, operator, store, branch and statement, two per builtin

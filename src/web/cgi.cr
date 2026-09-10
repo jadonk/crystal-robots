@@ -52,6 +52,16 @@ module CrystalRobots::Web
       end
     end
 
+    # The first paragraph of the page before its code block, for listings.
+    def description(name : String) : String
+      return "" unless @names.includes?(name)
+      page = @read.call(name) || ""
+      body = page.split(/^`{3,}/m, 2)[0]
+      paragraph = body.split(/\n[ \t]*\n/).map(&.strip).find { |para| !para.empty? && !para.starts_with?("#") } || ""
+      text = paragraph.gsub(/\s+/, " ")
+      text.size > 160 ? text[0, 157] + "..." : text
+    end
+
     # The source of the robot, or nil if the page has no single fence or the
     # fence is larger than a pasted robot may be.
     def source(name : String) : String?
@@ -227,7 +237,7 @@ module CrystalRobots::Web
         return forbidden unless wiki_visible?
         name = URI.decode($1)
         if (src = wiki.source(name))
-          reply(example_page(name, src))
+          reply(wiki_page(name, src))
         else
           not_found
         end
@@ -281,9 +291,21 @@ module CrystalRobots::Web
         EXAMPLES.each_key do |name|
           md << "- [#{name}.cr](#{base}/examples/#{name})\n"
         end
-        if wiki_visible? && !wiki.names.empty?
-          md << "\n## Saved robots\n\nWiki pages named `robot/<name>` whose one code block is the robot.\n\n"
-          wiki.names.each { |name| md << "- [#{inline(name)}](#{base}/wiki/#{URI.encode_path_segment(name)}) ([page](/wiki?name=#{URI.encode_www_form(WikiRobots::PREFIX + name)}))\n" }
+        if wiki_visible?
+          md << "\n## Saved robots\n\n"
+          if wiki.names.empty?
+            md << "None yet. Create a wiki page named `robot/<name>` whose Markdown holds exactly one code block, and it appears here and in the battle picker.\n"
+          else
+            md << "Wiki pages named `robot/<name>` whose one code block is the robot. "
+            md << "Add your own the same way, or [write one from a template](/wikiedit?name=#{URI.encode_www_form(WikiRobots::PREFIX + "mine")}).\n\n"
+            md << "| Robot | What it does | |\n| --- | --- | --- |\n"
+            wiki.names.each do |name|
+              view = "#{base}/wiki/#{URI.encode_path_segment(name)}"
+              page = "/wiki?name=#{URI.encode_www_form(WikiRobots::PREFIX + name)}"
+              fight = "#{base}/battle?pick=#{URI.encode_www_form(name)}"
+              md << "| [#{inline(name)}](#{view}) | #{inline(wiki.description(name))} | [page](#{page}) · [fight](#{fight}) |\n"
+            end
+          end
         end
         if logged_in?
           md << "\n## Battle\n\n[Pick robots and fight](#{base}/battle) on the CROBOTS battlefield.\n"
@@ -303,6 +325,21 @@ module CrystalRobots::Web
     def example_page(name : String, src : String) : String
       String.build do |md|
         md << "# #{inline(name)}\n\n[All examples](#{link_base})\n\n"
+        md << fenced(src, "crystal") << "\n"
+        md << derivation_section(src)
+      end
+    end
+
+    def wiki_page(name : String, src : String) : String
+      String.build do |md|
+        page = "/wiki?name=#{URI.encode_www_form(WikiRobots::PREFIX + name)}"
+        edit = "/wikiedit?name=#{URI.encode_www_form(WikiRobots::PREFIX + name)}"
+        fight = "#{link_base}/battle?w=#{URI.encode_www_form(name)}&r=counter&r=rabbit"
+        md << "# #{inline(name)}\n\n"
+        md << "Saved robot from the wiki page [#{inline(WikiRobots::PREFIX + name)}](#{page}) ([edit](#{edit})). "
+        md << "[Fight it against counter and rabbit](#{fight}) or [pick opponents](#{link_base}/battle?pick=#{URI.encode_www_form(name)}). [All robots](#{link_base})\n\n"
+        description = wiki.description(name)
+        md << inline(description) << "\n\n" unless description.empty?
         md << fenced(src, "crystal") << "\n"
         md << derivation_section(src)
       end
@@ -337,7 +374,7 @@ module CrystalRobots::Web
       saved = wiki_visible? ? q.fetch_all("w").select { |n| wiki.names.includes?(n) }.first(4) : [] of String
       pasted = (q["src"]? || "").strip
       pasted = "" if pasted.size > PASTE_LIMIT
-      return battle_form if names.empty? && saved.empty? && pasted.empty?
+      return battle_form(q.fetch_all("pick")) if names.empty? && saved.empty? && pasted.empty?
       seed = (q["seed"]?.try(&.to_u64?) || 1_u64)
       limit = (q["limit"]?.try(&.to_i64?) || WEB_CYCLE_LIMIT).clamp(MOTION_STEP, WEB_CYCLE_MAX)
       entries = names.map { |n| {n, EXAMPLES[n]} }
@@ -355,20 +392,26 @@ module CrystalRobots::Web
 
     private MOTION_STEP = Battle::MOTION_CYCLES.to_i64
 
-    def battle_form : String
+    # `picked` are saved robots to pre-check (from `pick=` links).
+    def battle_form(picked : Array(String) = [] of String) : String
       String.build do |md|
         md << "# Battle\n\n[Back](#{link_base})\n\n"
         md << "Pick up to four robots. The match is deterministic for a seed, so a result page can be shared and replayed.\n\n"
         md << "<form method=\"get\" action=\"#{form_base}/battle\">\n"
+        md << "<p>Built-in examples:</p>\n"
         EXAMPLES.each_key do |name|
-          checked = {"counter", "rabbit"}.includes?(name) ? " checked" : ""
-          md << "<label><input type=\"checkbox\" name=\"r\" value=\"#{name}\"#{checked}> #{name}</label><br>\n"
+          checked = picked.empty? && {"counter", "rabbit"}.includes?(name) ? " checked" : ""
+          md << "<label><input type=\"checkbox\" name=\"r\" value=\"#{name}\"#{checked}> #{name}</label> "
+          md << "<a href=\"#{form_base}/examples/#{name}\">view</a><br>\n"
         end
         if wiki_visible? && !wiki.names.empty?
           md << "<p>Saved robots (wiki pages <code>robot/&lt;name&gt;</code>):</p>\n"
           wiki.names.each do |name|
-            md << "<label><input type=\"checkbox\" name=\"w\" value=\"#{HTML.escape(name)}\"> #{HTML.escape(name)}</label><br>\n"
+            checked = picked.includes?(name) ? " checked" : ""
+            md << "<label><input type=\"checkbox\" name=\"w\" value=\"#{HTML.escape(name)}\"#{checked}> #{HTML.escape(name)}</label> "
+            md << "<a href=\"#{form_base}/wiki/#{URI.encode_path_segment(name)}\">view</a><br>\n"
           end
+          md << "<p>Picked a saved robot with nothing to fight? Check an example too, or it fights a copy of itself.</p>\n" unless picked.empty?
         end
         md << "<p>Or paste your own robot (it fights as <b>yours</b>):</p>\n"
         md << "<textarea name=\"src\" rows=\"10\" cols=\"70\" maxlength=\"#{PASTE_LIMIT}\"></textarea><br>\n"

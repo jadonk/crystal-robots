@@ -44,7 +44,9 @@ compiler work is fixed alongside the migration, not after it.
 
 | 2026-09-10 | Wiki robots hardened: sources over 20 KB are ignored, page names must be plain (letters, digits, space, `_ . -`, at most 40 characters) and are escaped in headings, tables and Pikchr labels anyway, the wiki view needs a login, and every wiki read needs Fossil's wiki-read capability (`j`) |
 
-Spec suite: 90 examples green with `-Dwasmer`.
+| 2026-09-10 | Five saved-robot wiki pages ship in `robots/*.md` (hunter, circler, dodger, wallhugger, turret) with `scripts/publish_wiki_robots.sh` to create or update them; each is spec-tested to parse, pass the checker and hit a target placed 200 m away; discovery: the overview lists saved robots with descriptions and fight links, the battle picker pre-checks a robot from a `pick=` link and links to every robot's view, and the wiki view page offers fight, pick-opponents and edit links; `Battle::Field` accepts fixed start positions |
+
+Spec suite: 96 examples green with `-Dwasmer`.
 
 **WASM robots on the battlefield, decided.** Cycle ticks are injected at
 every operation and builtin call in both engines (above), so a WASM robot

@@ -176,6 +176,14 @@ describe CrystalRobots::Web::CGI do
     cgi.wiki = wiki
     cgi.serve
     reply.to_s.should contain "[spinner](/ext/robots/wiki/spinner)"
+    reply.to_s.should contain "| Turns forever. |"
+    reply.to_s.should contain "[fight](/ext/robots/battle?pick=spinner)"
+    reply = IO::Memory.new
+    cgi = CrystalRobots::Web::CGI.new(env.merge({"PATH_INFO" => "/battle", "QUERY_STRING" => "pick=spinner"}), reply)
+    cgi.wiki = wiki
+    cgi.serve
+    reply.to_s.should contain "value=\"spinner\" checked"
+    reply.to_s.should_not contain "value=\"counter\" checked"
     reply = IO::Memory.new
     cgi = CrystalRobots::Web::CGI.new(env.merge({"PATH_INFO" => "/battle", "QUERY_STRING" => "w=spinner&r=target&limit=1500"}), reply)
     cgi.wiki = wiki
@@ -188,6 +196,8 @@ describe CrystalRobots::Web::CGI do
     cgi.serve
     reply.to_s.should contain "# spinner"
     reply.to_s.should contain "Checks passed"
+    reply.to_s.should contain "[Fight it against counter and rabbit](/ext/robots/battle?w=spinner&r=counter&r=rabbit)"
+    reply.to_s.should contain "(/wikiedit?name=robot%2Fspinner)"
     # wiki reads need a login and the wiki-read capability
     reply = IO::Memory.new
     cgi = CrystalRobots::Web::CGI.new(env.merge({"PATH_INFO" => "/wiki/spinner", "FOSSIL_USER" => "anonymous"}), reply)
