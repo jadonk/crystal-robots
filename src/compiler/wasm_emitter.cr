@@ -22,7 +22,11 @@ module CrystalRobots::Compiler
     end
 
     # Builtins in import order with their type index (see `typeSection`).
+    # `tick` is only imported when cycle accounting is requested: the module
+    # then calls `env.tick(n)` wherever the interpreter charges n cycles,
+    # so a host can count or schedule exactly as it does for the interpreter.
     IMPORTS = [
+      {"tick", 2},
       {"puts", 2}, {"scan", 3}, {"cannon", 3}, {"drive", 3},
       {"damage", 1}, {"speed", 1}, {"loc_x", 1}, {"loc_y", 1}, {"sleep", 1},
       {"rand", 2}, {"sqrt", 2}, {"sin", 2}, {"cos", 2}, {"tan", 2}, {"atan", 2},
@@ -116,8 +120,11 @@ module CrystalRobots::Compiler
     end
 
     getter program : Program
+    getter costs : Interpreter::Costs?
 
-    def initialize(@program : Program)
+    # Pass `costs` to emit `env.tick` calls with the interpreter's cycle
+    # model; without it the module has no cycle accounting.
+    def initialize(@program : Program, @costs : Interpreter::Costs? = nil)
       @imports = [] of String
       @functions = [] of String # user functions in definition order
       @arity = {} of String => Int32
@@ -191,6 +198,16 @@ module CrystalRobots::Compiler
       op(Opcodes::Call) + unsignedLEB128(i)
     end
 
+    # `env.tick(n)` when cycle accounting is on and n > 0.
+    private def tick(n : Int32) : Bytes
+      return Bytes[] if @costs.nil? || n <= 0
+      const(n) + call(import_index("tick")) + op(Opcodes::Drop)
+    end
+
+    private def cost : Interpreter::Costs
+      @costs || Interpreter::Costs.statements
+    end
+
     # ---- analysis ----------------------------------------------------------
 
     private def analyze : Nil
@@ -204,6 +221,7 @@ module CrystalRobots::Compiler
           @uses_division = true
         end
       end
+      names << "tick" if @costs
       IMPORTS.each { |(name, _)| @imports << name if names.includes?(name) }
       @program.children(@program.root).each do |stmt|
         case @program[stmt].rule
@@ -409,6 +427,16 @@ module CrystalRobots::Compiler
       op(Opcodes::Global_get) + unsignedLEB128(global_index(name))
     end
 
+    # An identifier in value position: a variable fetch, or a call to a
+    # zero-parameter function.
+    private def identifier_get(name : String, ctx : Ctx) : Bytes
+      if !ctx.locals.has_key?(name) && !@globals.includes?(name) && @arity[name]? == 0
+        tick(cost.call) + call(function_index(name))
+      else
+        tick(cost.fetch) + variable_get(name, ctx)
+      end
+    end
+
     # Read a variable: local first, then global.
     private def variable_get(name : String, ctx : Ctx) : Bytes
       if (i = ctx.locals[name]?)
@@ -437,15 +465,15 @@ module CrystalRobots::Compiler
     private def statement(stmt : Int32, ctx : Ctx) : Bytes
       case @program[stmt].rule
       when :exprstmt
-        value = expression(@program.arg(stmt, 0), ctx)
+        value = expression(@program.arg(stmt, 0), ctx) + tick(cost.statement)
         ctx.in_def ? value + local_set(ctx.ret) : value + op(Opcodes::Drop)
       when :return
         kids = @program.children(stmt)
         value = kids.size > 2 ? expression(kids[1], ctx) : const(0)
-        value + op(Opcodes::Return)
+        value + tick(cost.branch) + op(Opcodes::Return)
       when :break
         exit = ctx.loops.last? || raise Unsupported.new("break outside of a loop")
-        op(Opcodes::Br) + unsignedLEB128(ctx.depth - exit)
+        tick(cost.branch) + op(Opcodes::Br) + unsignedLEB128(ctx.depth - exit)
       when :if
         if_statement(stmt, ctx)
       when :while
@@ -484,7 +512,7 @@ module CrystalRobots::Compiler
       if cond.nil?
         return stmts.sum(Bytes[]) { |s| statement(s, ctx) }
       end
-      code = expression(cond, ctx) + op(Opcodes::If) + Bytes[BlockVoid]
+      code = expression(cond, ctx) + tick(cost.branch) + op(Opcodes::If) + Bytes[BlockVoid]
       ctx.depth += 1
       stmts.each { |s| code += statement(s, ctx) }
       rest = branches[1..]
@@ -508,6 +536,7 @@ module CrystalRobots::Compiler
       ctx.depth += 1
       code += expression(cond, ctx)
       code += op(Opcodes::I32_eqz) if while_true
+      code += tick(cost.branch)
       code += op(Opcodes::Br_if) + unsignedLEB128(ctx.depth - exit)
       body_of(stmt).each { |s| code += statement(s, ctx) }
       code += op(Opcodes::Br) + unsignedLEB128(0)
@@ -547,7 +576,7 @@ module CrystalRobots::Compiler
       if cond.nil?
         return stmts.sum(Bytes[]) { |s| statement(s, ctx) }
       end
-      code = local_get(subject) + expression(cond, ctx) + op(Opcodes::I32_eq) + op(Opcodes::If) + Bytes[BlockVoid]
+      code = local_get(subject) + expression(cond, ctx) + op(Opcodes::I32_eq) + tick(cost.branch) + op(Opcodes::If) + Bytes[BlockVoid]
       ctx.depth += 1
       stmts.each { |s| code += statement(s, ctx) }
       rest = branches[1..]
@@ -566,22 +595,22 @@ module CrystalRobots::Compiler
       case n.rule
       when :lex
         case n.type
-        when Type::Number        then const(@program.value(n).to_i32)
-        when Type::Identifier    then variable_get(@program.value(n), ctx)
-        when Type::ZeroArgMethod then call(import_index(@program.value(n)))
+        when Type::Number        then tick(cost.fetch) + const(@program.value(n).to_i32)
+        when Type::Identifier    then identifier_get(@program.value(n), ctx)
+        when Type::ZeroArgMethod then tick(cost.builtin) + call(import_index(@program.value(n)))
         when Type::String        then raise Unsupported.new("strings are not supported in WASM")
         else                          raise Unsupported.new("#{n.type} is not a value")
         end
       when :literal
-        const(@program.type(@program.arg(i, 0)) == Type::TrueKeyword ? 1 : 0)
+        tick(cost.fetch) + const(@program.type(@program.arg(i, 0)) == Type::TrueKeyword ? 1 : 0)
       when :paren
         expression(@program.arg(i, 1), ctx)
       when :neg
-        const(0) + expression(@program.arg(i, 1), ctx) + op(Opcodes::I32_sub)
+        const(0) + expression(@program.arg(i, 1), ctx) + op(Opcodes::I32_sub) + tick(cost.operator)
       when :mul, :add, :cmp, :eq, :and, :or
-        binary(@program.type(@program.arg(i, 1)), expression(@program.arg(i, 0), ctx), expression(@program.arg(i, 2), ctx))
+        binary(@program.type(@program.arg(i, 1)), expression(@program.arg(i, 0), ctx), expression(@program.arg(i, 2), ctx)) + tick(cost.operator)
       when :assign
-        expression(@program.arg(i, 2), ctx) + variable_tee(@program.lexeme(@program.arg(i, 0)), ctx)
+        expression(@program.arg(i, 2), ctx) + tick(cost.store) + variable_tee(@program.lexeme(@program.arg(i, 0)), ctx)
       when :opassign
         name = @program.lexeme(@program.arg(i, 0))
         opt = case @program.type(@program.arg(i, 1))
@@ -590,18 +619,19 @@ module CrystalRobots::Compiler
               when Type::MulAssign then Type::MulOperator
               else                      Type::ModOperator
               end
-        binary(opt, variable_get(name, ctx), expression(@program.arg(i, 2), ctx)) + variable_tee(name, ctx)
+        binary(opt, variable_get(name, ctx), expression(@program.arg(i, 2), ctx)) +
+          tick(cost.fetch + cost.operator + cost.store) + variable_tee(name, ctx)
       when :call0
-        call(import_index(@program.lexeme(i)))
+        tick(cost.builtin) + call(import_index(@program.lexeme(i)))
       when :call1, :command1, :call2, :command2
         kids = @program.children(i)
         args = kids[1..].reject { |k| {Type::OpenParen, Type::CloseParen, Type::Comma}.includes?(@program.type(k)) }
-        args.sum(Bytes[]) { |a| expression(a, ctx) } + call(import_index(@program.lexeme(kids[0])))
+        args.sum(Bytes[]) { |a| expression(a, ctx) } + tick(cost.builtin) + call(import_index(@program.lexeme(kids[0])))
       when :call
         kids = @program.children(i)
         name = @program.lexeme(kids[0])
         args = kids[2..].reject { |k| {Type::CloseParen, Type::Comma}.includes?(@program.type(k)) }
-        args.sum(Bytes[]) { |a| expression(a, ctx) } + call(function_index(name))
+        args.sum(Bytes[]) { |a| expression(a, ctx) } + tick(cost.call) + call(function_index(name))
       else
         raise Unsupported.new("expression #{n.rule} is not supported in WASM")
       end

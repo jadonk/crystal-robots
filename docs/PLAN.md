@@ -36,7 +36,22 @@ compiler work is fixed alongside the migration, not after it.
 
 | 2026-09-10 | Review fixes from the trunk-ops merge of cdc29f87/61905033: the parser no longer re-copies the whole source every pass (append-only parts, joined lazily) and has a total-glyph work budget of two million on top of the pass budget, so cost is bounded by work done, not by input length alone; parse and battle require a named login (anonymous and nobody are refused with a Markdown 403) until the parser is opened up again; `fossil-skin/mainmenu` restored (my edit had truncated it); replay runs at a chosen frames-per-second (`fps=`, default 20) instead of a fixed duration, and trails grow with the robot instead of predicting its path |
 
-Spec suite: 81 examples green with `-Dwasmer`.
+| 2026-09-10 | Cycle model: the interpreter charges CROBOTS-style cycles (fetch/const 1, operator 1, store 1, builtin 2, call 3, branch 1, statement 1; `Interpreter::Costs`, configurable, `Costs.statements` is the old one-per-statement model) and the emitter can insert `env.tick(n)` at the same points (`-c --ticks`); differential specs show both engines charge identical totals on the test robots |
+| 2026-09-10 | Saved robots: wiki pages named `robot/<name>` whose single code block is the source appear on the overview, on the battle form (`w=` parameter) and at `/wiki/<name>`; read through `fossil wiki list/export` with the CGI environment scrubbed |
+| 2026-09-10 | The examples list is generated at compile time from `examples/*.cr` by a macro; adding a file is enough |
+
+Spec suite: 87 examples green with `-Dwasmer`.
+
+**WASM robots on the battlefield, decided.** Cycle ticks are injected at
+every operation and builtin call in both engines (above), so a WASM robot
+reports the same cycle count as the interpreter would. Interleaving it on
+the field needs the `tick` host call to hand control back to the
+scheduler. That means blocking inside a wasmer host callback while another
+fiber runs; whether the wasmer 4 runtime tolerates a fiber switch inside a
+host call is the open question to spike (a wasmer-backed `Battle::Robot`
+behind the same `cycle`/`stop` protocol). The ideal, as noted in the
+thread, is a runtime with real fuel metering where intrinsics cost one
+cycle; wasmer's metering middleware is not exposed by the Crystal shard.
 
 **Size limits, and what CROBOTS did.** CROBOTS capped a robot at 1000
 machine instructions (`CODESPACE`), 500 stack entries (`DATASPACE`),
@@ -307,13 +322,48 @@ operator-precedence variant) is dropped.
 
 ## 5. Immediate next steps
 
-1. WASM robots on the battlefield: needs instruction-level interleaving,
-   which the wasmer shard cannot provide without metering; options are
-   the emitter inserting a yield import every statement, or one match per
-   wasm robot at motion-cycle granularity. Decide before building.
-2. Phase 5 polish: saved robots (Fossil-backed) instead of the pasted
-   source travelling in the query string.
-3. Phase 7 migration items.
+1. Spike: a wasmer-backed `Battle::Robot` whose `env.tick` blocks on the
+   scheduler channel; if the runtime tolerates it, WASM robots join the
+   field with the same protocol as interpreted ones.
+2. Phase 7 migration items, after the coordinator answers section 7.
+3. Live-editing loop for wiki robots: a link from the battle result to
+   the wiki page editor and back.
+
+## 7. Questions for the Ollama-Codex coordinator (Phase 7)
+
+1. API docs: Ollama-Codex builds `crystal docs` into its binary and serves
+   it at `/ext/docs`. Should crystal-robots use that exact mechanism (and
+   the `build-docs` step) or its own, and where should the artifact live?
+2. Deploy: the served CGI is a symlink `extroot/crystal-robots ->
+   <checkout>/bin/crystal-robots`. Who runs `shards build` after a trunk
+   merge, is that automated, and does the preview dispatcher expect the
+   `bin/<shard target>` name it reads from `shard.yml`?
+3. CI: is there a host-side hook or runner that builds and runs specs on
+   trunk merges? If so, what should `scripts/ci.sh` look like to plug
+   into it, and can wasmer 4.4.0 be installed on the host (`-Dwasmer`)?
+4. Permissions: Ollama-Codex gates "agent use" on check-in (`i`) and
+   "control" on developer (`v`/`e`). Should parse and battle follow the
+   same tiers instead of "any named login"? Anonymous read of examples
+   and the overview stays open either way.
+5. User data: saved robots live in wiki pages `robot/<name>`. Is a
+   page-name prefix an acceptable convention across peers, or would the
+   project rather see app data in the Fossil config table like its own
+   runner and session bindings?
+6. Menu and skin: onboarding has a "Bootstrap invariants (CSP, mainmenu)"
+   step. Can it apply `fossil-skin/mainmenu` from the repository, so the
+   "Run" entry is not hand-pasted?
+7. Ignore rules and the git mirror: is `.fossil-settings/ignore-glob`
+   the convention (and `bin/`, `lib/`, `public/` the expected entries),
+   and is `fossil git export` run for this repository so `.gitignore`
+   still matters?
+8. Previews: is there a sanctioned way for a sandboxed session to trigger
+   `session-preview`, or does that stay with the Thread UI button?
+9. Robots and cost: `/ext` can be robot-restricted with the
+   `robot-restrict` setting. Should `ext/crystal-robots` be listed, given
+   a battle costs seconds of CPU?
+10. Live output: if animated battles ever move to streaming, can the
+    port 8443 live-events daemon carry per-project channels for other
+    projects, or is that Ollama-Codex-only?
 
 ## 6. Order of work
 

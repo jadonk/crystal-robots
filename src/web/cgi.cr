@@ -13,18 +13,65 @@ require "../battle/field"
 
 module CrystalRobots::Web
   # The example robots, embedded at compile time so the CGI needs no
-  # filesystem access. Order is the order they are listed.
-  EXAMPLES = {
-    "counter" => {{ read_file("#{__DIR__}/../../examples/counter.cr") }},
-    "rabbit"  => {{ read_file("#{__DIR__}/../../examples/rabbit.cr") }},
-    "rook"    => {{ read_file("#{__DIR__}/../../examples/rook.cr") }},
-    "sniper"  => {{ read_file("#{__DIR__}/../../examples/sniper.cr") }},
-    "target"  => {{ read_file("#{__DIR__}/../../examples/target.cr") }},
-    "test"    => {{ read_file("#{__DIR__}/../../examples/test.cr") }},
-  }
+  # filesystem access. The list is whatever `examples/*.cr` holds when the
+  # binary is built, in name order.
+  EXAMPLES = {% begin %}
+    {
+      {% for file in `ls examples/*.cr`.split.sort %}
+        {{ file.split("/").last.gsub(/\.cr$/, "") }} => {{ read_file(file) }},
+      {% end %}
+    }
+  {% end %}
+
+  # Robots saved as Fossil wiki pages. A page named `robot/<name>` holds
+  # Markdown with exactly one fenced code block, which is the robot source.
+  # Pages are read through the fossil binary with the CGI variables
+  # scrubbed, so fossil does not mistake the call for a CGI request.
+  class WikiRobots
+    PREFIX = "robot/"
+    FENCE  = /^(`{3,})[^\n]*\n(.*?)\n\1[ \t]*$/m
+
+    alias Lister = -> Array(String)
+    alias Reader = String -> String?
+
+    getter names : Array(String)
+
+    def initialize(@list : Lister, @read : Reader)
+      @names = @list.call.select(&.starts_with?(PREFIX)).map { |page| page[PREFIX.size..] }.sort
+    end
+
+    # The deployed repository, if Fossil told us where it is.
+    def self.for_repository(repository : String?) : WikiRobots
+      if repository && File.exists?(repository)
+        new(-> { fossil(["wiki", "list", "-R", repository]).lines.map(&.strip) },
+          ->(name : String) : String? { fossil(["wiki", "export", PREFIX + name, "-R", repository]) })
+      else
+        new(-> { [] of String }, ->(name : String) : String? { nil })
+      end
+    end
+
+    # The source of the robot, or nil if the page has no single fence.
+    def source(name : String) : String?
+      return nil unless @names.includes?(name)
+      page = @read.call(name)
+      return nil unless page
+      fences = page.scan(FENCE)
+      return nil unless fences.size == 1
+      fences[0][2]
+    end
+
+    private def self.fossil(args : Array(String)) : String
+      output = IO::Memory.new
+      scrub = {"GATEWAY_INTERFACE" => nil, "PATH_INFO" => nil, "QUERY_STRING" => nil, "REQUEST_METHOD" => nil,
+               "CONTENT_LENGTH" => nil, "SCRIPT_NAME" => nil, "HTTP_COOKIE" => nil}
+      Process.run("fossil", args, env: scrub, output: output, error: Process::Redirect::Close)
+      output.to_s
+    end
+  end
 
   class CGI
     getter env : Hash(String, String)
+    property wiki : WikiRobots { WikiRobots.for_repository(env["FOSSIL_REPOSITORY"]?) }
 
     def initialize(@env : Hash(String, String) = ENV.to_h, @out : IO = STDOUT, @in : IO = STDIN)
     end
@@ -155,6 +202,13 @@ module CrystalRobots::Web
         else
           not_found
         end
+      when /\Awiki\/(.+)\z/
+        name = URI.decode($1)
+        if (src = wiki.source(name))
+          reply(example_page(name, src))
+        else
+          not_found
+        end
       else
         not_found
       end
@@ -205,6 +259,10 @@ module CrystalRobots::Web
         EXAMPLES.each_key do |name|
           md << "- [#{name}.cr](#{base}/examples/#{name})\n"
         end
+        unless wiki.names.empty?
+          md << "\n## Saved robots\n\nWiki pages named `robot/<name>` whose one code block is the robot.\n\n"
+          wiki.names.each { |name| md << "- [#{inline(name)}](#{base}/wiki/#{URI.encode_path_segment(name)}) ([page](/wiki?name=#{URI.encode_www_form(WikiRobots::PREFIX + name)}))\n" }
+        end
         md << "\n## Battle\n\n[Pick robots and fight](#{base}/battle) on the CROBOTS battlefield.\n"
         md << "\n## Parse your own\n\n"
         md << "<form method=\"post\" action=\"#{form_base}/parse\">\n"
@@ -250,12 +308,14 @@ module CrystalRobots::Web
     def battle_page : String
       q = query
       names = q.fetch_all("r").select { |n| EXAMPLES.has_key?(n) }.first(4)
+      saved = q.fetch_all("w").select { |n| wiki.names.includes?(n) }.first(4)
       pasted = (q["src"]? || "").strip
       pasted = "" if pasted.size > PASTE_LIMIT
-      return battle_form if names.empty? && pasted.empty?
+      return battle_form if names.empty? && saved.empty? && pasted.empty?
       seed = (q["seed"]?.try(&.to_u64?) || 1_u64)
       limit = (q["limit"]?.try(&.to_i64?) || WEB_CYCLE_LIMIT).clamp(MOTION_STEP, WEB_CYCLE_MAX)
       entries = names.map { |n| {n, EXAMPLES[n]} }
+      saved.each { |n| entries << {n, wiki.source(n) || "# robot/#{n} has no single code block\n"} }
       entries.unshift({"yours", pasted}) unless pasted.empty?
       entries = entries.first(4)
       entries << entries[0] if entries.size == 1 # CROBOTS clones a lone robot
@@ -264,7 +324,7 @@ module CrystalRobots::Web
       frame_count = field.frames.size
       frame = (q["frame"]?.try(&.to_i?) || frame_count - 1).clamp(0, frame_count - 1)
       fps = (q["fps"]?.try(&.to_i?) || ANIM_FPS).clamp(1, ANIM_FPS_MAX)
-      render_battle(field, names, pasted, seed, limit, frame, fps)
+      render_battle(field, names, pasted, seed, limit, frame, fps, saved)
     end
 
     private MOTION_STEP = Battle::MOTION_CYCLES.to_i64
@@ -278,6 +338,12 @@ module CrystalRobots::Web
           checked = {"counter", "rabbit"}.includes?(name) ? " checked" : ""
           md << "<label><input type=\"checkbox\" name=\"r\" value=\"#{name}\"#{checked}> #{name}</label><br>\n"
         end
+        unless wiki.names.empty?
+          md << "<p>Saved robots (wiki pages <code>robot/&lt;name&gt;</code>):</p>\n"
+          wiki.names.each do |name|
+            md << "<label><input type=\"checkbox\" name=\"w\" value=\"#{HTML.escape(name)}\"> #{HTML.escape(name)}</label><br>\n"
+          end
+        end
         md << "<p>Or paste your own robot (it fights as <b>yours</b>):</p>\n"
         md << "<textarea name=\"src\" rows=\"10\" cols=\"70\" maxlength=\"#{PASTE_LIMIT}\"></textarea><br>\n"
         md << "<label>Seed <input type=\"number\" name=\"seed\" value=\"1\" min=\"0\"></label>\n"
@@ -287,13 +353,14 @@ module CrystalRobots::Web
       end
     end
 
-    def battle_link(names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32, fps : Int32 = ANIM_FPS) : String
+    def battle_link(names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32, fps : Int32 = ANIM_FPS, saved : Array(String) = [] of String) : String
       params = names.map { |n| "r=#{n}" }
+      saved.each { |n| params << "w=#{URI.encode_www_form(n)}" }
       params << "src=#{URI.encode_www_form(pasted)}" unless pasted.empty?
       "#{link_base}/battle?#{params.join("&")}&seed=#{seed}&limit=#{limit}&fps=#{fps}&frame=#{frame}"
     end
 
-    def render_battle(field : Battle::Field, names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32, fps : Int32 = ANIM_FPS) : String
+    def render_battle(field : Battle::Field, names : Array(String), pasted : String, seed : UInt64, limit : Int64, frame : Int32, fps : Int32 = ANIM_FPS, saved : Array(String) = [] of String) : String
       f = field.frames[frame]
       last = field.frames.size - 1
       seconds = (field.frames.size.to_f / fps).round(1)
@@ -304,10 +371,10 @@ module CrystalRobots::Web
         md << svg_animation(field, fps) << "\n\n"
         md << "## Frame #{frame + 1} of #{last + 1} (cycle #{f.cycle})\n\n"
         nav = [] of String
-        nav << "[first](#{battle_link(names, pasted, seed, limit, 0, fps)})" if frame > 0
-        nav << "[previous](#{battle_link(names, pasted, seed, limit, frame - 1, fps)})" if frame > 0
-        nav << "[next](#{battle_link(names, pasted, seed, limit, frame + 1, fps)})" if frame < last
-        nav << "[last](#{battle_link(names, pasted, seed, limit, last, fps)})" if frame < last
+        nav << "[first](#{battle_link(names, pasted, seed, limit, 0, fps, saved)})" if frame > 0
+        nav << "[previous](#{battle_link(names, pasted, seed, limit, frame - 1, fps, saved)})" if frame > 0
+        nav << "[next](#{battle_link(names, pasted, seed, limit, frame + 1, fps, saved)})" if frame < last
+        nav << "[last](#{battle_link(names, pasted, seed, limit, last, fps, saved)})" if frame < last
         md << nav.join(" · ") << "\n\n" unless nav.empty?
         md << "```pikchr\n" << pikchr_frame(f, field.frames[0..frame]) << "```\n\n"
         md << "| Robot | x | y | heading | speed | damage | scan |\n| --- | --- | --- | --- | --- | --- | --- |\n"

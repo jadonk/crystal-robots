@@ -432,6 +432,23 @@ describe CrystalRobots do
         C::Interpreter.puts_out.should eq "20\n8\n3"
       end
 
+      it "charges cycles like the CROBOTS virtual machine" do
+        # x = 1 + 2 : fetch, fetch, operator, store, statement = 5
+        p = C::Parser.new("x = 1 + 2").program
+        i = C::Interpreter.new(p, C::NullHost.new)
+        i.run
+        i.steps.should eq 5
+        # scan(1, 2): two fetches + builtin(2) + statement = 5; a user call adds 3
+        p = C::Parser.new("def f(a)\n  a\nend\nscan(1, 2)\nf(3)").program
+        i = C::Interpreter.new(p, C::NullHost.new)
+        i.run
+        i.steps.should eq 5 + (1 + 3 + (1 + 1) + 1) # f(3): fetch 3, call, body (fetch a, statement), statement
+        statements = C::Interpreter.new(p, C::NullHost.new)
+        statements.costs = C::Interpreter::Costs.statements
+        statements.run
+        statements.steps.should eq 3
+      end
+
       it "reports a step limit instead of looping forever" do
         p = C::Parser.new("while true\nend").program
         expect_raises(C::Interpreter::StepLimit) do
