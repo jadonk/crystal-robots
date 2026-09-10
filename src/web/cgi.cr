@@ -226,6 +226,8 @@ module CrystalRobots::Web
     WEB_CYCLE_LIMIT = 100_000_i64
     WEB_CYCLE_MAX   = 500_000_i64
     ROBOT_COLORS    = ["0x4C97FF", "0xFF8C1A", "0x59C059", "0xFFAB19"]
+    ANIM_FRAMES     =  400 # keyframes recorded per match; SMIL interpolates between them
+    ANIM_SECONDS    = 24.0
 
     # `GET /battle` without robots shows the form; with `r=` parameters it
     # runs one seeded match and renders a frame of it in Pikchr.
@@ -241,7 +243,7 @@ module CrystalRobots::Web
       entries.unshift({"yours", pasted}) unless pasted.empty?
       entries = entries.first(4)
       entries << entries[0] if entries.size == 1 # CROBOTS clones a lone robot
-      field = Battle::Field.new(entries, seed: seed, limit: limit, max_frames: 120)
+      field = Battle::Field.new(entries, seed: seed, limit: limit, max_frames: ANIM_FRAMES)
       field.run
       frame_count = field.frames.size
       frame = (q["frame"]?.try(&.to_i?) || frame_count - 1).clamp(0, frame_count - 1)
@@ -278,7 +280,21 @@ module CrystalRobots::Web
       last = field.frames.size - 1
       String.build do |md|
         md << "# Battle: #{field.robots.map(&.name).join(" vs ")}\n\n"
-        md << "[Pick again](#{link_base}/battle) · seed #{seed} · limit #{limit} · #{field.cycles} cycles run\n\n"
+        md << "[Pick again](#{link_base}/battle) · seed #{seed} · limit #{limit} · #{field.cycles} cycles run · #{ANIM_SECONDS.to_i} second replay, looping\n\n"
+        md << svg_animation(field) << "\n\n"
+        md << "## Frame #{frame + 1} of #{last + 1} (cycle #{f.cycle})\n\n"
+        nav = [] of String
+        nav << "[first](#{battle_link(names, pasted, seed, limit, 0)})" if frame > 0
+        nav << "[previous](#{battle_link(names, pasted, seed, limit, frame - 1)})" if frame > 0
+        nav << "[next](#{battle_link(names, pasted, seed, limit, frame + 1)})" if frame < last
+        nav << "[last](#{battle_link(names, pasted, seed, limit, last)})" if frame < last
+        md << nav.join(" · ") << "\n\n" unless nav.empty?
+        md << "```pikchr\n" << pikchr_frame(f, field.frames[0..frame]) << "```\n\n"
+        md << "| Robot | x | y | heading | speed | damage | scan |\n| --- | --- | --- | --- | --- | --- | --- |\n"
+        f.robots.each do |r|
+          md << "| #{r.name} | #{r.x // Battle::CLICK} | #{r.y // Battle::CLICK} | #{r.heading} | #{r.speed} | #{r.damage}% | #{r.scan} |\n"
+        end
+        md << "\n## Result\n\n"
         if (w = field.winner)
           md << "**Winner: #{w.name}**\n\n"
         elsif field.active.empty?
@@ -292,23 +308,80 @@ module CrystalRobots::Web
           note = r.error || r.output.first?.try { |line| "puts #{line}" } || ""
           md << "| #{r.name} | #{status} | #{r.damage}% | #{r.cycles} | #{r.restarts} | #{inline(note)} |\n"
         end
-        md << "\n## Frame #{frame + 1} of #{last + 1} (cycle #{f.cycle})\n\n"
-        nav = [] of String
-        nav << "[first](#{battle_link(names, pasted, seed, limit, 0)})" if frame > 0
-        nav << "[previous](#{battle_link(names, pasted, seed, limit, frame - 1)})" if frame > 0
-        nav << "[next](#{battle_link(names, pasted, seed, limit, frame + 1)})" if frame < last
-        nav << "[last](#{battle_link(names, pasted, seed, limit, last)})" if frame < last
-        md << nav.join(" · ") << "\n\n" unless nav.empty?
-        md << "```pikchr\n" << pikchr_frame(f, field.frames[0..frame]) << "```\n\n"
-        md << "| Robot | x | y | heading | speed | damage | scan |\n| --- | --- | --- | --- | --- | --- | --- |\n"
-        f.robots.each do |r|
-          md << "| #{r.name} | #{r.x // Battle::CLICK} | #{r.y // Battle::CLICK} | #{r.heading} | #{r.speed} | #{r.damage}% | #{r.scan} |\n"
-        end
         field.robots.each do |r|
           next if r.output.empty?
           md << "\n## #{r.name} output\n\n" << fenced(r.output.first(20).join("\n"))
         end
       end
+    end
+
+    # The whole match as one SVG with native (SMIL) animation: no script,
+    # so it works under Fossil's content security policy. Positions are
+    # keyframes at each recorded frame, interpolated linearly in between;
+    # missiles switch discretely. Fossil passes raw HTML blocks through.
+    def svg_animation(field : Battle::Field) : String
+      frames = field.frames
+      total = Math.max(1_i64, frames.last.cycle)
+      key_times = frames.map { |f| (f.cycle.to_f / total).round(4) }.join(';')
+      dur = "#{ANIM_SECONDS}s"
+      String.build do |svg|
+        svg << %(<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -30 1060 1060" width="520" height="520" role="img" aria-label="battle replay">\n)
+        svg << %(<rect x="0" y="0" width="1000" height="1000" fill="#f4f4f0" stroke="#888" stroke-width="3"/>\n)
+        field.robots.each_with_index do |robot, i|
+          color = "#" + ROBOT_COLORS[i % ROBOT_COLORS.size][2..]
+          xs = frames.map { |f| f.robots[i].x // Battle::CLICK }
+          ys = frames.map { |f| 1000 - f.robots[i].y // Battle::CLICK }
+          alive = frames.map { |f| f.robots[i].active ? "1" : "0.3" }
+          svg << %(<polyline fill="none" stroke="#{color}" stroke-opacity="0.35" stroke-width="3" points=")
+          xs.each_with_index { |x, k| svg << x << ',' << ys[k] << ' ' }
+          svg << %("/>\n)
+          svg << %(<circle r="14" fill="#{color}" stroke="#000" stroke-width="2">\n)
+          svg << animate("cx", xs.join(';'), key_times, dur, "linear")
+          svg << animate("cy", ys.join(';'), key_times, dur, "linear")
+          svg << animate("opacity", alive.join(';'), key_times, dur, "discrete")
+          svg << "</circle>\n"
+          svg << %(<text font-size="30" font-family="sans-serif" text-anchor="middle" fill="#222">#{HTML.escape(robot.name)}\n)
+          svg << animate("x", xs.join(';'), key_times, dur, "linear")
+          svg << animate("y", ys.map { |y| y - 24 }.join(';'), key_times, dur, "linear")
+          svg << "</text>\n"
+        end
+        field.robots.each_index do |owner|
+          Battle::MIS_ROBOT.times do |slot|
+            xs = [] of Int32
+            ys = [] of Int32
+            rs = [] of Int32
+            ops = [] of String
+            last_x = 0
+            last_y = 0
+            frames.each do |f|
+              m = f.missiles.find { |st| st.owner == owner && st.slot == slot }
+              if m
+                last_x = m.x // Battle::CLICK
+                last_y = 1000 - m.y // Battle::CLICK
+                rs << (m.exploding ? 40 : 7)
+                ops << (m.exploding ? "0.25" : "1")
+              else
+                rs << 0
+                ops << "0"
+              end
+              xs << last_x
+              ys << last_y
+            end
+            next if rs.all?(&.zero?)
+            svg << %(<circle r="0" fill="#d00" stroke="#d00" stroke-width="2">\n)
+            svg << animate("cx", xs.join(';'), key_times, dur, "discrete")
+            svg << animate("cy", ys.join(';'), key_times, dur, "discrete")
+            svg << animate("r", rs.join(';'), key_times, dur, "discrete")
+            svg << animate("fill-opacity", ops.join(';'), key_times, dur, "discrete")
+            svg << "</circle>\n"
+          end
+        end
+        svg << "</svg>"
+      end
+    end
+
+    private def animate(attr : String, values : String, key_times : String, dur : String, mode : String) : String
+      %(<animate attributeName="#{attr}" values="#{values}" keyTimes="#{key_times}" dur="#{dur}" calcMode="#{mode}" repeatCount="indefinite"/>\n)
     end
 
     # One frame of the field as a Pikchr diagram: 4 inches for 1000 meters,

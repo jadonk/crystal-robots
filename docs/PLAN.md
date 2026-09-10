@@ -31,7 +31,21 @@ compiler work is fixed alongside the migration, not after it.
 
 | 2026-09-10 | Review fixes from the trunk-ops merge of 39d4b976: user text can no longer close a code fence or inject markup (fence sized to the text, prose escaped), parse is POST only, request body capped at 64 KB before allocation, source capped at 20 KB, parser pass budget of 20000, invalid UTF-8 and any other failure answer 400/500 instead of crashing, menu and extroot use `/ext/crystal-robots`, `/docs/` no longer ignored for the git mirror |
 
-Spec suite: 69 examples green with `-Dwasmer`.
+| 2026-09-10 | Review fixes from the trunk-ops merge of 85c46a57: the interpreter's shared puts buffer is off for battle hosts and capped elsewhere; a robot fiber rescues everything, marks the robot failed and unwinds; repeated runtime errors also fail the robot; a call-depth limit turns unbounded recursion into a runtime error; angle normalization and integer ops are overflow-safe |
+| 2026-09-10 | Battle page reordered (replay on top, static frame, result at the bottom) and given a smooth replay: one SVG with native SMIL animation over 400 keyframes, no script, inside the Fossil chrome |
+
+Spec suite: 77 examples green with `-Dwasmer`.
+
+**Animation approach.** Fossil serves our Markdown with a script-src policy
+that only allows scripts carrying its nonce, and it passes raw HTML blocks
+through. Three ways to animate under that: (1) SVG with SMIL `<animate>`
+elements, no script at all, keyframes interpolated by the browser; (2) CSS
+keyframe animations in an inline `<style>`; (3) a small script using the
+`FOSSIL_NONCE` Fossil hands the CGI, which allows real player controls.
+The page uses (1) now: it is the simplest, it is smooth, and the same
+keyframe data can later feed (3) for play/pause/scrub without changing
+the simulation. Pikchr stays for the static, printable frame and the
+teaching view; it cannot animate.
 
 Interpreter and WASM agree by construction on: floored division, division
 by zero yielding 0 (as CROBOTS), logical `&&`/`||` evaluating both sides

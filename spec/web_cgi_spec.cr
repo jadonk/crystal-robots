@@ -74,6 +74,11 @@ describe CrystalRobots::Web::CGI do
     first = run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000&frame=0")
     first.should contain "## Frame 1 of"
     page.should contain "line thin color" # trails
+    # animation first, static frame second, result last
+    page.index("<svg ").not_nil!.should be < page.index("```pikchr").not_nil!
+    page.index("```pikchr").not_nil!.should be < page.index("## Result").not_nil!
+    page.should contain "<animate attributeName=\"cx\""
+    page.should contain "repeatCount=\"indefinite\""
   end
 
   it "lets a pasted robot fight and reports its problems" do

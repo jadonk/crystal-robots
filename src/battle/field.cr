@@ -46,6 +46,12 @@ module CrystalRobots::Battle
     100000,
   ]
 
+  # CROBOTS: negative degrees are negated, then reduced modulo 360. Done in
+  # 64 bits because Int32::MIN has no absolute value in 32.
+  def self.normalize(degree : Int32) : Int32
+    (degree.to_i64.abs % 360).to_i32
+  end
+
   def self.lsin(deg : Int32) : Int32
     deg = deg % 360
     deg += 360 if deg < 0
@@ -83,7 +89,7 @@ module CrystalRobots::Battle
   # Snapshot types for the replay trace.
   record RobotState, name : String, x : Int32, y : Int32, heading : Int32, speed : Int32,
     damage : Int32, scan : Int32, active : Bool
-  record MissileState, x : Int32, y : Int32, exploding : Bool
+  record MissileState, owner : Int32, slot : Int32, x : Int32, y : Int32, exploding : Bool
   record Frame, cycle : Int64, robots : Array(RobotState), missiles : Array(MissileState)
 
   # Raised inside a robot fiber to unwind it when the match is over.
@@ -109,6 +115,11 @@ module CrystalRobots::Battle
     getter program : Compiler::Program? = nil
 
     MAX_OUTPUT = 200
+    # A program that keeps failing at runtime is marked failed instead of
+    # restarting forever (CROBOTS would restart it; a hundred restarts of a
+    # broken robot are not interesting to watch).
+    MAX_ERRORS = 10
+    @errors = 0
 
     @go = Channel(Bool).new
     @done = Channel(Nil).new(1)
@@ -146,6 +157,7 @@ module CrystalRobots::Battle
           raise Aborted.new unless @go.receive
           loop do
             interpreter = Compiler::Interpreter.new(program, host, Int32::MAX)
+            interpreter.capture = false
             interpreter.on_step = -> do
               @cycles += 1
               @done.send(nil)
@@ -153,8 +165,14 @@ module CrystalRobots::Battle
             end
             begin
               interpreter.run
+            rescue aborted : Aborted
+              raise aborted
             rescue err : Compiler::Interpreter::RuntimeError
               note("runtime error: #{err.message}")
+              fail("runtime error: #{err.message}") if (@errors += 1) >= MAX_ERRORS
+            rescue err
+              # anything else is a bug in the robot or in us: the robot is out
+              fail("#{err.class}: #{err.message}")
             end
             # CROBOTS restarts `main` when it returns or fails
             @restarts += 1
@@ -186,6 +204,13 @@ module CrystalRobots::Battle
 
     def note(line : String) : Nil
       @output << line if @output.size < MAX_OUTPUT
+    end
+
+    # Mark the robot failed and unwind its fiber.
+    private def fail(message : String) : NoReturn
+      @error = message
+      @active = false
+      raise Aborted.new
     end
 
     def state : RobotState
@@ -314,10 +339,10 @@ module CrystalRobots::Battle
 
     private def record(c : Int64) : Nil
       missiles = [] of MissileState
-      @robots.each do |r|
-        r.missiles.each do |m|
+      @robots.each_with_index do |r, owner|
+        r.missiles.each_with_index do |m, slot|
           next if m.stat.avail?
-          missiles << MissileState.new(m.cur_x, m.cur_y, m.stat.exploding?)
+          missiles << MissileState.new(owner, slot, m.cur_x, m.cur_y, m.stat.exploding?)
         end
       end
       @frames << Frame.new(c, @robots.map(&.state), missiles)
@@ -487,7 +512,7 @@ module CrystalRobots::Battle
     # +/- resolution degrees of `degree`, or 0.
     def scan(robot : Robot, degree : Int32, res : Int32) : Int32
       res = res.clamp(0, RES_LIMIT)
-      degree = degree.abs % 360
+      degree = Battle.normalize(degree)
       robot.scan = degree
       closest = 0
       @robots.each do |other|
@@ -527,7 +552,7 @@ module CrystalRobots::Battle
     def cannon(robot : Robot, degree : Int32, distance : Int32) : Int32
       return 1 if distance < 0
       distance = MIS_RANGE if distance > MIS_RANGE
-      degree = degree.abs % 360
+      degree = Battle.normalize(degree)
       return 0 if robot.reload > 0
       robot.missiles.each do |m|
         next unless m.stat.avail?
@@ -546,7 +571,7 @@ module CrystalRobots::Battle
 
     # CROBOTS c_drive.
     def drive(robot : Robot, degree : Int32, speed : Int32) : Int32
-      robot.d_heading = degree.abs % 360
+      robot.d_heading = Battle.normalize(degree)
       robot.d_speed = speed.clamp(0, 100)
       1
     end
