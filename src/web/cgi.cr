@@ -6,6 +6,7 @@
 # emits a full HTML page. Identity is `FOSSIL_USER`, permissions are
 # `FOSSIL_CAPABILITIES`, both supplied by Fossil.
 require "http/params"
+require "html"
 require "uri"
 require "../compiler"
 require "../battle/field"
@@ -37,8 +38,19 @@ module CrystalRobots::Web
       if (i = sn.index("/ext/"))
         sn[i..].rstrip('/')
       else
-        "/ext/robots"
+        "/ext/crystal-robots"
       end
+    end
+
+    # Request bounds: the body is capped before it is allocated, sources are
+    # capped before they are parsed (a 20 KB robot parses in well under a
+    # second), and a battle is capped by its cycle limit (a 500k-cycle match
+    # of four robots takes about four seconds).
+    BODY_LIMIT   = 65_536
+    SOURCE_LIMIT = 20_000
+    PASTE_LIMIT  =  6_000 # a pasted robot travels in the battle page's links
+
+    class BadRequest < Exception
     end
 
     # The full request path for raw HTML attributes (form actions). Fossil
@@ -79,26 +91,45 @@ module CrystalRobots::Web
     end
 
     def query : HTTP::Params
-      HTTP::Params.parse(env["QUERY_STRING"]? || "")
+      HTTP::Params.parse(utf8!(env["QUERY_STRING"]?) || "")
     end
 
     def body : String
       length = (env["CONTENT_LENGTH"]? || "0").to_i? || 0
       return "" if length <= 0
+      raise BadRequest.new("request body larger than #{BODY_LIMIT} bytes") if length > BODY_LIMIT
       buffer = Bytes.new(length)
       read = @in.read_fully?(buffer) || 0
-      String.new(buffer[0, read])
+      text = String.new(buffer[0, read])
+      raise BadRequest.new("request body is not valid UTF-8") unless text.valid_encoding?
+      text
     end
 
+    # Query and form values must be valid UTF-8 before anything looks at them.
+    private def utf8!(value : String?) : String?
+      return value if value.nil? || value.valid_encoding?
+      raise BadRequest.new("request is not valid UTF-8")
+    end
+
+    # Every request gets a reply: 400 for bad input, 500 for anything else.
     def serve : Nil
+      route
+    rescue e : BadRequest
+      plain("400 Bad Request", "400 Bad Request: #{e.message}")
+    rescue e
+      plain("500 Internal Server Error", "500 Internal Server Error: #{e.class}: #{e.message}")
+    end
+
+    def route : Nil
       return forbidden unless allowed?("oh")
+      raise BadRequest.new("path is not valid UTF-8") unless path.valid_encoding?
       case path
       when ""
         reply(overview)
       when "version"
         reply("crystal-robots #{CrystalRobots::VERSION}\n")
       when "parse"
-        source = method == "POST" ? HTTP::Params.parse(body)["source"]? : query["source"]?
+        source = method == "POST" ? HTTP::Params.parse(body)["source"]? : nil
         reply(parse_page(source || ""))
       when "battle"
         reply(battle_page)
@@ -123,8 +154,26 @@ module CrystalRobots::Web
       @out << "<p>403 Forbidden. <a href=\"/login\">Log in</a> to access this resource.</p>"
     end
 
+    def plain(status : String, text : String) : Nil
+      @out << "Status: " << status << "\r\nContent-Type: text/plain\r\n\r\n" << text << "\n"
+    end
+
     def not_found : Nil
-      reply("# Not found\n\nNo such page: `#{path}`. [Back](#{link_base})\n", "404 Not Found")
+      reply("# Not found\n\nNo such page: #{inline(path)}. [Back](#{link_base})\n", "404 Not Found")
+    end
+
+    # User text inside Markdown prose or a table cell: HTML-escaped, with
+    # the characters that would start markup or split a table neutralized.
+    def inline(text : String) : String
+      HTML.escape(text).gsub('|', "&#124;").gsub('`', "&#96;").gsub('*', "&#42;").gsub('_', "&#95;").gsub('[', "&#91;")
+    end
+
+    # User text inside a code fence: the fence is longer than any run of
+    # backticks in the text, so the text cannot close it.
+    def fenced(text : String, info : String = "") : String
+      longest = text.scan(/`+/).max_of? { |m| m[0].size } || 0
+      fence = "`" * Math.max(3, longest + 1)
+      "#{fence}#{info}\n#{text.chomp}\n#{fence}\n"
     end
 
     def overview : String
@@ -155,7 +204,7 @@ module CrystalRobots::Web
     def example_page(name : String, src : String) : String
       String.build do |md|
         md << "# #{name}.cr\n\n[All examples](#{link_base})\n\n"
-        md << "```crystal\n" << src << "\n```\n\n"
+        md << fenced(src, "crystal") << "\n"
         md << derivation_section(src)
       end
     end
@@ -164,9 +213,11 @@ module CrystalRobots::Web
       String.build do |md|
         md << "# Parse\n\n[Back](#{link_base})\n\n"
         if source.strip.empty?
-          md << "Nothing to parse.\n"
+          md << "Nothing to parse. Use the form on the [overview](#{link_base}).\n"
+        elsif source.size > SOURCE_LIMIT
+          md << "That is #{source.size} characters; the limit is #{SOURCE_LIMIT}.\n"
         else
-          md << "```crystal\n" << source << "\n```\n\n"
+          md << fenced(source, "crystal") << "\n"
           md << derivation_section(source)
         end
       end
@@ -196,8 +247,6 @@ module CrystalRobots::Web
       frame = (q["frame"]?.try(&.to_i?) || frame_count - 1).clamp(0, frame_count - 1)
       render_battle(field, names, pasted, seed, limit, frame)
     end
-
-    PASTE_LIMIT = 6000
 
     private MOTION_STEP = Battle::MOTION_CYCLES.to_i64
 
@@ -241,7 +290,7 @@ module CrystalRobots::Web
         field.robots.each do |r|
           status = r.error ? "failed" : (r.active ? "active" : "destroyed")
           note = r.error || r.output.first?.try { |line| "puts #{line}" } || ""
-          md << "| #{r.name} | #{status} | #{r.damage}% | #{r.cycles} | #{r.restarts} | #{note} |\n"
+          md << "| #{r.name} | #{status} | #{r.damage}% | #{r.cycles} | #{r.restarts} | #{inline(note)} |\n"
         end
         md << "\n## Frame #{frame + 1} of #{last + 1} (cycle #{f.cycle})\n\n"
         nav = [] of String
@@ -257,7 +306,7 @@ module CrystalRobots::Web
         end
         field.robots.each do |r|
           next if r.output.empty?
-          md << "\n## #{r.name} output\n\n```\n" << r.output.first(20).join("\n") << "\n```\n"
+          md << "\n## #{r.name} output\n\n" << fenced(r.output.first(20).join("\n"))
         end
       end
     end
@@ -309,16 +358,16 @@ module CrystalRobots::Web
         begin
           program = Compiler::Parser.new(src).program
           md << "#{program.passes} passes, #{program.size} nodes.\n\n"
-          md << "```\n" << program.derivation << "```\n"
+          md << fenced(program.derivation.chomp)
           problems = Compiler::Checker.check(program)
           if problems.empty?
             md << "\nChecks passed: every name is defined and every call has the right number of arguments.\n"
           else
             md << "\n**Problems:**\n\n"
-            problems.each { |problem| md << "- #{problem}\n" }
+            problems.each { |problem| md << "- #{inline(problem.to_s)}\n" }
           end
         rescue e : Compiler::Parser::Error
-          md << "**Parse error:** #{e.message}\n\n"
+          md << "**Parse error:** #{inline(e.message.to_s)}\n\n"
           program = Compiler::Program.new(src)
           begin
             Compiler::Parser.lex(program)
@@ -326,7 +375,7 @@ module CrystalRobots::Web
             end
           rescue Compiler::Parser::Error
           end
-          md << "```\n" << program.derivation << "```\n" unless program.passes == 0
+          md << fenced(program.derivation.chomp) unless program.passes == 0
         end
       end
     end

@@ -173,6 +173,18 @@ describe CrystalRobots do
         end
       end
 
+      it "gives up after the pass budget" do
+        # every `1+` costs a pass; the budget stops runaway inputs
+        C::Parser.max_passes = 50
+        begin
+          expect_raises(C::Parser::Error, /more than 50 passes/) do
+            C::Parser.new("puts " + "1+" * 100 + "1")
+          end
+        ensure
+          C::Parser.max_passes = 20_000
+        end
+      end
+
       it "parses every example robot" do
         Dir.glob("examples/*.cr").sort.each do |file|
           p = C::Parser.new(File.read(file)).program

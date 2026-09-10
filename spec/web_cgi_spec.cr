@@ -88,6 +88,32 @@ describe CrystalRobots::Web::CGI do
     checked.should contain "**Problems:**"
   end
 
+  it "cannot be broken out of a code fence or a table by user text" do
+    evil = URI.encode_www_form("puts 1\n```\n# injected heading\n<script>x</script>\n")
+    page = run_cgi("o", "/parse", "POST", "", "source=#{evil}")
+    # the whole user text sits inside a fence one backtick longer than its own
+    page.should contain "````crystal\nputs 1\n```\n# injected heading\n<script>x</script>\n````\n"
+    outside = page.split("````").each_slice(2).map(&.first).join
+    outside.should_not contain "injected"
+    outside.should_not contain "<script>"
+    fight = run_cgi("o", "/battle", "GET", "src=#{URI.encode_www_form("main(\"M\") do\n  puts \"a | b <b>c</b> `d`\"\n  while true\n    sleep\n  end\nend\n")}&limit=300")
+    fight.should contain "puts a &#124; b &lt;b&gt;c&lt;/b&gt; &#96;d&#96;"
+  end
+
+  it "bounds the request body and the source size" do
+    big = "x" * 70_000
+    run_cgi("o", "/parse", "POST", "", "source=#{big}").should start_with "Status: 400 Bad Request"
+    huge = "source=" + URI.encode_www_form("puts 1\n" * 4_000)
+    run_cgi("o", "/parse", "POST", "", huge).should contain "the limit is 20000"
+    run_cgi("o", "/parse", "GET", "source=puts+1").should contain "Nothing to parse"
+  end
+
+  it "answers 400 to invalid UTF-8 instead of crashing" do
+    run_cgi("o", "/parse", "POST", "", "source=\xff\xfe").should start_with "Status: 400 Bad Request"
+    run_cgi("o", "/battle", "GET", "r=\xff").should start_with "Status: 400 Bad Request"
+    run_cgi("o", "/examples/\xff").should start_with "Status: 400 Bad Request"
+  end
+
   it "re-roots links under a session preview path" do
     reply = run_cgi("o", "/", "GET", "", "", "/crystal-robots/ext/preview/session-abc")
     reply.should contain "[counter.cr](/ext/preview/session-abc/examples/counter)"

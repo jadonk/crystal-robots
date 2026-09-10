@@ -50,15 +50,15 @@ The app replies in Markdown, so it appears inside the repository's own skin.
 
 ```
 shards build
-scripts/install_extroot.sh /path/to/extroot      # symlinks extroot/robots -> bin/crystal-robots
+scripts/install_extroot.sh /path/to/extroot      # symlinks extroot/crystal-robots -> bin/crystal-robots
 fossil server crystal-robots.fossil --extroot /path/to/extroot --port 8080
 ```
 
-Then browse to `http://localhost:8080/ext/robots/`: pick example robots or
+Then browse to `http://localhost:8080/ext/crystal-robots/`: pick example robots or
 paste your own, run a seeded match, and step through its frames drawn in
 Pikchr with each robot's trail. A rebuild is the deploy:
 the CGI runs fresh on every request. To put the app in the Fossil menu, paste
-`fossil-skin/mainmenu` into Admin, Skins, Main Menu. Who may use the app is
+`fossil-skin/mainmenu` into Admin, Skins, Main Menu (the deployed menu calls it "Run"). Who may use the app is
 decided by the repository's user capabilities: reading needs `o` or `h`
 (what anonymous usually has), saving robots (later) needs check-in (`i`).
 

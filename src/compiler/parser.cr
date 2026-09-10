@@ -148,6 +148,10 @@ module CrystalRobots::Compiler
       Parser.parse(@program)
     end
 
+    # More passes than this and the input is not a robot program; it stops
+    # a pathological source from monopolizing a CGI request.
+    class_property max_passes = 20_000
+
     def self.parse(p : Program) : Program
       lex(p)
       if p.current.empty?
@@ -157,6 +161,10 @@ module CrystalRobots::Compiler
         return p
       end
       while reduce_once(p)
+        if p.passes > max_passes
+          line, col = p.location(p.current[0])
+          raise Error.new("Program needs more than #{max_passes} passes", line, col)
+        end
       end
       unless p.parsed?
         bad = p.current.find { |i| p.type(i) != Type::Statement } || p.current[0]

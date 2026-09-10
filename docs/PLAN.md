@@ -29,6 +29,8 @@ compiler work is fixed alongside the migration, not after it.
 
 | 2026-09-10 | Phase 4 done: the WASM emitter covers globals, constants, locals, user functions of any arity, if/elsif/else, while/until/break, case/when, all builtins as `env` imports, floored `//` and `%` with CROBOTS's divide-by-zero-is-zero; every example compiles; differential specs run three terminating robots under wasmer and the interpreter with the same scripted host and compare output and builtin call logs |
 
+| 2026-09-10 | Review fixes from the trunk-ops merge of 39d4b976: user text can no longer close a code fence or inject markup (fence sized to the text, prose escaped), parse is POST only, request body capped at 64 KB before allocation, source capped at 20 KB, parser pass budget of 20000, invalid UTF-8 and any other failure answer 400/500 instead of crashing, menu and extroot use `/ext/crystal-robots`, `/docs/` no longer ignored for the git mirror |
+
 Spec suite: 69 examples green with `-Dwasmer`.
 
 Interpreter and WASM agree by construction on: floored division, division
@@ -256,10 +258,12 @@ subset and a port of the CROBOTS manual sections, published by the existing
   `.fossil-settings/ignore-glob`.
 - Optional: keep the GitHub mirror alive with `fossil git export`.
 - `ameba` lint, GPL headers, version bump, installation and usage sections.
-- `.gitignore` ignores `/docs/` (the old `crystal docs` output dir), which
-  would hide `docs/PLAN.md` and `docs/PARSER.md` from a git mirror. Point
-  `crystal docs` at another directory and drop that rule when the ignore
-  rules move to `.fossil-settings/ignore-glob`.
+- `/docs/` was dropped from `.gitignore` so the git mirror carries
+  `docs/*.md`. `crystal docs` (the API reference from the doc comments)
+  still goes to `public/`, which stays ignored. How the API docs get built
+  and surfaced is to be worked out with the Ollama-Codex project, which
+  has a `build-docs` step that embeds `crystal docs` output into its
+  binary and serves it at `/ext/docs`; the same shape would fit here.
 - Preview builds: `agent-tool session-preview` needs the session binding
   from the primary repository, so it runs on the host (Thread UI button or
   the coordinator), not from inside the sandboxed session checkout.
