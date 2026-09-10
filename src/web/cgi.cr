@@ -377,9 +377,9 @@ module CrystalRobots::Web
         nav << "[last](#{battle_link(names, pasted, seed, limit, last, fps, saved)})" if frame < last
         md << nav.join(" · ") << "\n\n" unless nav.empty?
         md << "```pikchr\n" << pikchr_frame(f, field.frames[0..frame]) << "```\n\n"
-        md << "| Robot | x | y | heading | speed | damage | scan |\n| --- | --- | --- | --- | --- | --- | --- |\n"
+        md << "| Robot | x | y | heading | speed | damage | scan | cannon |\n| --- | --- | --- | --- | --- | --- | --- | --- |\n"
         f.robots.each do |r|
-          md << "| #{r.name} | #{r.x // Battle::CLICK} | #{r.y // Battle::CLICK} | #{r.heading} | #{r.speed} | #{r.damage}% | #{r.scan} |\n"
+          md << "| #{r.name} | #{r.x // Battle::CLICK} | #{r.y // Battle::CLICK} | #{r.heading} | #{r.speed} | #{r.damage}% | #{r.scan} | #{r.fired ? r.cannon : "-"} |\n"
         end
         md << "\n## Result\n\n"
         if (w = field.winner)
@@ -431,15 +431,30 @@ module CrystalRobots::Web
           svg << %(">\n)
           svg << animate("stroke-dashoffset", lengths.map { |l| (total - l).round(1) }.join(';'), key_times, dur, "linear")
           svg << "</polyline>\n"
-          svg << %(<circle r="14" fill="#{color}" stroke="#000" stroke-width="2">\n)
-          svg << animate("cx", xs.join(';'), key_times, dur, "linear")
-          svg << animate("cy", ys.join(';'), key_times, dur, "linear")
+          # the robot: one group translated along the path; inside it the
+          # body, the nose (drive heading), the scanner sweep and the cannon
+          # barrel rotate about the centre. Screen y points down, so a
+          # heading of h degrees is a rotation of -h.
+          svg << %(<g>\n)
+          svg << animate_transform("translate", xs.each_with_index.map { |x, k| "#{x} #{ys[k]}" }.join(';'), key_times, dur, "linear")
           svg << animate("opacity", alive.join(';'), key_times, dur, "discrete")
-          svg << "</circle>\n"
-          svg << %(<text font-size="30" font-family="sans-serif" text-anchor="middle" fill="#222">#{HTML.escape(robot.name)}\n)
-          svg << animate("x", xs.join(';'), key_times, dur, "linear")
-          svg << animate("y", ys.map { |y| y - 24 }.join(';'), key_times, dur, "linear")
-          svg << "</text>\n"
+          scans = frames.map { |f| -f.robots[i].scan }
+          svg << %(<line x1="0" y1="0" x2="160" y2="0" stroke="#{color}" stroke-opacity="0.45" stroke-width="2" stroke-dasharray="6 6">\n)
+          svg << animate_transform("rotate", scans.join(';'), key_times, dur, "discrete")
+          svg << "</line>\n"
+          svg << %(<circle r="14" fill="#{color}" stroke="#000" stroke-width="2"/>\n)
+          headings = unwrap(frames.map { |f| -f.robots[i].heading })
+          svg << %(<line x1="0" y1="0" x2="30" y2="0" stroke="#000" stroke-width="4" stroke-linecap="round">\n)
+          svg << animate_transform("rotate", headings.join(';'), key_times, dur, "linear")
+          svg << "</line>\n"
+          cannons = frames.map { |f| -f.robots[i].cannon }
+          shown = frames.map { |f| f.robots[i].fired ? "1" : "0" }
+          svg << %(<line x1="0" y1="0" x2="26" y2="0" stroke="#d00" stroke-width="6" stroke-linecap="butt">\n)
+          svg << animate_transform("rotate", cannons.join(';'), key_times, dur, "discrete")
+          svg << animate("opacity", shown.join(';'), key_times, dur, "discrete")
+          svg << "</line>\n"
+          svg << %(<text y="-24" font-size="30" font-family="sans-serif" text-anchor="middle" fill="#222">#{HTML.escape(robot.name)}</text>\n)
+          svg << "</g>\n"
         end
         field.robots.each_index do |owner|
           Battle::MIS_ROBOT.times do |slot|
@@ -480,6 +495,27 @@ module CrystalRobots::Web
       %(<animate attributeName="#{attr}" values="#{values}" keyTimes="#{key_times}" dur="#{dur}" calcMode="#{mode}" repeatCount="indefinite"/>\n)
     end
 
+    private def animate_transform(type : String, values : String, key_times : String, dur : String, mode : String) : String
+      %(<animateTransform attributeName="transform" type="#{type}" values="#{values}" keyTimes="#{key_times}" dur="#{dur}" calcMode="#{mode}" repeatCount="indefinite"/>\n)
+    end
+
+    # Angles for linear interpolation: each step takes the short way round,
+    # so a turn from 350 to 10 does not spin backwards through 180.
+    def unwrap(angles : Array(Int32)) : Array(Int32)
+      out_angles = [] of Int32
+      running = 0
+      angles.each_with_index do |a, k|
+        if k == 0
+          running = a
+        else
+          d = (a - angles[k - 1]) % 360 # floored: 0..359
+          running += d > 180 ? d - 360 : d
+        end
+        out_angles << running
+      end
+      out_angles
+    end
+
     # One frame of the field as a Pikchr diagram: 4 inches for 1000 meters,
     # with each robot's trail over the frames so far.
     def pikchr_frame(f : Battle::Frame, history : Array(Battle::Frame) = [f]) : String
@@ -501,9 +537,17 @@ module CrystalRobots::Web
           color = r.active ? ROBOT_COLORS[i % ROBOT_COLORS.size] : "0xAAAAAA"
           pik << "R#{i}: circle rad 0.07 fill #{color} color black at F.sw + (#{x}, #{y})\n"
           if r.active
+            sx = (0.6 * Battle.lcos(r.scan) / 100000.0).round(3)
+            sy = (0.6 * Battle.lsin(r.scan) / 100000.0).round(3)
+            pik << "line from R#{i} to R#{i} + (#{sx}, #{sy}) thin dotted color #{color}\n"
             dx = (0.25 * Battle.lcos(r.heading) / 100000.0).round(3)
             dy = (0.25 * Battle.lsin(r.heading) / 100000.0).round(3)
-            pik << "line from R#{i} to R#{i} + (#{dx}, #{dy}) thick color #{color}\n"
+            pik << "line from R#{i} to R#{i} + (#{dx}, #{dy}) thick color black\n"
+            if r.fired
+              cx = (0.2 * Battle.lcos(r.cannon) / 100000.0).round(3)
+              cy = (0.2 * Battle.lsin(r.cannon) / 100000.0).round(3)
+              pik << "line from R#{i} to R#{i} + (#{cx}, #{cy}) thick color red\n"
+            end
           end
           label = r.active ? "#{r.name} #{r.damage}%" : "#{r.name} X"
           pik << "text \"#{label}\" small at R#{i}.n + (0, 0.12)\n"

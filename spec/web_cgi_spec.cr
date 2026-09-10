@@ -78,8 +78,10 @@ describe CrystalRobots::Web::CGI do
     # animation first, static frame second, result last
     page.index("<svg ").not_nil!.should be < page.index("```pikchr").not_nil!
     page.index("```pikchr").not_nil!.should be < page.index("## Result").not_nil!
-    page.should contain "<animate attributeName=\"cx\""
+    page.should contain "<animateTransform attributeName=\"transform\" type=\"translate\""
+    page.should contain "type=\"rotate\""
     page.should contain "repeatCount=\"indefinite\""
+    page.should contain "| cannon |"
   end
 
   it "lets a pasted robot fight and reports its problems" do
@@ -165,6 +167,12 @@ describe CrystalRobots::Web::CGI do
     cgi.serve
     reply.to_s.should contain "# spinner"
     reply.to_s.should contain "Checks passed"
+  end
+
+  it "unwraps headings so rotations take the short way round" do
+    cgi = CrystalRobots::Web::CGI.new({} of String => String, IO::Memory.new)
+    cgi.unwrap([350, 10, 20, 200, 190]).should eq [350, 370, 380, 560, 550]
+    cgi.unwrap([-10, -350]).should eq [-10, 10]
   end
 
   it "re-roots links under a session preview path" do
