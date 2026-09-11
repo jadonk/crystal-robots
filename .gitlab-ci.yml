@@ -1,59 +1,10 @@
+# Kept only while the GitLab mirror exists. The Fossil repository at
+# https://ollama.openbeagle.org/crystal-robots is the source of truth and
+# its review pipeline runs scripts/ci.sh; this file just runs the same.
 image: $CI_REGISTRY/jkridner/crystal
-build:
-  stage: build
-  before_script:
-    - sudo apk add shards
-  script:
-    - shards update
-    - shards build
-    - crystal build --prelude=../src/prelude.cr examples/test.cr -o bin/examples-test
-    - crystal build --prelude=../src/prelude.cr examples/counter.cr -o bin/examples-counter
-    - crystal build --prelude=../src/prelude.cr examples/rabbit.cr -o bin/examples-rabbit
-    - crystal build --prelude=../src/prelude.cr examples/rook.cr -o bin/examples-rook
-    - crystal build --prelude=../src/prelude.cr examples/sniper.cr -o bin/examples-sniper
-    - crystal build --prelude=../src/prelude.cr examples/target.cr -o bin/examples-target
-    - crystal build --prelude=../src/prelude.cr examples/counter.cr examples/rabbit.cr examples/rook.cr examples/sniper.cr -o bin/examples
-  artifacts:
-    paths:
-      - bin/crystal-robots
-      - bin/examples-test
-      - bin/examples-counter
-      - bin/examples-rabbit
-      - bin/examples-rook
-      - bin/examples-sniper
-      - bin/examples-target
-      - bin/examples
-
-test:
+ci:
   stage: test
   before_script:
     - sudo apk add curl shards
-    - scripts/install_wasmer.sh v4.4.0
-    - . $HOME/.wasmer/wasmer.sh
-    - export WASMER_DIR=$HOME/.wasmer
-    - shards update
   script:
-    - crystal spec -v -Dwasmer
-    - crystal tool format --check
-    - bin/crystal-robots -v
-    - bin/crystal-robots
-    - bin/examples-test
-    - bin/examples-counter
-    - bin/examples-rabbit
-    - bin/examples-rook
-    - bin/examples-sniper
-    - bin/examples-target
-    - bin/examples
-    - bin/crystal-robots -c examples/test.cr -o examples/test.wasm
-  artifacts:
-    paths:
-      - test.wasm
-
-pages:
-  stage: deploy
-  script:
-    - git config --global --add safe.directory /builds/jkridner/crystal-robots
-    - crystal docs -o public --canonical-base-url=https://jkridner.beagleboard.io/crystal-robots --project-version `git show --format=%h -s` src/prelude.cr
-  artifacts:
-    paths:
-      - public
+    - scripts/ci.sh --with-wasmer

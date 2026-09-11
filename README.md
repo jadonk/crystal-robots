@@ -12,9 +12,8 @@ turn your code into instructions a machine can understand.
 `crystal-robots` is my exploration of depending on my own programming tools, taking control over a programming
 language itself.
 
-* [Source Code](https://openbeagle.org/jkridner/crystal-robots)
-* [Github Mirror](https://github.com/jadonk/crystal-robots)
-* [Documentation and online hosting](https://jkridner.beagleboard.io/crystal-robots)
+* [Source, docs and the hosted app](https://ollama.openbeagle.org/crystal-robots) (Fossil; the app is under `/ext/crystal-robots`)
+* Mirrors: [GitLab](https://openbeagle.org/jkridner/crystal-robots), [GitHub](https://github.com/jadonk/crystal-robots) (read-only copies of the Fossil repository)
 
 ## Installation
 
@@ -122,10 +121,20 @@ baseline, and the open parser-architecture decision.
 
 ## Development
 
+One command runs everything the review pipeline runs:
+
 ```
-crystal spec                       # everything except running WebAssembly
+scripts/ci.sh                 # shards, build-docs, build, spec, format check, example builds, CLI smoke
+scripts/ci.sh --with-wasmer   # also runs the WebAssembly specs under wasmer 4.4.0 (installed under ./.wasmer if absent)
+```
+
+The pieces, if you want them separately:
+
+```
+crystal spec                       # everything except running WebAssembly (those specs are pending)
 crystal spec -Dwasmer              # also runs the emitted modules with wasmer
 crystal tool format --check src spec scripts
+bin/crystal-robots build-docs      # crystal docs into docs-api/; the next shards build embeds them at /ext/crystal-robots/docs
 ```
 
 The wasmer runtime is optional. Wasmer 4.4.0 is the last release with a
@@ -148,11 +157,17 @@ See [docs/PLAN.md](docs/PLAN.md). Longer-term ideas kept from the original list:
 
 ## Contributing
 
-1. Fork it (<https://openbeagle.org/jkridner/crystal-robots/-/forks/new>)
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create a new Merge Request
+The repository is Fossil, hosted at <https://ollama.openbeagle.org/crystal-robots>.
+
+1. `fossil clone https://ollama.openbeagle.org/crystal-robots crystal-robots.fossil` and `fossil open` it.
+2. Work on a branch: `fossil commit --branch my-feature -m "..."`.
+3. Run `scripts/ci.sh` before asking for review; it is the same gate the
+   merge pipeline runs.
+4. Ask for review in the project forum. Merges to trunk are done by the
+   trunk operator after the suite passes on a merge stand-in; the served
+   app is rebuilt from trunk after the merge.
+5. Robots, as opposed to code, need no branch: a wiki page named
+   `robot/<name>` is enough (see Usage).
 
 ## License
 
