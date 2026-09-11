@@ -12,9 +12,8 @@ turn your code into instructions a machine can understand.
 `crystal-robots` is my exploration of depending on my own programming tools, taking control over a programming
 language itself.
 
-* [Source Code](https://openbeagle.org/jkridner/crystal-robots)
-* [Github Mirror](https://github.com/jadonk/crystal-robots)
-* [Documentation and online hosting](https://jkridner.beagleboard.io/crystal-robots)
+* [Source, docs and the hosted app](https://ollama.openbeagle.org/crystal-robots) (Fossil; the app is under `/ext/crystal-robots`)
+* Mirrors: [GitLab](https://openbeagle.org/jkridner/crystal-robots), [GitHub](https://github.com/jadonk/crystal-robots) (read-only copies of the Fossil repository)
 
 ## Installation
 
@@ -56,12 +55,26 @@ fossil server crystal-robots.fossil --extroot /path/to/extroot --port 8080
 ```
 
 Then browse to `http://localhost:8080/ext/crystal-robots/`: pick example robots or
-paste your own, run a seeded match, watch the replay, and step through its
-frames drawn in Pikchr with each robot's trail.
+paste your own, run a seeded match, watch the replay at a chosen pace
+(cycles per second, 300 by default, roughly the original curses display),
+step through its frames drawn in Pikchr with each robot's trail, or run a
+series of matches for a score table like `crobots -m`.
 
 To keep a robot, create a wiki page named `robot/<name>` whose Markdown
 contains exactly one fenced code block; that block is the robot. It then
-appears on the overview and in the battle picker under `<name>`.
+appears on the overview (with its first paragraph as a description and a
+"fight" link), in the battle picker, and at `/ext/crystal-robots/wiki/<name>`
+with its derivation and checks. Five such robots ship in `robots/*.md`
+(hunter, circler, dodger, wallhugger, turret); publish them to a
+repository's wiki with:
+
+```
+scripts/publish_wiki_robots.sh -R /path/to/crystal-robots.fossil
+```
+
+A CROBOTS rule worth knowing when writing one: a heading change only takes
+at 50 percent speed or less. Ask for a turn while faster and the drive
+disengages, so slow down first (the shipped robots show both ways).
 
 Cycles are charged the way the CROBOTS virtual machine did: one per
 operand fetch, operator, store, branch and statement, two per builtin
@@ -70,8 +83,9 @@ the CGI runs fresh on every request. To put the app in the Fossil menu, paste
 `fossil-skin/mainmenu` into Admin, Skins, Main Menu. It mirrors the deployed
 menu (Agents, Docs and a "Run" entry for this app); merge rather than
 replace if your skin has other rows. Who may use the app is
-decided by the repository's user capabilities: reading needs `o` or `h`
-(what anonymous usually has), saving robots (later) needs check-in (`i`).
+decided by the repository's user capabilities: reading the overview and
+examples needs `o` or `h` (what anonymous usually has); running battles and
+parsing needs check-in (`i`); seeing saved robots needs wiki read (`j`).
 
 ### Self-hosted server without Fossil
 
@@ -108,10 +122,21 @@ baseline, and the open parser-architecture decision.
 
 ## Development
 
+One command runs everything the review pipeline runs:
+
 ```
-crystal spec                       # everything except running WebAssembly
+scripts/ci.sh                 # shards, build-docs, build, spec, format check, example builds, CLI smoke
+scripts/ci.sh --with-wasmer   # also runs the WebAssembly specs under wasmer 4.4.0 (installed under ./.wasmer if absent)
+```
+
+The pieces, if you want them separately:
+
+```
+crystal spec                       # everything except running WebAssembly (those specs are pending)
 crystal spec -Dwasmer              # also runs the emitted modules with wasmer
 crystal tool format --check src spec scripts
+bin/crystal-robots build-docs      # crystal docs into docs-api/; the next shards build embeds them at /ext/crystal-robots/docs (shown inside the Fossil skin)
+bin/crystal-robots --version       # "crystal-robots 0.0.1 (check-in <hash>)", the hash from manifest.uuid at build time
 ```
 
 The wasmer runtime is optional. Wasmer 4.4.0 is the last release with a
@@ -134,11 +159,17 @@ See [docs/PLAN.md](docs/PLAN.md). Longer-term ideas kept from the original list:
 
 ## Contributing
 
-1. Fork it (<https://openbeagle.org/jkridner/crystal-robots/-/forks/new>)
-2. Create your feature branch (`git checkout -b my-new-feature`)
-3. Commit your changes (`git commit -am 'Add some feature'`)
-4. Push to the branch (`git push origin my-new-feature`)
-5. Create a new Merge Request
+The repository is Fossil, hosted at <https://ollama.openbeagle.org/crystal-robots>.
+
+1. `fossil clone https://ollama.openbeagle.org/crystal-robots crystal-robots.fossil` and `fossil open` it.
+2. Work on a branch: `fossil commit --branch my-feature -m "..."`.
+3. Run `scripts/ci.sh` before asking for review; it is the same gate the
+   merge pipeline runs.
+4. Ask for review in the project forum. Merges to trunk are done by the
+   trunk operator after the suite passes on a merge stand-in; the served
+   app is rebuilt from trunk after the merge.
+5. Robots, as opposed to code, need no branch: a wiki page named
+   `robot/<name>` is enough (see Usage).
 
 ## License
 

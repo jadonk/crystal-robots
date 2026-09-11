@@ -274,8 +274,10 @@ module CrystalRobots::Battle
     getter seed : UInt64
     getter limit : Int64
 
-    # `entries` are {name, source} pairs, at most four.
-    def initialize(entries : Array({String, String}), @seed : UInt64 = 1_u64, @limit : Int64 = CYCLE_LIMIT, @max_frames : Int32 = 200)
+    # `entries` are {name, source} pairs, at most four. `positions`, when
+    # given, are start positions in meters instead of CROBOTS's random
+    # quadrants (for specs and demonstrations).
+    def initialize(entries : Array({String, String}), @seed : UInt64 = 1_u64, @limit : Int64 = CYCLE_LIMIT, @max_frames : Int32 = 200, @positions : Array({Int32, Int32})? = nil)
       raise ArgumentError.new("at most 4 robots") if entries.size > 4
       @random = Random.new(@seed)
       entries.each { |(name, source)| @robots << Robot.new(name, source, self) }
@@ -298,7 +300,11 @@ module CrystalRobots::Battle
     # Run the match to its end: one survivor or the cycle limit.
     def run : self
       @robots.each(&.start)
-      rand_pos
+      if (positions = @positions)
+        positions.each_with_index { |(x, y), i| place(i, x, y) if i < @robots.size }
+      else
+        rand_pos
+      end
       record(0)
       movement = MOTION_CYCLES
       c = 0_i64
