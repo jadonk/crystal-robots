@@ -358,7 +358,12 @@ maintainer's decisions. Recorded here verbatim in substance.
    `<primary>/bin/crystal-robots` and trunk-ops rebuilds by hand after each
    merge (now on its checklist for served peers; a daemon-side deploy is
    ticketed). The preview dispatcher builds the first target in
-   `shard.yml`, which is `bin/crystal-robots`.
+   `shard.yml`, which is `bin/crystal-robots`. Corrected 2026-09-11: the
+   served binary is newer than trunk (1e1fdc07); the gap is simply this
+   branch waiting for its merge through the gate. Session work is reported
+   as branch, commit and suite result in the thread; the coordinator
+   routes it to trunk-ops (isolated-clone verification, suite, maintainer
+   word, merge, rebuild).
 3. **CI.** No Fossil hook or cron; the gate is the task pipeline (agent
    runs the suite, validator checks, trunk-ops re-runs on a merge
    stand-in). `scripts/ci.sh` is the one command all of them call: shards
