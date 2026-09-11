@@ -190,7 +190,7 @@ describe CrystalRobots::Web::CGI do
     }
     pages["robot/bad \"name\""] = "```\nputs 1\n```\n"
     pages["robot/huge"] = "```\n" + "puts 1\n" * 4_000 + "```\n"
-    wiki = CrystalRobots::Web::WikiRobots.new(-> { pages.keys }, ->(name : String) { pages["robot/" + name]? })
+    wiki = CrystalRobots::Web::WikiRobots.from_pages(pages)
     wiki.names.should eq ["broken", "huge", "spinner"] # the quoted name is not a robot name
     wiki.source("huge").should be_nil                  # over the source size cap
     wiki.source("spinner").not_nil!.should start_with "main(\"Spinner\")"
@@ -254,13 +254,20 @@ describe CrystalRobots::Web::CGI do
     cgi.unwrap([-10, -350]).should eq [-10, 10]
   end
 
-  it "serves the embedded API docs, or says they were not built" do
+  it "serves the embedded API docs inside the Fossil chrome, or says they were not built" do
     if CrystalRobots::Web::Docs.built?
       run_cgi("oh", "/docs").should start_with "Status: 302 Found\r\nLocation: /ext/robots/docs/index.html"
       index = run_cgi("oh", "/docs/index.html")
       index.should start_with "Status: 200 OK\r\nContent-Type: text/html"
-      index.should contain "crystal-robots"
-      run_cgi("oh", "/docs/css/style.css").should start_with "Status: 200 OK\r\nContent-Type: text/css"
+      index.should contain "<div class='fossil-doc' data-title='crystal-robots"
+      index.should_not contain "<script"
+      index.should_not contain "<input"
+      index.should contain "types-list"
+      page = run_cgi("oh", "/docs/CrystalRobots/Compiler/Parser.html")
+      page.should contain "data-title='CrystalRobots::Compiler::Parser'"
+      page.should contain "One reduction pass"                             # the doc comment survives
+      run_cgi("oh", "/docs/css/style.css").should start_with "Status: 404" # replaced by inline styles
+      run_cgi("oh", "/docs/js/doc.js").should start_with "Status: 404"
       run_cgi("oh", "/docs/../secret").should start_with "Status: 404"
       run_cgi("oh", "/").should contain "[API reference](/ext/robots/docs/index.html)"
     else
@@ -268,6 +275,19 @@ describe CrystalRobots::Web::CGI do
       run_cgi("oh", "/docs").should contain "build-docs"
     end
     run_cgi("oh", "/docs/nope.html").should start_with "Status: 404"
+  end
+
+  it "reports version and check-in" do
+    v = run_cgi("oh", "/version")
+    v.should contain "crystal-robots #{CrystalRobots::VERSION} (check-in "
+    CrystalRobots.checkin_short.size.should be <= 10
+    run_cgi("oh", "/").should contain "check-in `#{CrystalRobots.checkin_short}`"
+  end
+
+  it "parses wiki artifacts from the single SQL read" do
+    artifact = "D 2026-09-10T23:46:09.118\nL robot/turret\nN text/x-markdown\nU agent-claude\nW 12\n# Turret\n\nhi\nZ abc\n"
+    CrystalRobots::Web::WikiRobots.wiki_text(artifact).should eq "# Turret\n\nhi"
+    CrystalRobots::Web::WikiRobots.wiki_text("D 1\nL robot/x\nW 0\n\nZ a\n").should be_nil
   end
 
   it "re-roots links under a session preview path" do

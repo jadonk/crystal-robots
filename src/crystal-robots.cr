@@ -9,6 +9,23 @@ ENV["DEBUG"] ||= "0"
 module CrystalRobots
   VERSION = "0.0.1"
 
+  # The Fossil check-in this binary was built from. Fossil's versioned
+  # `manifest` setting (see .fossil-settings/manifest) keeps `manifest.uuid`
+  # in every checkout and tarball; it is read at compile time. "unknown"
+  # when built from a plain source tree.
+  CHECKIN = {{ (read_file?("#{__DIR__}/../manifest.uuid") || "unknown").strip }}
+
+  # Short check-in for display, like Fossil's own timeline.
+  def self.checkin_short : String
+    CHECKIN == "unknown" ? CHECKIN : CHECKIN[0, 10]
+  end
+
+  # "0.0.1 (check-in 724ff90d58)": what --version and /version report, so a
+  # deploy can be compared with trunk.
+  def self.version_line : String
+    "crystal-robots #{VERSION} (check-in #{checkin_short})"
+  end
+
   class Log
     @@loglevel = ENV["DEBUG"]
 
@@ -343,8 +360,8 @@ module CrystalRobots
 
     def customize_parser(parser)
       parser.banner = "Welcome to Crystal Robots!\nUsage: crystal-robots [options] robot-source-file-1 [..2 [..3 [robot-source-file-4]]] [>file]"
-      parser.on "-v", "--version", "Show version" do
-        puts CrystalRobots::VERSION
+      parser.on "-v", "--version", "Show version and check-in" do
+        puts CrystalRobots.version_line
         @exit = true
         parser.stop
       end

@@ -135,7 +135,8 @@ The pieces, if you want them separately:
 crystal spec                       # everything except running WebAssembly (those specs are pending)
 crystal spec -Dwasmer              # also runs the emitted modules with wasmer
 crystal tool format --check src spec scripts
-bin/crystal-robots build-docs      # crystal docs into docs-api/; the next shards build embeds them at /ext/crystal-robots/docs
+bin/crystal-robots build-docs      # crystal docs into docs-api/; the next shards build embeds them at /ext/crystal-robots/docs (shown inside the Fossil skin)
+bin/crystal-robots --version       # "crystal-robots 0.0.1 (check-in <hash>)", the hash from manifest.uuid at build time
 ```
 
 The wasmer runtime is optional. Wasmer 4.4.0 is the last release with a

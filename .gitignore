@@ -7,3 +7,5 @@
 /.wasmer/
 *.dwarf
 /examples/test.wasm
+/manifest.uuid
+/manifest

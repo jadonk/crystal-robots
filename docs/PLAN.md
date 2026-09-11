@@ -50,7 +50,9 @@ compiler work is fixed alongside the migration, not after it.
 
 | 2026-09-11 | Phase 7, from the coordinator's answers: versioned `.fossil-settings/ignore-glob` with `.gitignore` as mirror (1ca7c7ed); `scripts/ci.sh` as the one gate command, `--with-wasmer` installs 4.4.0 under the checkout (b980ca71); `build-docs` subcommand embeds `crystal docs` output, served at `/ext/crystal-robots/docs` (2daa7da4); README points at Fossil with mirrors read-only, Fossil contributing flow, `.gitlab-ci.yml` delegates to ci.sh (dda76b7f); **[try]** permissions on capability letters: o/h read, i battle and parse, j saved robots (af515555) |
 
-Spec suite: 98 examples green with `-Dwasmer`; `scripts/ci.sh --with-wasmer` green end to end.
+| **[try]** 2026-09-11 | Maintainer review notes (trunk-ops thread): saved robots are read in ONE `fossil sql --readonly` query (latest `robot/*` wiki artifacts as hex, W card parsed in-process), no per-robot export and nothing cached across requests; the API docs are served inside the Fossil chrome (body extracted, scripts and search dropped, inline scoped styles, `fossil-doc` wrapper, doc comments intact) instead of crystal-docs' own UI whose inline script the CSP blocks, aligned with the Ollama-Codex docs CGI; Fossil's versioned `manifest` setting keeps `manifest.uuid` in checkouts and tarballs, embedded at compile time, and `--version` and `/version` report `crystal-robots 0.0.1 (check-in <hash>)` so a deploy can be compared with trunk |
+
+Spec suite: 100 examples green with `-Dwasmer`; `scripts/ci.sh --with-wasmer` green end to end.
 
 **WASM robots on the battlefield, decided.** Cycle ticks are injected at
 every operation and builtin call in both engines (above), so a WASM robot

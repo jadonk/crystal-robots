@@ -13,7 +13,7 @@ describe "robots/*.md" do
 
   pages = {} of String => String
   files.each { |f| pages["robot/" + File.basename(f, ".md")] = File.read(f) }
-  wiki = CrystalRobots::Web::WikiRobots.new(-> { pages.keys }, ->(name : String) { pages["robot/" + name]? })
+  wiki = CrystalRobots::Web::WikiRobots.from_pages(pages)
 
   files.each do |file|
     name = File.basename(file, ".md")

@@ -26,37 +26,65 @@ module CrystalRobots::Web
 
   # Robots saved as Fossil wiki pages. A page named `robot/<name>` holds
   # Markdown with exactly one fenced code block, which is the robot source.
-  # Pages are read through the fossil binary with the CGI variables
-  # scrubbed, so fossil does not mistake the call for a CGI request.
+  #
+  # All pages are read in ONE `fossil sql --readonly` query over the wiki
+  # tables (latest version of every `robot/*` page, as hex so the rows stay
+  # one line each); names, descriptions and sources come from that single
+  # read, nothing is cached across requests, and the repository is opened
+  # read-only so no write, temporary or otherwise, leaves the workspace.
   class WikiRobots
     PREFIX = "robot/"
     FENCE  = /^(`{3,})[^\n]*\n(.*?)\n\1[ \t]*$/m
     # Names are what shows in headings, links and labels; keep them plain.
     NAME = /\A[A-Za-z0-9][A-Za-z0-9 _.-]{0,39}\z/
 
-    alias Lister = -> Array(String)
-    alias Reader = String -> String?
+    QUERY = "SELECT substr(tag.tagname, 6) || ' ' || hex(content(b.uuid)) " \
+            "FROM tagxref JOIN tag USING(tagid) JOIN blob b ON b.rid = tagxref.rid " \
+            "WHERE tag.tagname GLOB 'wiki-robot/*' " \
+            "AND tagxref.mtime = (SELECT max(mtime) FROM tagxref x WHERE x.tagid = tagxref.tagid)"
 
+    # name (without prefix) => page text
+    getter pages : Hash(String, String)
     getter names : Array(String)
 
-    def initialize(@list : Lister, @read : Reader, @limit : Int32 = 20_000)
-      @names = @list.call.select(&.starts_with?(PREFIX)).map { |page| page[PREFIX.size..] }.select { |n| n =~ NAME }.sort
+    def initialize(@pages : Hash(String, String), @limit : Int32 = 20_000)
+      @names = @pages.keys.select { |n| n =~ NAME }.sort
+    end
+
+    # For specs and other readers that already hold the pages.
+    def self.from_pages(pages : Hash(String, String), limit : Int32 = 20_000) : WikiRobots
+      new(pages.each_with_object({} of String => String) { |(page, text), h| h[page[PREFIX.size..]] = text if page.starts_with?(PREFIX) }, limit)
     end
 
     # The deployed repository, if Fossil told us where it is.
     def self.for_repository(repository : String?) : WikiRobots
-      if repository && File.exists?(repository)
-        new(-> { fossil(["wiki", "list", "-R", repository]).lines.map(&.strip) },
-          ->(name : String) : String? { fossil(["wiki", "export", PREFIX + name, "-R", repository]) })
-      else
-        new(-> { [] of String }, ->(name : String) : String? { nil })
+      return new({} of String => String) unless repository && File.exists?(repository)
+      pages = {} of String => String
+      fossil(["sql", "--readonly", "-R", repository, QUERY]).each_line do |line|
+        row = line.strip
+        row = row[1..-2] if row.starts_with?('\'') && row.ends_with?('\'')
+        name, _, hex = row.partition(' ')
+        next if name.empty? || hex.empty?
+        text = wiki_text(String.new(hex.hexbytes))
+        pages[name[PREFIX.size..]] = text if text && name.starts_with?(PREFIX)
       end
+      new(pages)
+    end
+
+    # The page text inside a wiki artifact: the W card's payload. A deleted
+    # page has an empty payload and is not a robot.
+    def self.wiki_text(artifact : String) : String?
+      m = artifact.match(/^W (\d+)\n/m)
+      return nil unless m
+      size = m[1].to_i
+      return nil if size == 0
+      start = m.end(0).not_nil!
+      artifact.byte_slice(artifact.char_index_to_byte_index(start).not_nil!, size)
     end
 
     # The first paragraph of the page before its code block, for listings.
     def description(name : String) : String
-      return "" unless @names.includes?(name)
-      page = @read.call(name) || ""
+      page = @pages[name]? || ""
       body = page.split(/^`{3,}/m, 2)[0]
       paragraph = body.split(/\n[ \t]*\n/).map(&.strip).find { |para| !para.empty? && !para.starts_with?("#") } || ""
       text = paragraph.gsub(/\s+/, " ")
@@ -67,8 +95,7 @@ module CrystalRobots::Web
     # fence is larger than a pasted robot may be.
     def source(name : String) : String?
       return nil unless @names.includes?(name)
-      page = @read.call(name)
-      return nil unless page
+      page = @pages[name]? || return nil
       fences = page.scan(FENCE)
       return nil unless fences.size == 1
       src = fences[0][2]
@@ -231,7 +258,7 @@ module CrystalRobots::Web
       when ""
         reply(overview)
       when "version"
-        reply("crystal-robots #{CrystalRobots::VERSION}\n")
+        reply("#{CrystalRobots.version_line}\n")
       when "docs"
         docs_redirect
       when /\Adocs\/(.*)\z/
@@ -289,7 +316,12 @@ module CrystalRobots::Web
 
     def docs_file(path : String) : Nil
       path = "index.html" if path.empty? || path.ends_with?('/')
-      if (content = Docs.get(path))
+      if (page = Docs.page(path))
+        title, fragment = page
+        # text/html whose outermost element is div.fossil-doc gets the skin
+        @out << "Status: 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n\r\n"
+        @out << "<div class='fossil-doc' data-title='" << HTML.escape(title) << "'>\n" << fragment << "\n</div>\n"
+      elsif (content = Docs.asset(path))
         @out << "Status: 200 OK\r\nContent-Type: " << Docs.mime(path) << "\r\n\r\n" << content
       else
         not_found
@@ -320,7 +352,7 @@ module CrystalRobots::Web
         md << "# Crystal Robots\n\n"
         md << "Write a robot in a small subset of Crystal, watch the compiler turn it into "
         md << "tokens, then a program, then machine code, and battle it on a virtual field. "
-        md << "Version `#{CrystalRobots::VERSION}`"
+        md << "Version `#{CrystalRobots::VERSION}`, check-in `#{CrystalRobots.checkin_short}`"
         md << ", logged in as `#{user}`" unless user.empty?
         md << ".\n\n"
         md << "## Example robots\n\n"
