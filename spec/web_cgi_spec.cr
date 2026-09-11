@@ -243,6 +243,22 @@ describe CrystalRobots::Web::CGI do
     cgi.unwrap([-10, -350]).should eq [-10, 10]
   end
 
+  it "serves the embedded API docs, or says they were not built" do
+    if CrystalRobots::Web::Docs.built?
+      run_cgi("oh", "/docs").should start_with "Status: 302 Found\r\nLocation: /ext/robots/docs/index.html"
+      index = run_cgi("oh", "/docs/index.html")
+      index.should start_with "Status: 200 OK\r\nContent-Type: text/html"
+      index.should contain "crystal-robots"
+      run_cgi("oh", "/docs/css/style.css").should start_with "Status: 200 OK\r\nContent-Type: text/css"
+      run_cgi("oh", "/docs/../secret").should start_with "Status: 404"
+      run_cgi("oh", "/").should contain "[API reference](/ext/robots/docs/index.html)"
+    else
+      run_cgi("oh", "/docs").should start_with "Status: 404"
+      run_cgi("oh", "/docs").should contain "build-docs"
+    end
+    run_cgi("oh", "/docs/nope.html").should start_with "Status: 404"
+  end
+
   it "re-roots links under a session preview path" do
     reply = run_cgi("o", "/", "GET", "", "", "/crystal-robots/ext/preview/session-abc")
     reply.should contain "[counter.cr](/ext/preview/session-abc/examples/counter)"

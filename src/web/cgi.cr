@@ -10,6 +10,7 @@ require "html"
 require "uri"
 require "../compiler"
 require "../battle/field"
+require "./docs"
 
 module CrystalRobots::Web
   # The example robots, embedded at compile time so the CGI needs no
@@ -17,7 +18,7 @@ module CrystalRobots::Web
   # binary is built, in name order.
   EXAMPLES = {% begin %}
     {
-      {% for file in `ls examples/*.cr`.split.sort %}
+      {% for file in `ls #{__DIR__}/../../examples/*.cr`.split.sort %}
         {{ file.split("/").last.gsub(/\.cr$/, "") }} => {{ read_file(file) }},
       {% end %}
     }
@@ -218,6 +219,10 @@ module CrystalRobots::Web
         reply(overview)
       when "version"
         reply("crystal-robots #{CrystalRobots::VERSION}\n")
+      when "docs"
+        docs_redirect
+      when /\Adocs\/(.*)\z/
+        docs_file($1)
       when "parse"
         return login_required unless logged_in?
         source = method == "POST" ? HTTP::Params.parse(body)["source"]? : nil
@@ -257,6 +262,25 @@ module CrystalRobots::Web
 
     def plain(status : String, text : String) : Nil
       @out << "Status: " << status << "\r\nContent-Type: text/plain\r\n\r\n" << text << "\n"
+    end
+
+    # The API reference. Built pages are served raw (they carry their own
+    # styling and script); without a build the route explains how to make one.
+    def docs_redirect : Nil
+      if Docs.built?
+        @out << "Status: 302 Found\r\nLocation: #{form_base}/docs/index.html\r\n\r\n"
+      else
+        reply("# API docs not built\n\nThis binary was built without `bin/crystal-robots build-docs`; run it and rebuild. [Back](#{link_base})\n", "404 Not Found")
+      end
+    end
+
+    def docs_file(path : String) : Nil
+      path = "index.html" if path.empty? || path.ends_with?('/')
+      if (content = Docs.get(path))
+        @out << "Status: 200 OK\r\nContent-Type: " << Docs.mime(path) << "\r\n\r\n" << content
+      else
+        not_found
+      end
     end
 
     def not_found : Nil
@@ -317,8 +341,9 @@ module CrystalRobots::Web
         else
           md << "\n## Battle and parse\n\nRunning battles and parsing your own robots needs a login: [log in](#{login_link(form_base)}) and this page will offer both.\n\n"
         end
-        md << "See [docs/PARSER.md](/doc/trunk/docs/PARSER.md) for how the passes work "
-        md << "and [docs/PLAN.md](/doc/trunk/docs/PLAN.md) for what comes next.\n"
+        md << "See [docs/PARSER.md](/doc/trunk/docs/PARSER.md) for how the passes work, "
+        md << "[docs/PLAN.md](/doc/trunk/docs/PLAN.md) for what comes next"
+        md << (Docs.built? ? ", and the [API reference](#{base}/docs/index.html) for the robot builtins and the compiler.\n" : ".\n")
       end
     end
 
