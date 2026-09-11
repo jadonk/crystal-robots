@@ -52,7 +52,9 @@ compiler work is fixed alongside the migration, not after it.
 
 | **[try]** 2026-09-11 | Maintainer review notes (trunk-ops thread): saved robots are read in ONE `fossil sql --readonly` query (latest `robot/*` wiki artifacts as hex, W card parsed in-process), no per-robot export and nothing cached across requests; the API docs are served inside the Fossil chrome (body extracted, scripts and search dropped, inline scoped styles, `fossil-doc` wrapper, doc comments intact) instead of crystal-docs' own UI whose inline script the CSP blocks, aligned with the Ollama-Codex docs CGI; Fossil's versioned `manifest` setting keeps `manifest.uuid` in checkouts and tarballs, embedded at compile time, and `--version` and `/version` report `crystal-robots 0.0.1 (check-in <hash>)` so a deploy can be compared with trunk |
 
-Spec suite: 100 examples green with `-Dwasmer`; `scripts/ci.sh --with-wasmer` green end to end.
+| **[try]** 2026-09-11 | Gate regression fix (trunk-ops on `4f6581bb`): the single-query listing split each SQL row at the FIRST space, so any `robot/*` page name with a space — live or a deleted one's leftover tag — crashed the overview, battle and wiki routes for everyone; rows now split at the LAST space (the hex payload never contains one), covered by a spec with a space-named robot and a deleted space-named tag asserting `/`, `/battle` and `/wiki/<name>` stay 200. Also from the same review: a failed `fossil sql` now raises instead of rendering an empty 200 listing; the docs sanitizer strips script tags case-insensitively plus event attributes and `javascript:` links as defense in depth; `search-index.js`/`index.json` are no longer embedded (the search UI they back is already stripped); `scripts/ci.sh` refuses the release `shards build` when `manifest.uuid` is missing or empty (a plain `crystal build` outside ci.sh still falls back to "unknown" for local dev) |
+
+Spec suite: 101 examples green with `-Dwasmer`; `scripts/ci.sh --with-wasmer` green end to end.
 
 **WASM robots on the battlefield, decided.** Cycle ticks are injected at
 every operation and builtin call in both engines (above), so a WASM robot

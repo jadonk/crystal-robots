@@ -290,6 +290,35 @@ describe CrystalRobots::Web::CGI do
     CrystalRobots::Web::WikiRobots.wiki_text("D 1\nL robot/x\nW 0\n\nZ a\n").should be_nil
   end
 
+  it "splits SQL rows at the LAST space, so a robot name with a space in it does not break the listing" do
+    text = "```\nmain(\"Wall Hugger\") do\n  drive(0, 30)\nend\n```\n"
+    artifact = "D 2026-09-11T00:00:00.000\nL robot/wall hugger\nN text/x-markdown\nU agent-claude\nW #{text.bytesize}\n#{text}Z deadbeef\n"
+    live_row = "robot/wall hugger #{artifact.to_slice.hexstring}"
+    # a deleted page keeps its tag but its latest artifact has an empty W
+    # payload; it must not appear as a robot, and it must not break the row
+    # before or after it either.
+    deleted = "D 2026-09-11T00:01:00.000\nL robot/old design\nW 0\n\nZ cafebabe\n"
+    deleted_row = "robot/old design #{deleted.to_slice.hexstring}"
+    pages = CrystalRobots::Web::WikiRobots.parse_rows("#{live_row}\n#{deleted_row}\n")
+    pages.keys.should eq ["wall hugger"]
+    pages["wall hugger"].should eq text
+    wiki = CrystalRobots::Web::WikiRobots.new(pages)
+    wiki.names.should eq ["wall hugger"]
+    wiki.source("wall hugger").not_nil!.should contain "Wall Hugger"
+    env = {"PATH_INFO" => "/", "SCRIPT_NAME" => "/ext/robots", "FOSSIL_CAPABILITIES" => "ohij", "FOSSIL_USER" => "jkridner"}
+    [
+      {"/", ""},
+      {"/battle", "w=wall+hugger&r=target&limit=300"},
+      {"/wiki/wall%20hugger", ""},
+    ].each do |(p, qs)|
+      reply = IO::Memory.new
+      cgi = CrystalRobots::Web::CGI.new(env.merge({"PATH_INFO" => p, "QUERY_STRING" => qs}), reply)
+      cgi.wiki = wiki
+      cgi.serve
+      reply.to_s.should start_with "Status: 200"
+    end
+  end
+
   it "re-roots links under a session preview path" do
     reply = run_cgi("oi", "/", "GET", "", "", "/crystal-robots/ext/preview/session-abc")
     reply.should contain "[counter.cr](/ext/preview/session-abc/examples/counter)"

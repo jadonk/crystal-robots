@@ -29,6 +29,16 @@ shards build
 step "build-docs (before the final build, so the binary embeds them)"
 bin/crystal-robots build-docs
 
+step "check manifest.uuid"
+# Without it the shipped binary reports "unknown" for --version and /version,
+# which defeats comparing a deploy against trunk, so the release build (this
+# one) refuses to ship that way; `crystal build`/`shards build` run by hand
+# outside ci.sh still fall back to "unknown", which is fine for local dev.
+if [ ! -s manifest.uuid ]; then
+  echo "manifest.uuid is missing or empty; run 'fossil setting manifest on' and check out from Fossil so the release build carries a check-in" >&2
+  exit 1
+fi
+
 step "shards build"
 shards build
 

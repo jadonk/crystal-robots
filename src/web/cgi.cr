@@ -59,16 +59,23 @@ module CrystalRobots::Web
     # The deployed repository, if Fossil told us where it is.
     def self.for_repository(repository : String?) : WikiRobots
       return new({} of String => String) unless repository && File.exists?(repository)
+      new(parse_rows(fossil(["sql", "--readonly", "-R", repository, QUERY])))
+    end
+
+    # Each row is "<name> <hex>"; the name (a wiki page name after the
+    # `robot/` prefix) may itself contain spaces, but the hex payload never
+    # does, so the row splits at the LAST space, not the first.
+    def self.parse_rows(output : String) : Hash(String, String)
       pages = {} of String => String
-      fossil(["sql", "--readonly", "-R", repository, QUERY]).each_line do |line|
+      output.each_line do |line|
         row = line.strip
         row = row[1..-2] if row.starts_with?('\'') && row.ends_with?('\'')
-        name, _, hex = row.partition(' ')
+        name, _, hex = row.rpartition(' ')
         next if name.empty? || hex.empty?
         text = wiki_text(String.new(hex.hexbytes))
         pages[name[PREFIX.size..]] = text if text && name.starts_with?(PREFIX)
       end
-      new(pages)
+      pages
     end
 
     # The page text inside a wiki artifact: the W card's payload. A deleted
@@ -102,11 +109,17 @@ module CrystalRobots::Web
       src.size <= @limit ? src : nil
     end
 
+    # Raised when `fossil sql` fails, so a broken read surfaces as a 500
+    # through `CGI#serve` instead of silently rendering an empty listing.
+    class QueryError < Exception
+    end
+
     private def self.fossil(args : Array(String)) : String
       output = IO::Memory.new
       scrub = {"GATEWAY_INTERFACE" => nil, "PATH_INFO" => nil, "QUERY_STRING" => nil, "REQUEST_METHOD" => nil,
                "CONTENT_LENGTH" => nil, "SCRIPT_NAME" => nil, "HTTP_COOKIE" => nil}
-      Process.run("fossil", args, env: scrub, output: output, error: Process::Redirect::Close)
+      status = Process.run("fossil", args, env: scrub, output: output, error: Process::Redirect::Close)
+      raise QueryError.new("fossil #{args.first}: exit #{status.exit_code}") unless status.success?
       output.to_s
     end
   end

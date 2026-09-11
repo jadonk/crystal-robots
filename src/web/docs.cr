@@ -15,11 +15,14 @@ module CrystalRobots::Web
   module Docs
     DIR = "docs-api"
 
-    # path relative to DIR => file content, captured when the binary was built
+    # path relative to DIR => file content, captured when the binary was
+    # built. search-index.js and index.json are left out: they only back
+    # crystal-docs' own search box, which the page transform below drops.
     FILES = {% begin %}
       {
         {% root = "#{__DIR__}/../../docs-api" %}
-        {% files = `find #{root} -type f 2>/dev/null || true`.split %}
+        {% skip = "-not -name search-index.js -not -name index.json" %}
+        {% files = `find #{root} -type f #{skip} 2>/dev/null || true`.split %}
         {% if files.empty? %}
           "" => "",
         {% else %}
@@ -84,9 +87,15 @@ module CrystalRobots::Web
       title = html[/<title>(.*?)<\/title>/m, 1]? || "API"
       title = title.split(" - ")[0]
       body = html[/<body[^>]*>(.*)<\/body>/m, 1]? || html
-      body = body.gsub(/<script.*?<\/script>/m, "")
-      body = body.gsub(/<input[^>]*>/, "")
-      body = body.gsub(/<link[^>]*>/, "")
+      body = body.gsub(/<script.*?<\/script>/mi, "")
+      body = body.gsub(/<input[^>]*>/i, "")
+      body = body.gsub(/<link[^>]*>/i, "")
+      # belt and braces: the generator is trusted, but strip anything that
+      # would still run script if that ever changed.
+      body = body.gsub(/\s+on\w+\s*=\s*"[^"]*"/i, "")
+      body = body.gsub(/\s+on\w+\s*=\s*'[^']*'/i, "")
+      body = body.gsub(/(href|src)(\s*=\s*")javascript:[^"]*(")/i, "\\1\\2#\\3")
+      body = body.gsub(/(href|src)(\s*=\s*')javascript:[^']*(')/i, "\\1\\2#\\3")
       # relative links inside the generated site keep working because the
       # page keeps its place in the tree; only absolute-root links would not
       {title, STYLE + "<div class=\"crystal-docs\">" + body + "</div>"}
