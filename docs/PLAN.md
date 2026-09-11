@@ -4,6 +4,14 @@ Drafted 2026-09-09 on the session branch after merging `dev` (no-op: `dev`,
 `main` and `trunk` all point at the same commit). This is a living document;
 update it as phases land.
 
+**Ocx-aligned roll-up (2026-09-11):** the phase-by-phase status and the
+unscheduled work also live as wiki pages, in the same shape as Ollama-Codex's
+own planning pages: [Plan and Phases](/wiki?name=Plan+and+Phases) (roll-up
+status per phase) and [Backlog](/wiki?name=Backlog) (work not yet slotted
+into a phase). This file stays the fuller technical journal — decisions,
+rationale, the dated change log — that those two pages summarize; keep them
+in sync when a phase's status changes here.
+
 Direction set 2026-09-09: the project is migrating from GitLab to Fossil, and
 **Fossil + CGI is the primary hosting example**. Direct hosting (`-p PORT`)
 and the other interfaces stay in scope but are secondary. The in-progress
@@ -53,6 +61,8 @@ compiler work is fixed alongside the migration, not after it.
 | **[try]** 2026-09-11 | Maintainer review notes (trunk-ops thread): saved robots are read in ONE `fossil sql --readonly` query (latest `robot/*` wiki artifacts as hex, W card parsed in-process), no per-robot export and nothing cached across requests; the API docs are served inside the Fossil chrome (body extracted, scripts and search dropped, inline scoped styles, `fossil-doc` wrapper, doc comments intact) instead of crystal-docs' own UI whose inline script the CSP blocks, aligned with the Ollama-Codex docs CGI; Fossil's versioned `manifest` setting keeps `manifest.uuid` in checkouts and tarballs, embedded at compile time, and `--version` and `/version` report `crystal-robots 0.0.1 (check-in <hash>)` so a deploy can be compared with trunk |
 
 | **[try]** 2026-09-11 | Gate regression fix (trunk-ops on `4f6581bb`): the single-query listing split each SQL row at the FIRST space, so any `robot/*` page name with a space — live or a deleted one's leftover tag — crashed the overview, battle and wiki routes for everyone; rows now split at the LAST space (the hex payload never contains one), covered by a spec with a space-named robot and a deleted space-named tag asserting `/`, `/battle` and `/wiki/<name>` stay 200. Also from the same review: a failed `fossil sql` now raises instead of rendering an empty 200 listing; the docs sanitizer strips script tags case-insensitively plus event attributes and `javascript:` links as defense in depth; `search-index.js`/`index.json` are no longer embedded (the search UI they back is already stripped); `scripts/ci.sh` refuses the release `shards build` when `manifest.uuid` is missing or empty (a plain `crystal build` outside ci.sh still falls back to "unknown" for local dev) |
+
+| 2026-09-11 | Ocx-aligned plan, at stone's request: wiki pages `Plan and Phases` (roll-up status per phase) and `Backlog` (unscheduled work), in the same shape as Ollama-Codex's own planning pages; `docs/PLAN.md` stays the fuller technical journal and now points at both |
 
 Spec suite: 101 examples green with `-Dwasmer`; `scripts/ci.sh --with-wasmer` green end to end.
 
@@ -336,13 +346,17 @@ operator-precedence variant) is dropped.
 
 ## 5. Immediate next steps
 
+Tracked on the [Backlog](/wiki?name=Backlog) wiki page as of 2026-09-11;
+kept here as a pointer so this section does not drift out of sync with it.
+
 1. Spike: a wasmer-backed `Battle::Robot` whose `env.tick` blocks on the
    scheduler channel; if the runtime tolerates it, WASM robots join the
    field with the same protocol as interpreted ones.
 2. Phase 7 leftovers: the recurring `ci.sh --with-wasmer` regression task
    (coordinator sequences it); dropping `.gitlab-ci.yml` once the GitLab
    mirror is retired; the docs pages inside the Fossil chrome if the raw
-   passthrough proves awkward.
+   passthrough proves awkward (done 2026-09-11: served through a
+   `fossil-doc` wrapper, see the maintainer-review status row above).
 3. Live-editing loop for wiki robots: the battle result already links to
    the page editor; a "battle again" link from the wiki editor back is the
    missing half.
