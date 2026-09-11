@@ -52,28 +52,28 @@ describe CrystalRobots::Web::CGI do
   end
 
   it "parses posted source and shows errors with a location" do
-    ok = run_cgi("o", "/parse", "POST", "", "source=puts+1%2B2")
+    ok = run_cgi("oi", "/parse", "POST", "", "source=puts+1%2B2")
     ok.should contain "  1 add "
-    bad = run_cgi("o", "/parse", "POST", "", "source=if+x%0Aputs+1")
+    bad = run_cgi("oi", "/parse", "POST", "", "source=if+x%0Aputs+1")
     bad.should contain "**Parse error:** Cannot reduce"
     bad.should contain "at 1:1"
   end
 
   it "shows the battle form and runs a seeded match with a Pikchr frame" do
-    form = run_cgi("o", "/battle")
+    form = run_cgi("oi", "/battle")
     form.should contain "name=\"r\" value=\"counter\""
     form.should contain "action=\"/ext/robots/battle\""
-    page = run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000")
+    page = run_cgi("oi", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000")
     page.should contain "# Battle: counter vs target"
     page.should contain "```pikchr"
     page.should contain "R1: circle"
     page.should contain "| counter |"
     page.should contain "[Pick again](/ext/robots/battle)"
-    again = run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000")
+    again = run_cgi("oi", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000")
     again.should eq page
-    first = run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000&frame=0")
+    first = run_cgi("oi", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000&frame=0")
     first.should contain "## Frame 1 of"
-    moved = run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=40000")
+    moved = run_cgi("oi", "/battle", "GET", "r=counter&r=target&seed=3&limit=40000")
     moved.should contain "line thin color" # trails, once a robot has moved
     # animation first, static frame second, result last
     page.index("<svg ").not_nil!.should be < page.index("```pikchr").not_nil!
@@ -86,43 +86,44 @@ describe CrystalRobots::Web::CGI do
 
   it "lets a pasted robot fight and reports its problems" do
     src = URI.encode_www_form("main(\"Me\") do\n  while true\n    drive(90, 50)\n  end\nend\n")
-    page = run_cgi("o", "/battle", "GET", "r=target&src=#{src}&seed=1&limit=1500")
+    page = run_cgi("oi", "/battle", "GET", "r=target&src=#{src}&seed=1&limit=1500")
     page.should contain "# Battle: yours vs target"
     page.should contain "src=main"
-    broken = run_cgi("o", "/battle", "GET", "src=#{URI.encode_www_form("puts nope\n")}&limit=300")
+    broken = run_cgi("oi", "/battle", "GET", "src=#{URI.encode_www_form("puts nope\n")}&limit=300")
     broken.should contain "| yours | failed |"
     broken.should contain "undefined variable or function nope at 1:6"
-    checked = run_cgi("o", "/parse", "POST", "", "source=puts+nope")
+    checked = run_cgi("oi", "/parse", "POST", "", "source=puts+nope")
     checked.should contain "**Problems:**"
   end
 
   it "cannot be broken out of a code fence or a table by user text" do
     evil = URI.encode_www_form("puts 1\n```\n# injected heading\n<script>x</script>\n")
-    page = run_cgi("o", "/parse", "POST", "", "source=#{evil}")
+    page = run_cgi("oi", "/parse", "POST", "", "source=#{evil}")
     # the whole user text sits inside a fence one backtick longer than its own
     page.should contain "````crystal\nputs 1\n```\n# injected heading\n<script>x</script>\n````\n"
     outside = page.split("````").each_slice(2).map(&.first).join
     outside.should_not contain "injected"
     outside.should_not contain "<script>"
-    fight = run_cgi("o", "/battle", "GET", "src=#{URI.encode_www_form("main(\"M\") do\n  puts \"a | b <b>c</b> `d`\"\n  while true\n    sleep\n  end\nend\n")}&limit=300")
+    fight = run_cgi("oi", "/battle", "GET", "src=#{URI.encode_www_form("main(\"M\") do\n  puts \"a | b <b>c</b> `d`\"\n  while true\n    sleep\n  end\nend\n")}&limit=300")
     fight.should contain "puts a &#124; b &lt;b&gt;c&lt;/b&gt; &#96;d&#96;"
   end
 
   it "bounds the request body and the source size" do
     big = "x" * 70_000
-    run_cgi("o", "/parse", "POST", "", "source=#{big}").should start_with "Status: 400 Bad Request"
+    run_cgi("oi", "/parse", "POST", "", "source=#{big}").should start_with "Status: 400 Bad Request"
     huge = "source=" + URI.encode_www_form("puts 1\n" * 4_000)
-    run_cgi("o", "/parse", "POST", "", huge).should contain "the limit is 20000"
-    run_cgi("o", "/parse", "GET", "source=puts+1").should contain "Nothing to parse"
+    run_cgi("oi", "/parse", "POST", "", huge).should contain "the limit is 20000"
+    run_cgi("oi", "/parse", "GET", "source=puts+1").should contain "Nothing to parse"
   end
 
   it "answers 400 to invalid UTF-8 instead of crashing" do
-    run_cgi("o", "/parse", "POST", "", "source=\xff\xfe").should start_with "Status: 400 Bad Request"
-    run_cgi("o", "/battle", "GET", "r=\xff").should start_with "Status: 400 Bad Request"
+    run_cgi("oi", "/parse", "POST", "", "source=\xff\xfe").should start_with "Status: 400 Bad Request"
+    run_cgi("oi", "/battle", "GET", "r=\xff").should start_with "Status: 400 Bad Request"
     run_cgi("o", "/examples/\xff").should start_with "Status: 400 Bad Request"
   end
 
   it "keeps parse and battle for logged-in users, and says so up front" do
+    # anonymous, nobody and the not-logged-in visitor hold read letters only
     ["anonymous", "nobody", ""].each do |who|
       run_cgi("oh", "/parse", "POST", "", "source=puts+1", user: who).should start_with "Status: 403 Forbidden\r\nContent-Type: text/x-markdown"
       run_cgi("oh", "/battle", "GET", "r=counter&r=target", user: who).should contain "[Log in](/login?g=%2Fext%2Frobots%2Fbattle)"
@@ -131,13 +132,23 @@ describe CrystalRobots::Web::CGI do
       front.should_not contain "<form"
       front.should contain "[log in](/login?g=%2Fext%2Frobots)"
     end
-    run_cgi("oh", "/").should contain "<form"
+    run_cgi("ohi", "/").should contain "<form"
+    # a named user without check-in sees why, not a login link
+    without = run_cgi("oh", "/battle", "GET", "r=counter&r=target")
+    without.should start_with "Status: 403"
+    without.should contain "check-in permission (`i`)"
+    without.should_not contain "[Log in]"
+    run_cgi("oh", "/").should contain "ask the maintainer"
+    run_cgi("oh", "/").should_not contain "<form"
+    # developer and admin expansions carry i
+    run_cgi("v", "/battle", "GET", "r=counter&r=target&limit=300").should contain "# Battle"
+    run_cgi("a", "/battle", "GET", "r=counter&r=target&limit=300").should contain "# Battle"
   end
 
   it "shows a bounded derivation from the one parse, even on a budget error" do
     C::Parser.max_glyphs = 80_000
     begin
-      page = run_cgi("o", "/parse", "POST", "", "source=" + URI.encode_www_form("puts " + "1+" * 400 + "1"))
+      page = run_cgi("oi", "/parse", "POST", "", "source=" + URI.encode_www_form("puts " + "1+" * 400 + "1"))
       page.should contain "**Parse error:** Program is too large to parse"
       page.should contain "passes elided"
       page.should contain "more)" # long lines cut
@@ -149,24 +160,24 @@ describe CrystalRobots::Web::CGI do
   end
 
   it "plays the replay at a chosen pace in cycles per second with growing trails" do
-    page = run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000&cps=100")
+    page = run_cgi("oi", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000&cps=100")
     page.should contain "replay at 100 cycles per second (30.0 s)"
     page.should contain "dur=\"30.0s\""
     page.should contain "stroke-dashoffset"
     page.should contain "&cps=100&frame="
-    run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000&cps=99999").should contain "replay at 20000 cycles per second"
-    run_cgi("o", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000").should contain "replay at 300 cycles per second (10.0 s)"
+    run_cgi("oi", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000&cps=99999").should contain "replay at 20000 cycles per second"
+    run_cgi("oi", "/battle", "GET", "r=counter&r=target&seed=3&limit=3000").should contain "replay at 300 cycles per second (10.0 s)"
   end
 
   it "runs a series of matches with a score table like crobots -m" do
-    page = run_cgi("o", "/battle", "GET", "r=counter&r=rabbit&seed=4&limit=3000&matches=3")
+    page = run_cgi("oi", "/battle", "GET", "r=counter&r=rabbit&seed=4&limit=3000&matches=3")
     page.should contain "# Series: counter vs rabbit"
     page.should contain "seeds 4 to 6"
     page.should contain "| counter |"
     page.lines.count { |l| l.starts_with?("| 1 |") || l.starts_with?("| 2 |") || l.starts_with?("| 3 |") }.should eq 3
     page.should contain "[replay](/ext/robots/battle?r=counter&r=rabbit&seed=5&limit=3000&cps=300&frame=0)"
     # the series work cap trims the number of matches
-    capped = run_cgi("o", "/battle", "GET", "r=counter&r=rabbit&seed=4&limit=500000&matches=10")
+    capped = run_cgi("oi", "/battle", "GET", "r=counter&r=rabbit&seed=4&limit=500000&matches=10")
     capped.should contain "1 matches"
     capped.should contain "9 more dropped"
   end
@@ -185,7 +196,7 @@ describe CrystalRobots::Web::CGI do
     wiki.source("spinner").not_nil!.should start_with "main(\"Spinner\")"
     wiki.source("broken").should be_nil
     wiki.source("Home").should be_nil
-    env = {"PATH_INFO" => "/", "SCRIPT_NAME" => "/ext/robots", "FOSSIL_CAPABILITIES" => "ohj", "FOSSIL_USER" => "jkridner"}
+    env = {"PATH_INFO" => "/", "SCRIPT_NAME" => "/ext/robots", "FOSSIL_CAPABILITIES" => "ohij", "FOSSIL_USER" => "jkridner"}
     reply = IO::Memory.new
     cgi = CrystalRobots::Web::CGI.new(env, reply)
     cgi.wiki = wiki
@@ -215,17 +226,17 @@ describe CrystalRobots::Web::CGI do
     reply.to_s.should contain "(/wikiedit?name=robot%2Fspinner)"
     # wiki reads need a login and the wiki-read capability
     reply = IO::Memory.new
-    cgi = CrystalRobots::Web::CGI.new(env.merge({"PATH_INFO" => "/wiki/spinner", "FOSSIL_USER" => "anonymous"}), reply)
+    cgi = CrystalRobots::Web::CGI.new(env.merge({"PATH_INFO" => "/wiki/spinner", "FOSSIL_USER" => "anonymous", "FOSSIL_CAPABILITIES" => "ohj"}), reply)
     cgi.wiki = wiki
     cgi.serve
     reply.to_s.should start_with "Status: 403"
     reply = IO::Memory.new
-    cgi = CrystalRobots::Web::CGI.new(env.merge({"PATH_INFO" => "/", "FOSSIL_CAPABILITIES" => "o"}), reply)
+    cgi = CrystalRobots::Web::CGI.new(env.merge({"PATH_INFO" => "/", "FOSSIL_CAPABILITIES" => "oi"}), reply)
     cgi.wiki = wiki
     cgi.serve
     reply.to_s.should_not contain "Saved robots"
     reply = IO::Memory.new
-    cgi = CrystalRobots::Web::CGI.new(env.merge({"PATH_INFO" => "/battle", "QUERY_STRING" => "w=spinner&r=target&limit=300", "FOSSIL_CAPABILITIES" => "o"}), reply)
+    cgi = CrystalRobots::Web::CGI.new(env.merge({"PATH_INFO" => "/battle", "QUERY_STRING" => "w=spinner&r=target&limit=300", "FOSSIL_CAPABILITIES" => "oi"}), reply)
     cgi.wiki = wiki
     cgi.serve
     reply.to_s.should contain "# Battle: target vs target" # w= ignored without wiki-read
@@ -260,7 +271,7 @@ describe CrystalRobots::Web::CGI do
   end
 
   it "re-roots links under a session preview path" do
-    reply = run_cgi("o", "/", "GET", "", "", "/crystal-robots/ext/preview/session-abc")
+    reply = run_cgi("oi", "/", "GET", "", "", "/crystal-robots/ext/preview/session-abc")
     reply.should contain "[counter.cr](/ext/preview/session-abc/examples/counter)"
     # raw HTML is not rewritten by Fossil, so the form needs the full path
     reply.should contain "action=\"/crystal-robots/ext/preview/session-abc/parse\""

@@ -152,8 +152,21 @@ module CrystalRobots::Web
       "/login?g=#{URI.encode_www_form(back)}"
     end
 
+    # Routes map to capability letters; the repository's grants decide who
+    # holds them. Anonymous visitors are sent to log in; a logged-in user
+    # without the letter is told which one is missing.
     def login_required : Nil
-      reply("# Log in first\n\nParsing and battles are available to logged-in users. [Log in](#{login_link}) to continue, or return to the [overview](#{link_base}).\n", "403 Forbidden")
+      if logged_in?
+        reply("# Not allowed\n\nThis needs check-in permission (`i`) on the repository, which `#{inline(user)}` does not have. Return to the [overview](#{link_base}).\n", "403 Forbidden")
+      else
+        reply("# Log in first\n\nParsing and battles need a login with check-in permission. [Log in](#{login_link}) to continue, or return to the [overview](#{link_base}).\n", "403 Forbidden")
+      end
+    end
+
+    # Battle spends CPU and parse is kept with it until the compiler runs
+    # client-side; both need check-in (`i`), Setup and Admin included.
+    def may_run? : Bool
+      allowed?("i")
     end
 
     # Fossil provides the effective capability string; the repository's own
@@ -224,11 +237,11 @@ module CrystalRobots::Web
       when /\Adocs\/(.*)\z/
         docs_file($1)
       when "parse"
-        return login_required unless logged_in?
+        return login_required unless may_run?
         source = method == "POST" ? HTTP::Params.parse(body)["source"]? : nil
         reply(parse_page(source || ""))
       when "battle"
-        return login_required unless logged_in?
+        return login_required unless may_run?
         reply(battle_page)
       when /\Aexamples\/([a-z_]+)\z/
         name = $1
@@ -238,7 +251,7 @@ module CrystalRobots::Web
           not_found
         end
       when /\Awiki\/(.+)\z/
-        return login_required unless logged_in?
+        return login_required unless may_run?
         return forbidden unless wiki_visible?
         name = URI.decode($1)
         if (src = wiki.source(name))
@@ -331,15 +344,17 @@ module CrystalRobots::Web
             end
           end
         end
-        if logged_in?
+        if may_run?
           md << "\n## Battle\n\n[Pick robots and fight](#{base}/battle) on the CROBOTS battlefield.\n"
           md << "\n## Parse your own\n\n"
           md << "<form method=\"post\" action=\"#{form_base}/parse\">\n"
           md << "<textarea name=\"source\" rows=\"12\" cols=\"70\">puts 2 + (1 + 2) // 2 * 4</textarea><br>\n"
           md << "<button type=\"submit\">Parse</button>\n"
           md << "</form>\n\n"
+        elsif logged_in?
+          md << "\n## Battle and parse\n\nRunning battles and parsing your own robots needs check-in permission (`i`) on this repository; ask the maintainer for it.\n\n"
         else
-          md << "\n## Battle and parse\n\nRunning battles and parsing your own robots needs a login: [log in](#{login_link(form_base)}) and this page will offer both.\n\n"
+          md << "\n## Battle and parse\n\nRunning battles and parsing your own robots needs a login with check-in permission: [log in](#{login_link(form_base)}) and this page will offer both.\n\n"
         end
         md << "See [docs/PARSER.md](/doc/trunk/docs/PARSER.md) for how the passes work, "
         md << "[docs/PLAN.md](/doc/trunk/docs/PLAN.md) for what comes next"
