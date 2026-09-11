@@ -48,7 +48,9 @@ compiler work is fixed alongside the migration, not after it.
 
 | **[try]** 2026-09-10 | Replay pace is now CROBOTS cycles per second (`cps=`, default 300: a motion update every 50 ms, a full-speed robot crosses the field in about seven seconds, a missile covers its range in under a second), screen time proportional to cycles; default web cycle limit 60k; `matches=` runs a series like `crobots -m` with a wins/ties score table and a replay link per match, capped at 10 matches and 600k cycles of work |
 
-Spec suite: 97 examples green with `-Dwasmer`.
+| 2026-09-11 | Phase 7, from the coordinator's answers: versioned `.fossil-settings/ignore-glob` with `.gitignore` as mirror (1ca7c7ed); `scripts/ci.sh` as the one gate command, `--with-wasmer` installs 4.4.0 under the checkout (b980ca71); `build-docs` subcommand embeds `crystal docs` output, served at `/ext/crystal-robots/docs` (2daa7da4); README points at Fossil with mirrors read-only, Fossil contributing flow, `.gitlab-ci.yml` delegates to ci.sh (dda76b7f); **[try]** permissions on capability letters: o/h read, i battle and parse, j saved robots (af515555) |
+
+Spec suite: 98 examples green with `-Dwasmer`; `scripts/ci.sh --with-wasmer` green end to end.
 
 **WASM robots on the battlefield, decided.** Cycle ticks are injected at
 every operation and builtin call in both engines (above), so a WASM robot
@@ -333,9 +335,13 @@ operator-precedence variant) is dropped.
 1. Spike: a wasmer-backed `Battle::Robot` whose `env.tick` blocks on the
    scheduler channel; if the runtime tolerates it, WASM robots join the
    field with the same protocol as interpreted ones.
-2. Phase 7 migration items, after the coordinator answers section 7.
-3. Live-editing loop for wiki robots: a link from the battle result to
-   the wiki page editor and back.
+2. Phase 7 leftovers: the recurring `ci.sh --with-wasmer` regression task
+   (coordinator sequences it); dropping `.gitlab-ci.yml` once the GitLab
+   mirror is retired; the docs pages inside the Fossil chrome if the raw
+   passthrough proves awkward.
+3. Live-editing loop for wiki robots: the battle result already links to
+   the page editor; a "battle again" link from the wiki editor back is the
+   missing half.
 
 ## 7. Coordinator answers for Phase 7 (2026-09-11)
 
