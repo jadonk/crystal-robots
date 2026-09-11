@@ -36,8 +36,17 @@ spec_flags=""
 if [ "$with_wasmer" = 1 ]; then
   step "wasmer 4.4.0"
   export WASMER_DIR="$PWD/.wasmer"
-  if [ ! -f "$WASMER_DIR/lib/libwasmer.a" ]; then
-    WASMER_INSTALL_LOG=quiet sh scripts/install_wasmer.sh v4.4.0
+  if [ ! -x "$WASMER_DIR/bin/wasmer" ] || [ ! -f "$WASMER_DIR/lib/libwasmer.a" ]; then
+    # Every write stays inside the checkout: the installer appends its shell
+    # snippet to $PROFILE (when that file exists), downloads through
+    # mktemp -t (honours $TMPDIR), and prompts if a stale bin/wasmer is
+    # found, so a partial install is cleared first.
+    rm -rf ./.wasmer
+    mkdir -p "$WASMER_DIR/tmp"
+    : > "$WASMER_DIR/profile.sh"
+    PROFILE="$WASMER_DIR/profile.sh" TMPDIR="$WASMER_DIR/tmp" WASMER_INSTALL_LOG=quiet \
+      sh scripts/install_wasmer.sh v4.4.0
+    rm -rf "$WASMER_DIR/tmp"
   fi
   export PATH="$WASMER_DIR/bin:$PATH"
   "$WASMER_DIR/bin/wasmer" --version
