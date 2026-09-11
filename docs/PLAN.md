@@ -18,35 +18,35 @@ compiler work is fixed alongside the migration, not after it.
 | 2026-09-10 | Phase 1 done: multipass tokenizer in `src/compiler`, all six examples parse, `-t` trace |
 | 2026-09-10 | Phase 2 started: tree-walking interpreter with `Host` seam and `NullHost`, `-i` runs robots to a step limit |
 | 2026-09-10 | Phase 4 started: WASM emitter handles `puts` with full integer expressions, verified under wasmer |
-| 2026-09-10 | Phase 5 skeleton: CGI mode, capability gate, Markdown replies, overview, example and parse pages, `extroot` script, `fossil-skin/mainmenu` |
+| **[try]** 2026-09-10 | Phase 5 skeleton: CGI mode, capability gate, Markdown replies, overview, example and parse pages, `extroot` script, `fossil-skin/mainmenu` |
 
-| 2026-09-10 | Phase 3 done: CROBOTS battlefield ported from `motion.c`, `intrins.c`, `main.c` as `Battle::Field`; robots interleave one interpreter step at a time in fibers; seeded, deterministic, with a frame trace |
+| **[try]** 2026-09-10 | Phase 3 done: CROBOTS battlefield ported from `motion.c`, `intrins.c`, `main.c` as `Battle::Field`; robots interleave one interpreter step at a time in fibers; seeded, deterministic, with a frame trace |
 | 2026-09-10 | `-m MATCHES --seed N -l CYCLES` runs matches from the CLI; `GET /battle` renders any frame of a match in Pikchr under the Fossil chrome |
 | 2026-09-10 | Preview verified by the user at `/ext/preview/session-<root>/`; the parse form's POST went to the site root because Fossil does not rewrite raw HTML `action` attributes; fixed by using the full `SCRIPT_NAME` |
 
 | 2026-09-10 | Phase 2 remainder: `Compiler::Checker` reports undefined names, call arity, misplaced `return`/`break` and duplicate `def` with locations; the battlefield, `-t`, `-i` and the web pages use it |
-| 2026-09-10 | Battle page takes a pasted robot ("yours") and draws each robot's trail over the frames so far |
+| **[try]** 2026-09-10 | Battle page takes a pasted robot ("yours") and draws each robot's trail over the frames so far |
 
 | 2026-09-10 | Phase 4 done: the WASM emitter covers globals, constants, locals, user functions of any arity, if/elsif/else, while/until/break, case/when, all builtins as `env` imports, floored `//` and `%` with CROBOTS's divide-by-zero-is-zero; every example compiles; differential specs run three terminating robots under wasmer and the interpreter with the same scripted host and compare output and builtin call logs |
 
 | 2026-09-10 | Review fixes from the trunk-ops merge of 39d4b976: user text can no longer close a code fence or inject markup (fence sized to the text, prose escaped), parse is POST only, request body capped at 64 KB before allocation, source capped at 20 KB, parser pass budget of 20000, invalid UTF-8 and any other failure answer 400/500 instead of crashing, menu and extroot use `/ext/crystal-robots`, `/docs/` no longer ignored for the git mirror |
 
 | 2026-09-10 | Review fixes from the trunk-ops merge of 85c46a57: the interpreter's shared puts buffer is off for battle hosts and capped elsewhere; a robot fiber rescues everything, marks the robot failed and unwinds; repeated runtime errors also fail the robot; a call-depth limit turns unbounded recursion into a runtime error; angle normalization and integer ops are overflow-safe |
-| 2026-09-10 | Battle page reordered (replay on top, static frame, result at the bottom) and given a smooth replay: one SVG with native SMIL animation over 400 keyframes, no script, inside the Fossil chrome |
+| **[try]** 2026-09-10 | Battle page reordered (replay on top, static frame, result at the bottom) and given a smooth replay: one SVG with native SMIL animation over 400 keyframes, no script, inside the Fossil chrome |
 
-| 2026-09-10 | Review fixes from the trunk-ops merge of cdc29f87/61905033: the parser no longer re-copies the whole source every pass (append-only parts, joined lazily) and has a total-glyph work budget of two million on top of the pass budget, so cost is bounded by work done, not by input length alone; parse and battle require a named login (anonymous and nobody are refused with a Markdown 403) until the parser is opened up again; `fossil-skin/mainmenu` restored (my edit had truncated it); replay runs at a chosen frames-per-second (`fps=`, default 20) instead of a fixed duration, and trails grow with the robot instead of predicting its path |
+| **[try]** 2026-09-10 | Review fixes from the trunk-ops merge of cdc29f87/61905033: the parser no longer re-copies the whole source every pass (append-only parts, joined lazily) and has a total-glyph work budget of two million on top of the pass budget, so cost is bounded by work done, not by input length alone; parse and battle require a named login (anonymous and nobody are refused with a Markdown 403) until the parser is opened up again; `fossil-skin/mainmenu` restored (my edit had truncated it); replay runs at a chosen frames-per-second (`fps=`, default 20) instead of a fixed duration, and trails grow with the robot instead of predicting its path |
 
 | 2026-09-10 | Cycle model: the interpreter charges CROBOTS-style cycles (fetch/const 1, operator 1, store 1, builtin 2, call 3, branch 1, statement 1; `Interpreter::Costs`, configurable, `Costs.statements` is the old one-per-statement model) and the emitter can insert `env.tick(n)` at the same points (`-c --ticks`); differential specs show both engines charge identical totals on the test robots |
-| 2026-09-10 | Saved robots: wiki pages named `robot/<name>` whose single code block is the source appear on the overview, on the battle form (`w=` parameter) and at `/wiki/<name>`; read through `fossil wiki list/export` with the CGI environment scrubbed |
+| **[try]** 2026-09-10 | Saved robots: wiki pages named `robot/<name>` whose single code block is the source appear on the overview, on the battle form (`w=` parameter) and at `/wiki/<name>`; read through `fossil wiki list/export` with the CGI environment scrubbed |
 | 2026-09-10 | The examples list is generated at compile time from `examples/*.cr` by a macro; adding a file is enough |
 
-| 2026-09-10 | Review fixes from the trunk-ops merge of 6e876706/58ba5789: the parse page parses once under the budgets and renders the passes it holds, elided to 60 lines of at most 300 glyphs, so the error path can no longer run unbounded; budget errors point at the parser's last reduction instead of 1:1; `fossil-skin/mainmenu` mirrors the deployed skin (Agents, Docs, Run for readers); the overview tells anonymous visitors up front that parse and battle need a login and the login links return to the page (`/login?g=`); the hot-loop 1000-term paste could not be reproduced (chains, nested parentheses and call chains all finish in 1 to 6 s at the 500k limit) |
+| **[try]** 2026-09-10 | Review fixes from the trunk-ops merge of 6e876706/58ba5789: the parse page parses once under the budgets and renders the passes it holds, elided to 60 lines of at most 300 glyphs, so the error path can no longer run unbounded; budget errors point at the parser's last reduction instead of 1:1; `fossil-skin/mainmenu` mirrors the deployed skin (Agents, Docs, Run for readers); the overview tells anonymous visitors up front that parse and battle need a login and the login links return to the page (`/login?g=`); the hot-loop 1000-term paste could not be reproduced (chains, nested parentheses and call chains all finish in 1 to 6 s at the 500k limit) |
 
-| 2026-09-10 | Wiki robots hardened: sources over 20 KB are ignored, page names must be plain (letters, digits, space, `_ . -`, at most 40 characters) and are escaped in headings, tables and Pikchr labels anyway, the wiki view needs a login, and every wiki read needs Fossil's wiki-read capability (`j`) |
+| **[try]** 2026-09-10 | Wiki robots hardened: sources over 20 KB are ignored, page names must be plain (letters, digits, space, `_ . -`, at most 40 characters) and are escaped in headings, tables and Pikchr labels anyway, the wiki view needs a login, and every wiki read needs Fossil's wiki-read capability (`j`) |
 
-| 2026-09-10 | Five saved-robot wiki pages ship in `robots/*.md` (hunter, circler, dodger, wallhugger, turret) with `scripts/publish_wiki_robots.sh` to create or update them; each is spec-tested to parse, pass the checker and hit a target placed 200 m away; discovery: the overview lists saved robots with descriptions and fight links, the battle picker pre-checks a robot from a `pick=` link and links to every robot's view, and the wiki view page offers fight, pick-opponents and edit links; `Battle::Field` accepts fixed start positions |
+| **[try]** 2026-09-10 | Five saved-robot wiki pages ship in `robots/*.md` (hunter, circler, dodger, wallhugger, turret) with `scripts/publish_wiki_robots.sh` to create or update them; each is spec-tested to parse, pass the checker and hit a target placed 200 m away; discovery: the overview lists saved robots with descriptions and fight links, the battle picker pre-checks a robot from a `pick=` link and links to every robot's view, and the wiki view page offers fight, pick-opponents and edit links; `Battle::Field` accepts fixed start positions |
 
-| 2026-09-10 | Replay pace is now CROBOTS cycles per second (`cps=`, default 300: a motion update every 50 ms, a full-speed robot crosses the field in about seven seconds, a missile covers its range in under a second), screen time proportional to cycles; default web cycle limit 60k; `matches=` runs a series like `crobots -m` with a wins/ties score table and a replay link per match, capped at 10 matches and 600k cycles of work |
+| **[try]** 2026-09-10 | Replay pace is now CROBOTS cycles per second (`cps=`, default 300: a motion update every 50 ms, a full-speed robot crosses the field in about seven seconds, a missile covers its range in under a second), screen time proportional to cycles; default web cycle limit 60k; `matches=` runs a series like `crobots -m` with a wins/ties score table and a replay link per match, capped at 10 matches and 600k cycles of work |
 
 Spec suite: 97 examples green with `-Dwasmer`.
 
@@ -337,45 +337,71 @@ operator-precedence variant) is dropped.
 3. Live-editing loop for wiki robots: a link from the battle result to
    the wiki page editor and back.
 
-## 7. Questions for the Ollama-Codex coordinator (Phase 7)
+## 7. Coordinator answers for Phase 7 (2026-09-11)
 
-1. API docs: Ollama-Codex builds `crystal docs` into its binary and serves
-   it at `/ext/docs`. Should crystal-robots use that exact mechanism (and
-   the `build-docs` step) or its own, and where should the artifact live?
-2. Deploy: the served CGI is a symlink `extroot/crystal-robots ->
-   <checkout>/bin/crystal-robots`. Who runs `shards build` after a trunk
-   merge, is that automated, and does the preview dispatcher expect the
-   `bin/<shard target>` name it reads from `shard.yml`?
-3. CI: is there a host-side hook or runner that builds and runs specs on
-   trunk merges? If so, what should `scripts/ci.sh` look like to plug
-   into it, and can wasmer 4.4.0 be installed on the host (`-Dwasmer`)?
-4. Permissions: Ollama-Codex gates "agent use" on check-in (`i`) and
-   "control" on developer (`v`/`e`). Should parse and battle follow the
-   same tiers instead of "any named login"? Anonymous read of examples
-   and the overview stays open either way.
-5. User data: saved robots live in wiki pages `robot/<name>`. Is a
-   page-name prefix an acceptable convention across peers, or would the
-   project rather see app data in the Fossil config table like its own
-   runner and session bindings?
-6. Menu and skin: onboarding has a "Bootstrap invariants (CSP, mainmenu)"
-   step. Can it apply `fossil-skin/mainmenu` from the repository, so the
-   "Run" entry is not hand-pasted?
-7. Ignore rules and the git mirror: is `.fossil-settings/ignore-glob`
-   the convention (and `bin/`, `lib/`, `public/` the expected entries),
-   and is `fossil git export` run for this repository so `.gitignore`
-   still matters?
-8. Previews: is there a sanctioned way for a sandboxed session to trigger
-   `session-preview`, or does that stay with the Thread UI button?
-9. Robots and cost: `/ext` can be robot-restricted with the
-   `robot-restrict` setting. Should `ext/crystal-robots` be listed, given
-   a battle costs seconds of CPU?
-10. Live output: if animated battles ever move to streaming, can the
-    port 8443 live-events daemon carry per-project channels for other
-    projects, or is that Ollama-Codex-only?
+Answered by the Ollama-Codex coordinator; items marked MAINTAINER are the
+maintainer's decisions. Recorded here verbatim in substance.
 
-## 6. Order of work
+1. **API docs.** Same shape as Ollama-Codex, own binary: a `build-docs`
+   subcommand of `bin/crystal-robots` runs `crystal docs` into an
+   ignore-globbed directory; a compile-time macro embeds every file under
+   it; served at `/ext/crystal-robots/docs`, never at ocx's `/ext/docs`.
+   Artifact lives in the checkout, unversioned. `build-docs` runs before
+   `shards build` or the binary ships empty docs.
+2. **Deploy.** Not automated; the served symlink points at
+   `<primary>/bin/crystal-robots` and trunk-ops rebuilds by hand after each
+   merge (now on its checklist for served peers; a daemon-side deploy is
+   ticketed). The preview dispatcher builds the first target in
+   `shard.yml`, which is `bin/crystal-robots`.
+3. **CI.** No Fossil hook or cron; the gate is the task pipeline (agent
+   runs the suite, validator checks, trunk-ops re-runs on a merge
+   stand-in). `scripts/ci.sh` is the one command all of them call: shards
+   install, build-docs, shards build, spec, format check, example builds,
+   non-zero on any failure. MAINTAINER: sessions install wasmer 4.4.0 only
+   when the work touches WASM; `ci.sh --with-wasmer` installs it under the
+   checkout if absent and runs the differential specs; plain `ci.sh`
+   reports those specs as pending with the reason. A recurring regression
+   task runs `ci.sh --with-wasmer` on trunk about weekly.
+4. **Permissions.** Ollama-Codex tiers, not "any named login": identity is
+   `FOSSIL_USER`, permission is `FOSSIL_CAPABILITIES`, code maps routes to
+   capability letters and the repository's grants decide who holds them.
+   Overview and examples on `o`/`h`; battle and anything that saves on `i`.
+   MAINTAINER: parse also stays on `i` until the compiler and battlefield
+   run client-side in WASM, at which point parse opens for free.
+5. **User data.** Wiki pages `robot/<name>` are right: a saved robot is
+   project content, versioned, diffable and editable under `j`. The
+   convention for peers is an `<app>/<name>` page prefix.
+6. **Menu.** Keep `fossil-skin/mainmenu` as the source of truth; an
+   Ollama-Codex ticket makes a served repo's versioned menu lines required
+   entries of its onboarding invariant. The Run entry was pasted by hand.
+7. **Ignore and mirror.** Versioned `.fossil-settings/ignore-glob` is the
+   convention (`bin/`, `lib/`, `public/`, the docs artifact), with
+   `.gitignore` kept as its mirror. MAINTAINER: mirroring standardizes on
+   Forgejo pulling from this server over https and pushing onward to
+   GitHub/GitLab; no secrets on this host. Keep `.gitlab-ci.yml` only while
+   the GitLab mirror exists; README links move to the Fossil repository.
+8. **Previews.** Host-side stays sanctioned (Thread UI button or the
+   coordinator); a `preview` verb over the daemon loopback IPC is the
+   planned paving for sandboxed sessions.
+9. **robot-restrict.** Leave unset; battle needs a login already, and any
+   robot-facing setting gets a real-browser check first.
+10. **Live output.** The port 8443 daemon is already per-project with its
+    own secret; a battle stream would be a new channel kind fed by a file
+    the CGI writes. The one-shot SMIL SVG stays the first cut.
 
-Phase 0, then Phase 1 (front end) and the Phase 5 skeleton side by side so
-the parse trace is visible in the browser early, then Phases 2 through 4
-with `/compile` and `/battle` lighting up as each lands, then Phase 7
-migration items, then Phase 5b and Phase 6.
+MAINTAINER standing ask: a human must experience key user-visible changes
+before long, prompted by a short "try this" list. Status rows above that
+are user-visible carry the tag **[try]**; section 8 keeps the current short
+list.
+
+## 8. Try this (user-visible changes to experience)
+
+1. Overview at `/ext/crystal-robots/`: saved robots table with
+   descriptions and fight links; log in to see the battle link and parse
+   form.
+2. Battle picker: check hunter, circler and counter, run one match, watch
+   the replay at the default pace, then set Matches to 5 for a score table
+   and open one replay link.
+3. A wiki robot's view page (`/ext/crystal-robots/wiki/hunter`): source,
+   derivation, checks, fight and edit links.
+4. Parse form: paste a robot with a typo and read the located problem.
