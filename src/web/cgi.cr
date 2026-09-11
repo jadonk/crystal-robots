@@ -116,8 +116,13 @@ module CrystalRobots::Web
 
     private def self.fossil(args : Array(String)) : String
       output = IO::Memory.new
+      # Fossil serves an ext CGI extension a minimal environment (the CGI
+      # variables only): no HOME, so `fossil sql` cannot locate its global
+      # config database and refuses to run at all. Give it one; the value
+      # doesn't matter for a --readonly query, only that it resolves.
       scrub = {"GATEWAY_INTERFACE" => nil, "PATH_INFO" => nil, "QUERY_STRING" => nil, "REQUEST_METHOD" => nil,
-               "CONTENT_LENGTH" => nil, "SCRIPT_NAME" => nil, "HTTP_COOKIE" => nil}
+               "CONTENT_LENGTH" => nil, "SCRIPT_NAME" => nil, "HTTP_COOKIE" => nil,
+               "HOME" => ENV["HOME"]? || ENV["FOSSIL_HOME"]? || "/tmp"}
       status = Process.run("fossil", args, env: scrub, output: output, error: Process::Redirect::Close)
       raise QueryError.new("fossil #{args.first}: exit #{status.exit_code}") unless status.success?
       output.to_s

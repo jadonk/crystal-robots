@@ -21,8 +21,7 @@ module CrystalRobots::Web
     FILES = {% begin %}
       {
         {% root = "#{__DIR__}/../../docs-api" %}
-        {% skip = "-not -name search-index.js -not -name index.json" %}
-        {% files = `find #{root} -type f #{skip} 2>/dev/null || true`.split %}
+        {% files = `find #{root} -type f -not -name search-index.js -not -name index.json 2>/dev/null || true`.split %}
         {% if files.empty? %}
           "" => "",
         {% else %}
