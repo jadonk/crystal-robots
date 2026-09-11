@@ -1,5 +1,9 @@
+# Mirror of .fossil-settings/ignore-glob (Fossil is the source of truth)
 /bin/
 /lib/
 /public/
+/docs-api/
 /.shards/
+/.wasmer/
 *.dwarf
+/examples/test.wasm

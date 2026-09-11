@@ -1,0 +1,8 @@
+bin/*
+lib/*
+public/*
+docs-api/*
+.shards/*
+.wasmer/*
+*.dwarf
+examples/test.wasm
