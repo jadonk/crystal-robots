@@ -10,6 +10,7 @@ require "html"
 require "uri"
 require "../compiler"
 require "../battle/field"
+require "../tournament/tournament"
 require "./docs"
 
 module CrystalRobots::Web
@@ -288,6 +289,14 @@ module CrystalRobots::Web
       when "battle"
         return login_required unless may_run?
         reply(battle_page)
+      when "tournament"
+        entrants = tournament_entrants(query)
+        if entrants.empty?
+          reply(tournament_form(query.fetch_all("pick")))
+        else
+          return login_required unless may_run?
+          reply(tournament_ladder(query, entrants))
+        end
       when /\Aexamples\/([a-z_]+)\z/
         name = $1
         if (src = EXAMPLES[name]?)
@@ -406,6 +415,7 @@ module CrystalRobots::Web
         else
           md << "\n## Battle and parse\n\nRunning battles and parsing your own robots needs a login with check-in permission: [log in](#{login_link(form_base)}) and this page will offer both.\n\n"
         end
+        md << "\n## Tournament\n\n[Pick robots and run a tournament](#{base}/tournament): every saved robot and example can enter, pools then a bracket, one champion.\n\n"
         md << "See [docs/PARSER.md](/doc/trunk/docs/PARSER.md) for how the passes work, "
         md << "[docs/PLAN.md](/doc/trunk/docs/PLAN.md) for what comes next"
         md << (Docs.built? ? ", and the [API reference](#{base}/docs/index.html) for the robot builtins and the compiler.\n" : ".\n")
@@ -610,6 +620,349 @@ module CrystalRobots::Web
         md << "\n## Matches\n\n| # | Seed | Cycles | Outcome | Damage | |\n| --- | --- | --- | --- | --- | --- |\n"
         rows.each { |row| md << row << "\n" }
       end
+    end
+
+    # --- Tournament -------------------------------------------------------
+    #
+    # /tournament is a designer form (pick robots, an "everyone" link,
+    # Start) over pools-then-bracket play (see ../tournament/tournament.cr).
+    # A tournament is link-driven, GET-only and stateless like /battle: all
+    # of its state — which robots, which stage, what has already been
+    # decided — lives in the URL. Because playing a fight spends real
+    # Battle::Field cycles, one request plays exactly one stage (the
+    # pools, or one bracket round); the "run next round" link carries
+    # everything already decided (serialized pools and rounds, plus the
+    # seed to resume from) so earlier stages are never replayed.
+
+    TOURNAMENT_CYCLE_LIMIT  = 30_000_i32 # a tournament is many fights, not one long replay; still enough for most pairs to decide
+    TOURNAMENT_ENTRANTS_MAX =         32 # keeps pools, the bracket and the URL a sane size
+
+    private def tournament_entrants(q : HTTP::Params) : Array(String)
+      ex = q.fetch_all("r").select { |n| EXAMPLES.has_key?(n) }
+      saved = wiki_visible? ? q.fetch_all("w").select { |n| wiki.names.includes?(n) } : [] of String
+      order_entrants((ex + saved).first(TOURNAMENT_ENTRANTS_MAX), q["order"]?)
+    end
+
+    private def order_entrants(entrants : Array(String), order : String?) : Array(String)
+      order == "alpha" ? entrants.sort : entrants
+    end
+
+    # `picked` are entrants to pre-check, from the "everyone" link.
+    def tournament_form(picked : Array(String) = [] of String) : String
+      String.build do |md|
+        md << "# Tournament\n\n[Back](#{link_base})\n\n"
+        md << "Pick at least 3 robots, then press **Start tournament**. Everyone in a pool fights everyone else once; "
+        md << "the top finishers go into a bracket; the bracket winner is the champion.\n\n"
+        all_examples = EXAMPLES.keys.to_a
+        all_saved = wiki_visible? ? wiki.names : [] of String
+        unless (all_examples + all_saved).empty?
+          everyone = (all_examples + all_saved).map { |n| "pick=#{URI.encode_www_form(n)}" }.join("&")
+          md << "[Check everyone](#{form_base}/tournament?#{everyone}) if everyone is playing.\n\n"
+        end
+        md << "<form method=\"get\" action=\"#{form_base}/tournament\">\n"
+        md << "<p>Built-in examples:</p>\n"
+        all_examples.each { |name| md << big_checkbox("r", name, picked.includes?(name)) }
+        if wiki_visible? && !all_saved.empty?
+          md << "<p>Saved robots:</p>\n"
+          all_saved.each { |name| md << big_checkbox("w", name, picked.includes?(name)) }
+        end
+        md << "<details><summary>More choices</summary>\n"
+        md << "<label>Seed <input type=\"number\" name=\"seed\" value=\"1\" min=\"0\"></label><br>\n"
+        md << "<label>Cycle limit <input type=\"number\" name=\"limit\" value=\"#{TOURNAMENT_CYCLE_LIMIT}\" min=\"#{MOTION_STEP}\" max=\"#{WEB_CYCLE_MAX}\"></label><br>\n"
+        md << "<label>Entrant order <select name=\"order\"><option value=\"given\">as picked</option><option value=\"alpha\">alphabetical</option></select></label>\n"
+        md << "</details>\n"
+        button = "<button type=\"submit\"#{" disabled" unless may_run?} style=\"font-size:1.3em;padding:0.3em 1em;\">Start tournament</button>"
+        md << "<p>#{button}</p>\n</form>\n\n"
+        if !may_run? && logged_in?
+          md << "Running a tournament needs check-in permission (`i`) on this repository; ask the maintainer for it.\n"
+        elsif !may_run?
+          md << "Running a tournament needs a login with check-in permission: [log in](#{login_link(form_base + "/tournament")}) and this page will offer Start.\n"
+        end
+      end
+    end
+
+    private def big_checkbox(param : String, name : String, checked : Bool) : String
+      mark = checked ? " checked" : ""
+      "<label style=\"font-size:1.25em;\"><input type=\"checkbox\" name=\"#{param}\" value=\"#{HTML.escape(name)}\" " \
+      "style=\"width:1.4em;height:1.4em;vertical-align:middle;\"#{mark}> #{HTML.escape(name)}</label><br>\n"
+    end
+
+    # Drives one stage of the tournament from the URL: the very first
+    # request (no `pool=` yet) plays the pools; later requests replay the
+    # already-decided pools and rounds straight from the URL (no
+    # simulation, just parsing) and, unless the tournament is already
+    # over, play exactly one more bracket round.
+    def tournament_ladder(q : HTTP::Params, entrants : Array(String)) : String
+      return plain_error("Pick at least 3 robots to start a tournament.") if entrants.size < 3
+      if (bad = missing_source(entrants))
+        return plain_error("#{inline(bad)} has no code block yet.")
+      end
+      seed = q["seed"]?.try(&.to_u64?) || 1_u64
+      limit = (q["limit"]?.try(&.to_i32?) || TOURNAMENT_CYCLE_LIMIT).clamp(MOTION_STEP.to_i32, WEB_CYCLE_MAX.to_i32)
+      order = q["order"]?
+      fight = tournament_fight(tournament_sources(entrants))
+
+      pool_params = q.fetch_all("pool")
+      return pools_page(entrants, seed, limit, order, fight) if pool_params.empty?
+
+      pools = pool_params.map { |blob| deserialize_pool(blob) }
+      rounds = q.fetch_all("rnd").map { |blob| deserialize_round(blob) }
+      return champion_page(entrants, limit, pools, rounds) if !rounds.empty? && rounds.last.matches.size == 1
+
+      slots_param = q["slots"]?
+      idx = q["idx"]?.try(&.to_i32?)
+      tot = q["tot"]?.try(&.to_i32?)
+      resume = q["rs"]?.try(&.to_u64?)
+      unless slots_param && idx && tot && resume
+        return plain_error("This tournament link is missing a piece. Go [back](#{link_base}/tournament) and start again.")
+      end
+      slots = slots_param.split(",").map { |s| s.empty? ? nil : s }
+      unless round_fits_budget?(slots, limit)
+        return plain_error("That's too many robots for one round at this cycle limit; lower the cycle limit or pick fewer robots.")
+      end
+      stage = Tournament.play_bracket_round(slots, resume, limit, fight, tot, idx)
+      rounds = rounds + [stage.round]
+      if stage.final
+        champion_page(entrants, limit, pools, rounds)
+      else
+        round_page(entrants, seed, limit, order, pools, rounds, stage.next_slots, stage.resume_seed, idx + 1, tot)
+      end
+    end
+
+    private def missing_source(entrants : Array(String)) : String?
+      entrants.find { |n| !EXAMPLES.has_key?(n) && wiki.source(n).nil? }
+    end
+
+    private def tournament_sources(entrants : Array(String)) : Hash(String, String)
+      sources = {} of String => String
+      entrants.each { |n| sources[n] = EXAMPLES[n]? || wiki.source(n).not_nil! }
+      sources
+    end
+
+    private def tournament_fight(sources : Hash(String, String)) : Tournament::FightFn
+      ->(entries : Array(String), seed : UInt64, limit : Int32) {
+        battle_entries = entries.map { |n| {n, sources[n]} }
+        field = Battle::Field.new(battle_entries, seed: seed, limit: limit.to_i64, max_frames: 2)
+        field.run
+        field.winner.try(&.name)
+      }
+    end
+
+    # A fast, plain-words check on the cycles one stage is about to spend
+    # (its fights at one attempt each), so a roster too big for the chosen
+    # cycle limit fails immediately instead of running long. A no-winner
+    # fight is refought, so the real cost can run a little higher than
+    # this in the rare case several fights need it; the check is a sanity
+    # gate on the common case, not a hard runtime cap.
+    private def pools_fit_budget?(entrants : Array(String), limit : Int32) : Bool
+      pairs = Tournament.pool_sizes(entrants.size).sum { |n| n * (n - 1) // 2 }
+      pairs.to_i64 * limit <= SERIES_CYCLE_MAX
+    end
+
+    private def round_fits_budget?(slots : Array(String?), limit : Int32) : Bool
+      non_bye = slots.each_slice(2).count { |pair| !pair[0].nil? && !pair[1].nil? }
+      non_bye.to_i64 * 3 * limit <= SERIES_CYCLE_MAX
+    end
+
+    private def plain_error(message : String) : String
+      "# Tournament\n\n[Back](#{link_base}/tournament)\n\n#{message}\n"
+    end
+
+    private def pools_page(entrants : Array(String), seed : UInt64, limit : Int32, order : String?, fight : Tournament::FightFn) : String
+      unless pools_fit_budget?(entrants, limit)
+        return plain_error("That's too many robots for one round at this cycle limit; lower the cycle limit or pick fewer robots.")
+      end
+      stage = Tournament.play_pools(entrants, seed, limit, fight)
+      slots, total_rounds = Tournament.bracket_plan(stage.advancers)
+      links = ladder_state_params(entrants, seed, limit, order, stage.pools, [] of Tournament::Round, slots, stage.resume_seed, 0, total_rounds)
+      render_ladder_page("The pools are done.", entrants, limit, stage.pools, [] of Tournament::Round, "#{link_base}/tournament?#{links}")
+    end
+
+    private def round_page(entrants : Array(String), seed : UInt64, limit : Int32, order : String?, pools : Array(Tournament::PoolResult),
+                           rounds : Array(Tournament::Round), next_slots : Array(String?), resume : UInt64, idx : Int32, tot : Int32) : String
+      links = ladder_state_params(entrants, seed, limit, order, pools, rounds, next_slots, resume, idx, tot)
+      render_ladder_page("The #{rounds.last.label.downcase} is done.", entrants, limit, pools, rounds, "#{link_base}/tournament?#{links}")
+    end
+
+    private def render_ladder_page(status : String, entrants : Array(String), limit : Int32, pools : Array(Tournament::PoolResult), rounds : Array(Tournament::Round), next_link : String) : String
+      String.build do |md|
+        md << "# Tournament\n\n[Back](#{link_base})\n\n"
+        md << "#{status} [Run next round →](#{next_link})\n\n"
+        md << "```pikchr\n" << pikchr_ladder(pools, rounds, nil) << "```\n\n"
+        pools.each_with_index { |p, i| md << render_pool(p, i, limit) }
+        rounds.each { |r| md << render_round(r, limit) }
+        md << "[Run next round →](#{next_link})\n"
+      end
+    end
+
+    private def champion_page(entrants : Array(String), limit : Int32, pools : Array(Tournament::PoolResult), rounds : Array(Tournament::Round)) : String
+      champion = rounds.last.matches.first.winner
+      String.build do |md|
+        md << "# 🏆 #{inline(champion)} wins the Tournament! 🏆\n\n[Back](#{link_base})\n\n"
+        md << "```pikchr\n" << pikchr_trophy(champion) << "```\n\n"
+        md << "```pikchr\n" << pikchr_ladder(pools, rounds, champion) << "```\n\n"
+        pools.each_with_index { |p, i| md << render_pool(p, i, limit) }
+        rounds.each { |r| md << render_round(r, limit) }
+      end
+    end
+
+    # A fight's replay is a `/battle` link for its two entrants at its own
+    # seed; the cycle limit only changes how the replay is paced, not
+    # which fight it is, so any value round-trips the correct match.
+    private def fight_replay_link(a : String, b : String, seed : UInt64, limit : Int32) : String
+      params = [a, b].map { |n| EXAMPLES.has_key?(n) ? "r=#{n}" : "w=#{URI.encode_www_form(n)}" }
+      "#{link_base}/battle?#{params.join("&")}&seed=#{seed}&limit=#{limit}"
+    end
+
+    private def render_pool(pool : Tournament::PoolResult, index : Int32, limit : Int32) : String
+      String.build do |md|
+        md << "### Pool #{('A'.ord + index).chr}: #{pool.entrants.map { |n| inline(n) }.join(", ")}\n\n"
+        md << "| Robot | Points | Rank |\n| --- | --- | --- |\n"
+        pool.standings.each { |s| md << "| #{inline(s.name)} | #{s.points} | #{s.rank} |\n" }
+        md << "\n| Fight | Winner | |\n| --- | --- | --- |\n"
+        pool.fights.each do |f|
+          winner = f.winner ? inline(f.winner.not_nil!) : "no winner, refought"
+          link = fight_replay_link(f.entrants[0], f.entrants[1], f.seed, limit)
+          md << "| #{inline(f.entrants[0])} vs #{inline(f.entrants[1])} (seed #{f.seed}) | #{winner} | [replay](#{link}) |\n"
+        end
+        md << "\n"
+      end
+    end
+
+    private def render_round(round : Tournament::Round, limit : Int32) : String
+      String.build do |md|
+        md << "### #{round.label}\n\n"
+        round.matches.each do |m|
+          a, b = m.entrants[0], m.entrants[1]
+          if a.nil? || b.nil?
+            md << "- **#{inline(m.winner)}** advances on a bye\n"
+          else
+            games = m.games.map_with_index { |g, i| "[game #{i + 1}](#{fight_replay_link(a, b, g.seed, limit)})" }.join(", ")
+            md << "- #{inline(a)} vs #{inline(b)}: **#{inline(m.winner)}** wins (#{games})\n"
+          end
+        end
+        md << "\n"
+      end
+    end
+
+    private def pik_str(text : String) : String
+      %("#{pikchr_text(text)}")
+    end
+
+    private def pikchr_trophy(champion : String) : String
+      String.build do |pik|
+        pik << "CUP: ellipse wid 1.1in ht 0.6in fill 0xFFD700 color 0xB8860B\n"
+        pik << "STEM: box wid 0.16in ht 0.35in fill 0xFFD700 color 0xB8860B with .n at CUP.s\n"
+        pik << "box wid 0.7in ht 0.12in fill 0xFFD700 color 0xB8860B with .n at STEM.s\n"
+        pik << "text #{pik_str(champion)} big bold at CUP.n + (0,0.35in)\n"
+      end
+    end
+
+    # A schematic ladder: pools left to right in one row, each completed
+    # bracket round in its own row below, the champion (once known) at
+    # the bottom. Rows are spaced at a fixed gap rather than hugging their
+    # content, so a variable number of matches per round never overlaps
+    # the row below it.
+    private def pikchr_ladder(pools : Array(Tournament::PoolResult), rounds : Array(Tournament::Round), champion : String?) : String
+      String.build do |pik|
+        pik << "boxwid = 1.3in; boxht = 0.35in\n"
+        pools.each_with_index do |pool, i|
+          name = "PL#{i}"
+          top = pool.standings.first?
+          if i == 0
+            pik << "#{name}: box #{pik_str("Pool #{('A'.ord + i).chr}")} bold fill 0xADD8E6\n"
+          else
+            pik << "#{name}: box #{pik_str("Pool #{('A'.ord + i).chr}")} bold fill 0xADD8E6 with .w at PL#{i - 1}.e + (0.3in,0)\n"
+          end
+          pik << "text #{pik_str(top ? "#{top.name} #{top.points}pt" : "-")} small with .n at #{name}.s\n"
+        end
+        rounds.each_with_index do |round, ri|
+          gap = (ri + 1) * 1.0
+          round.matches.each_with_index do |m, mi|
+            name = "RD#{ri}_#{mi}"
+            versus = "#{m.entrants[0] || "bye"} v #{m.entrants[1] || "bye"}"
+            if mi == 0
+              pik << "#{name}: box #{pik_str(round.label)} bold fill 0xFFFFCC with .n at PL0.s - (0,#{gap}in)\n"
+            else
+              pik << "#{name}: box #{pik_str(round.label)} bold fill 0xFFFFCC with .w at RD#{ri}_#{mi - 1}.e + (0.3in,0)\n"
+            end
+            pik << "text #{pik_str(versus)} small with .n at #{name}.s\n"
+            pik << "text #{pik_str("winner: #{m.winner}")} small with .n at last.s\n"
+          end
+        end
+        if champion
+          gap = (rounds.size + 1) * 1.0
+          pik << "CH: box #{pik_str("Champion")} bold fill 0xFFD700 with .n at PL0.s - (0,#{gap}in)\n"
+          pik << "text #{pik_str(champion)} bold with .n at CH.s\n"
+        end
+      end
+    end
+
+    # --- URL state for the ladder pages ------------------------------
+
+    private def ladder_state_params(entrants : Array(String), seed : UInt64, limit : Int32, order : String?, pools : Array(Tournament::PoolResult),
+                                    rounds : Array(Tournament::Round), slots : Array(String?), resume : UInt64, idx : Int32, tot : Int32) : String
+      parts = [] of String
+      entrants.each { |n| parts << (EXAMPLES.has_key?(n) ? "r=#{URI.encode_www_form(n)}" : "w=#{URI.encode_www_form(n)}") }
+      parts << "seed=#{seed}"
+      parts << "limit=#{limit}"
+      parts << "order=#{order}" if order
+      pools.each { |p| parts << "pool=#{URI.encode_www_form(serialize_pool(p))}" }
+      rounds.each { |r| parts << "rnd=#{URI.encode_www_form(serialize_round(r))}" }
+      parts << "slots=#{URI.encode_www_form(slots.map { |s| s || "" }.join(","))}"
+      parts << "rs=#{resume}"
+      parts << "idx=#{idx}"
+      parts << "tot=#{tot}"
+      parts.join("&")
+    end
+
+    # Robot names are restricted (see `WikiRobots::NAME`, and examples are
+    # source filenames) to `[A-Za-z0-9 _.-]`, so none of these delimiters
+    # can appear inside a name: the encoding below needs no escaping.
+
+    private def serialize_pool(pool : Tournament::PoolResult) : String
+      entrants = pool.entrants.join(",")
+      fights = pool.fights.map { |f| "#{f.entrants[0]}:#{f.entrants[1]}:#{f.seed}:#{f.winner}" }.join(",")
+      standings = pool.standings.map { |s| "#{s.name}:#{s.points}:#{s.rank}" }.join(",")
+      "#{entrants}|#{fights}|#{standings}"
+    end
+
+    private def deserialize_pool(blob : String) : Tournament::PoolResult
+      entrants_s, fights_s, standings_s = blob.split("|", 3)
+      entrants = entrants_s.split(",")
+      fights = fights_s.split(",").map do |f|
+        a, b, seed, winner = f.split(":", 4)
+        Tournament::FightRecord.new([a, b], seed.to_u64, winner.empty? ? nil : winner)
+      end
+      standings = standings_s.split(",").map do |s|
+        name, points, rank = s.split(":", 3)
+        Tournament::Standing.new(name, points.to_i32, rank.to_i32)
+      end
+      Tournament::PoolResult.new(entrants, fights, standings)
+    end
+
+    private def serialize_round(round : Tournament::Round) : String
+      matches = round.matches.map do |m|
+        a = m.entrants[0] || ""
+        b = m.entrants[1] || ""
+        games = m.games.map { |g| "#{g.seed}:#{g.winner}" }.join("~")
+        "#{a}:#{b}:#{m.winner}:#{games}"
+      end.join(",")
+      "#{round.label}|#{matches}"
+    end
+
+    private def deserialize_round(blob : String) : Tournament::Round
+      label, matches_s = blob.split("|", 2)
+      matches = matches_s.split(",").map do |m|
+        a, b, winner, games_s = m.split(":", 4)
+        games = games_s.empty? ? [] of Tournament::FightRecord : games_s.split("~").map { |g|
+          seed, gw = g.split(":", 2)
+          Tournament::FightRecord.new([a, b], seed.to_u64, gw.empty? ? nil : gw)
+        }
+        entrants = [a.empty? ? nil : a, b.empty? ? nil : b] of String?
+        Tournament::BracketMatch.new(entrants, games, winner)
+      end
+      Tournament::Round.new(label, matches)
     end
 
     # The whole match as one SVG with native (SMIL) animation: no script,

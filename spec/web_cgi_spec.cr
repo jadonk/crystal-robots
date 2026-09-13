@@ -18,6 +18,30 @@ private def run_cgi(caps : String, path : String, method = "GET", query = "", bo
   reply.to_s
 end
 
+private def run_tournament(caps : String, query : String, wiki : CrystalRobots::Web::WikiRobots? = nil, user = "jkridner") : String
+  env = {
+    "GATEWAY_INTERFACE" => "CGI/1.1", "REQUEST_METHOD" => "GET", "PATH_INFO" => "/tournament",
+    "QUERY_STRING" => query, "SCRIPT_NAME" => "/ext/robots", "FOSSIL_CAPABILITIES" => caps, "FOSSIL_USER" => user,
+  }
+  reply = IO::Memory.new
+  cgi = CrystalRobots::Web::CGI.new(env, reply)
+  cgi.wiki = wiki if wiki
+  cgi.serve
+  reply.to_s
+end
+
+private def run_next_round(reply : String, caps : String, wiki : CrystalRobots::Web::WikiRobots?) : String
+  link = reply.lines.find { |l| l.includes?("Run next round") }.not_nil!
+  url = link.match(/\]\((.*?)\)/).not_nil![1]
+  query = url.split("?", 2)[1]
+  run_tournament(caps, query, wiki)
+end
+
+SAVED_ROBOTS = {
+  "robot/spinner" => "```crystal\nmain(\"Spinner\") do\n  while true\n    drive(90, 30)\n  end\nend\n```\n",
+  "robot/zigzag"  => "```crystal\nmain(\"Zigzag\") do\n  while true\n    drive(45, 40)\n    sleep\n    drive(135, 40)\n    sleep\n  end\nend\n```\n",
+}
+
 describe CrystalRobots::Web::CGI do
   it "refuses anonymous users without read capability" do
     reply = run_cgi("", "/")
@@ -324,5 +348,94 @@ describe CrystalRobots::Web::CGI do
     reply.should contain "[counter.cr](/ext/preview/session-abc/examples/counter)"
     # raw HTML is not rewritten by Fossil, so the form needs the full path
     reply.should contain "action=\"/crystal-robots/ext/preview/session-abc/parse\""
+  end
+
+  describe "/tournament" do
+    it "shows big checkboxes for examples and saved robots, with an everyone link and a Start button" do
+      wiki = CrystalRobots::Web::WikiRobots.from_pages(SAVED_ROBOTS)
+      form = run_tournament("oij", "", wiki)
+      form.should start_with "Status: 200 OK\r\nContent-Type: text/x-markdown\r\n\r\n# Tournament"
+      form.should contain "name=\"r\" value=\"counter\""
+      form.should contain "name=\"w\" value=\"spinner\""
+      form.should contain "Check everyone"
+      form.should contain "<button type=\"submit\""
+      form.should_not contain "disabled"
+      form.should contain "<details><summary>More choices</summary>"
+      form.should_not contain "<script"
+    end
+
+    it "gives read-only users the picker with Start disabled and a plain-word note, and refuses an actual run" do
+      wiki = CrystalRobots::Web::WikiRobots.from_pages(SAVED_ROBOTS)
+      form = run_tournament("oh", "", wiki)
+      form.should contain "name=\"r\" value=\"counter\""
+      form.should contain "<button type=\"submit\" disabled"
+      form.should contain "Running a tournament needs check-in permission (`i`)"
+      run = run_tournament("oh", "r=counter&r=rabbit&r=rook&seed=1", wiki)
+      run.should start_with "Status: 403"
+      # an anonymous/not-logged-in visitor sees a log-in note instead
+      anon = run_tournament("oh", "", wiki, user: "anonymous")
+      anon.should contain "[log in]"
+    end
+
+    it "rejects fewer than 3 robots and a saved robot with no code block, in plain words" do
+      wiki = CrystalRobots::Web::WikiRobots.from_pages(SAVED_ROBOTS.merge({"robot/broken" => "two blocks\n\n```\nputs 1\n```\n\n```\nputs 2\n```\n"}))
+      few = run_tournament("oij", "r=counter&r=rabbit&seed=1", wiki)
+      few.should contain "Pick at least 3 robots to start a tournament."
+      broken = run_tournament("oij", "r=counter&r=rabbit&w=broken&seed=1", wiki)
+      broken.should contain "broken has no code block yet."
+    end
+
+    it "round-trips the URL: the same query always replays the same stage, and the run-next-round link carries the advancing state forward" do
+      wiki = CrystalRobots::Web::WikiRobots.from_pages(SAVED_ROBOTS)
+      query = "r=counter&r=rabbit&r=rook&r=sniper&seed=1&limit=30000"
+      pools = run_tournament("oij", query, wiki)
+      pools.should contain "The pools are done."
+      again = run_tournament("oij", query, wiki)
+      again.should eq pools        # same URL, same result: no hidden state
+      pools.should contain "pool=" # the run-next-round link carries the decided pool forward
+      pools.should_not contain "rnd="
+
+      round1 = run_next_round(pools, "oij", wiki)
+      round1.should contain "pool=" # carried through, not recomputed
+      round1.should_not contain "The pools are done."
+
+      # the link that plays this round again (same slots, same resume seed) reproduces it exactly
+      link = pools.lines.find { |l| l.includes?("Run next round") }.not_nil!
+      url = link.match(/\]\((.*?)\)/).not_nil![1]
+      replay_query = url.split("?", 2)[1]
+      round1_again = run_tournament("oij", replay_query, wiki)
+      round1_again.should eq round1
+    end
+
+    it "plays a full 8-robot tournament to a champion across one-round-per-request pages, with no JS tag anywhere" do
+      wiki = CrystalRobots::Web::WikiRobots.from_pages(SAVED_ROBOTS)
+      query = "r=counter&r=rabbit&r=rook&r=sniper&r=target&r=test&w=spinner&w=zigzag&seed=1&limit=30000"
+      page = run_tournament("oij", query, wiki)
+      pages = [page]
+
+      stages = 0
+      until page.includes?("wins the Tournament")
+        stages += 1
+        stages.should be <= 6 # 2 pools -> semifinal -> final is 3 stages; this is a generous ceiling
+        page = run_next_round(page, "oij", wiki)
+        pages << page
+      end
+
+      pages.each do |p|
+        p.should start_with "Status: 200 OK\r\nContent-Type: text/x-markdown\r\n\r\n"
+        p.should contain "[Back](/ext/robots)"
+        p.should_not contain "<script"
+      end
+      pages.first.should contain "### Pool A:"
+      pages.first.should contain "### Pool B:"
+
+      final = pages.last
+      final.should contain "wins the Tournament"
+      final.should contain "```pikchr\nCUP:"   # the trophy picture
+      final.should contain "```pikchr\nboxwid" # the ladder picture
+      final.should contain "### Final"
+      final.should contain "[replay](/ext/robots/battle?" # every fight links to its replay
+      final.should_not contain "Run next round"           # nothing left to do
+    end
   end
 end
