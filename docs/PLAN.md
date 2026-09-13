@@ -303,6 +303,16 @@ with the prelude), and later `riscv_emitter`. A language reference for the
 subset and a port of the CROBOTS manual sections, published by the existing
 `crystal docs` pages job.
 
+The Tournament (`src/tournament/tournament.cr`, wired up at `/tournament`
+in `src/web/cgi.cr`) is a teaching layer of a different kind: its design
+was worked out live with the bash user, round by round, on the wiki page
+"Tournament ideas", not decided up front. Pool size, best-of-3 only in the
+bracket, the no-winner and points-tie refight rules, small-tournament
+byes, and the later link-length and refight-budget fixes born from real
+play are all recorded there in the order they were decided. That page,
+not this plan, is the design record for any future change to the
+tournament format.
+
 ### Phase 7: GitLab to Fossil migration and housekeeping
 
 - Replace `.gitlab-ci.yml` with `scripts/ci.sh` that any runner (or a
@@ -420,3 +430,7 @@ list.
 3. A wiki robot's view page (`/ext/crystal-robots/wiki/hunter`): source,
    derivation, checks, fight and edit links.
 4. Parse form: paste a robot with a typo and read the located problem.
+5. Tournament (`/ext/crystal-robots/tournament`): check three or more
+   robots (or **Check everyone**), press **Start tournament**, then
+   **Start round 1**, then keep clicking **Run next round →** until the
+   trophy page names a champion; open a fight's replay link along the way.
