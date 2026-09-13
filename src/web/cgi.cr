@@ -184,10 +184,23 @@ module CrystalRobots::Web
 
     # scheme://host, for building an absolute URL a visitor can copy and
     # paste anywhere (a tournament's share link), independent of whatever
-    # page it happens to be shown on.
+    # page it happens to be shown on. Never built from the client-supplied
+    # `Host:` header: that header is request data, not configuration, and a
+    # crafted one would land unescaped in a share link everyone is handed.
+    # `FOSSIL_URL` is the canonical base the server configures once for the
+    # repository (Fossil's own fix for the same Host-header trust problem,
+    # passed through to ext CGIs); with no such configuration, fall back to
+    # `localhost` rather than guess from the request.
     def request_origin : String
-      scheme = env["HTTPS"]? == "on" ? "https" : "http"
-      "#{scheme}://#{env["HTTP_HOST"]? || "localhost"}"
+      configured = env["FOSSIL_URL"]?
+      return "http://localhost" if configured.nil? || configured.empty?
+      uri = URI.parse(configured)
+      host = uri.host
+      return "http://localhost" unless host
+      scheme = uri.scheme || "http"
+      default_port = scheme == "https" ? 443 : 80
+      port = uri.port && uri.port != default_port ? ":#{uri.port}" : ""
+      "#{scheme}://#{host}#{port}"
     end
 
     def user : String
@@ -370,7 +383,7 @@ module CrystalRobots::Web
     # User text inside Markdown prose or a table cell: HTML-escaped, with
     # the characters that would start markup or split a table neutralized.
     def inline(text : String) : String
-      HTML.escape(text).gsub('|', "&#124;").gsub('`', "&#96;").gsub('*', "&#42;").gsub('_', "&#95;").gsub('[', "&#91;")
+      HTML.escape(text).gsub('|', "&#124;").gsub('`', "&#96;").gsub('*', "&#42;").gsub('_', "&#95;").gsub('[', "&#91;").gsub(']', "&#93;")
     end
 
     # User text inside a code fence: the fence is longer than any run of
@@ -672,7 +685,12 @@ module CrystalRobots::Web
         all_saved = wiki_visible? ? wiki.names : [] of String
         unless (all_examples + all_saved).empty?
           everyone = (all_examples + all_saved).map { |n| "pick=#{URI.encode_www_form(n)}" }.join("&")
-          md << "[Check everyone](#{link_base}/tournament?#{everyone}) if everyone is playing.\n\n"
+          everyone_link = guarded_link("#{link_base}/tournament?#{everyone}")
+          if everyone_link
+            md << "[Check everyone](#{everyone_link}) if everyone is playing.\n\n"
+          else
+            md << "Too many robots for one link; pick them by hand.\n\n"
+          end
         end
         md << "<form method=\"get\" action=\"#{form_base}/tournament\">\n"
         md << "<p>Built-in examples:</p>\n"
@@ -748,7 +766,7 @@ module CrystalRobots::Web
         current = stage.next_slots
         idx += 1
       end
-      return champion_page(entrants, limit, pools, rounds) if current.size <= 1 && !rounds.empty?
+      return champion(entrants, limit, pools, rounds, sources) if current.size <= 1 && !rounds.empty?
 
       unless round_fits_budget?(current, limit)
         return plain_error("That's too many robots for one round at this cycle limit; lower the cycle limit or pick fewer robots.")
@@ -757,10 +775,39 @@ module CrystalRobots::Web
       new_moves = moves.join + moves_for_rounds([stage.round])
       rounds = rounds + [stage.round]
       if stage.final
-        champion_page(entrants, limit, pools, rounds)
+        champion(entrants, limit, pools, rounds, sources)
       else
         round_page(entrants, seed, limit, order, pools, rounds, new_moves)
       end
+    end
+
+    # The last line of defense against a hand-edited or truncated `mv=`: a
+    # tampered-but-internally-consistent outcome string replays to a
+    # different, attacker-chosen champion with no further checking, because
+    # `replay_fight` above trusts every letter it is handed. Before a
+    # champion is shown, every BRACKET fight recorded in `rounds` is run for
+    # real, from its own recorded seed, and checked against the outcome the
+    # (possibly tampered) `mv=` claims; any mismatch refuses the champion.
+    # Pools are trusted as recorded, not re-verified: round-robin play is
+    # many more fights than the bracket for the same entrant count, and a
+    # tampered pool can only change seeding going into the bracket, which
+    # the bracket re-check still catches at the one outcome that matters —
+    # who the link ultimately crowns.
+    private def champion(entrants : Array(String), limit : Int32, pools : Array(Tournament::PoolResult), rounds : Array(Tournament::Round), sources : Hash(String, String)) : String
+      bracket_outcomes_match?(rounds, limit, sources) ? champion_page(entrants, limit, pools, rounds) : tampered_page
+    end
+
+    private def bracket_outcomes_match?(rounds : Array(Tournament::Round), limit : Int32, sources : Hash(String, String)) : Bool
+      fight = tournament_fight(sources)
+      rounds.all? do |round|
+        round.matches.all? do |match|
+          match.games.all? { |game| fight.call(game.entrants, game.seed, limit) == game.winner }
+        end
+      end
+    end
+
+    private def tampered_page : String
+      plain_error("This link was changed: its recorded outcomes don't match what replaying the bracket's own seeds actually produces, so no champion is shown.")
     end
 
     private def missing_source(entrants : Array(String)) : String?
@@ -872,6 +919,10 @@ module CrystalRobots::Web
       # Markdown link's target stays root-relative under `/ext/` so Fossil's
       # own prefixing lands it in the right place, while the Start button is
       # raw HTML, which Fossil does not rewrite, so it needs the full path.
+      # Every piece is either trusted configuration (`request_origin`,
+      # `form_base`) or percent-encoded (`config`), so it is safe to splice
+      # straight into Markdown link text and a raw `href` with no further
+      # escaping — it cannot contain a `]`, a backtick or a quote.
       share_url = "#{request_origin}#{form_base}/tournament?#{config}"
       unless guarded_link(share_url)
         return plain_error("That's too many robots for one tournament link; pick fewer robots.")
@@ -1043,7 +1094,7 @@ module CrystalRobots::Web
       entrants.each { |n| parts << (EXAMPLES.has_key?(n) ? "r=#{URI.encode_www_form(n)}" : "w=#{URI.encode_www_form(n)}") }
       parts << "seed=#{seed}"
       parts << "limit=#{limit}"
-      parts << "order=#{order}" if order
+      parts << "order=#{URI.encode_www_form(order)}" if order
       parts
     end
 

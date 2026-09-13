@@ -520,5 +520,66 @@ describe CrystalRobots::Web::CGI do
       tournament_links.should_not be_empty
       tournament_links.each { |l| l.bytesize.should be < 1500 }
     end
+
+    it "builds the shareable link from Fossil's configured base, never the client's Host header" do
+      wiki = CrystalRobots::Web::WikiRobots.from_pages(SAVED_ROBOTS)
+      query = "r=counter&r=rabbit&r=rook&r=sniper&seed=1&limit=30000"
+      hostile_host = "evil.example](http://evil.example/pwned)[click here"
+      env = {
+        "GATEWAY_INTERFACE" => "CGI/1.1", "REQUEST_METHOD" => "GET", "PATH_INFO" => "/tournament",
+        "QUERY_STRING" => query, "SCRIPT_NAME" => "/ext/robots", "FOSSIL_CAPABILITIES" => "oij", "FOSSIL_USER" => "jkridner",
+        "HTTP_HOST" => hostile_host,
+      }
+      reply = IO::Memory.new
+      cgi = CrystalRobots::Web::CGI.new(env, reply)
+      cgi.wiki = wiki
+      cgi.serve
+      page = reply.to_s
+      page.should_not contain "evil.example"                                # the hostile header never reaches the page at all
+      page.should contain "http://localhost/ext/robots/tournament?#{query}" # falls back to the safe default, not a guess from the request
+
+      reply2 = IO::Memory.new
+      cgi2 = CrystalRobots::Web::CGI.new(env.merge({"FOSSIL_URL" => "https://robots.example.org/crystal-robots"}), reply2)
+      cgi2.wiki = wiki
+      cgi2.serve
+      page2 = reply2.to_s
+      page2.should_not contain "evil.example"
+      page2.should contain "https://robots.example.org/ext/robots/tournament?#{query}" # uses the configured base, ignoring Host entirely
+    end
+
+    it "falls back to a plain-word note instead of a Check-everyone link too long for Fossil's request line" do
+      pages = {} of String => String
+      # realistic saved-robot names, long enough that 60 of them push the
+      # "everyone" link (every example plus every saved robot) well past
+      # TOURNAMENT_LINK_MAX_BYTES, same as the trunk-ops gate report found
+      # happens around 40 saved robots with ordinary names.
+      60.times { |i| pages["robot/saved-robot-number-#{i}-for-load-test"] = "```crystal\nmain(\"R#{i}\") do\n  while true\n    drive(0, 10)\n  end\nend\n```\n" }
+      wiki = CrystalRobots::Web::WikiRobots.from_pages(pages)
+      form = run_tournament("oij", "", wiki)
+      form.should_not contain "Check everyone"
+      form.should contain "Too many robots for one link; pick them by hand."
+      (form.scan(/\]\(([^)]+)\)/).map { |m| m[1] } + form.scan(/href="([^"]+)"/).map { |m| m[1] }).each do |link|
+        link.bytesize.should be < 1800
+      end
+    end
+
+    it "refuses to crown a champion when mv= is tampered, even though the tampered string is internally consistent" do
+      wiki = CrystalRobots::Web::WikiRobots.from_pages(SAVED_ROBOTS)
+      query = "r=counter&r=rabbit&r=rook&r=sniper&seed=1&limit=30000"
+      link_page = run_tournament("oij", query, wiki)
+      pools = run_start_round1(link_page, "oij", wiki)
+      semifinal_done = run_next_round(pools, "oij", wiki)
+      semifinal_done.should_not contain "wins the Tournament"
+
+      link = semifinal_done.lines.find { |l| l.includes?("Run next round") }.not_nil!
+      url = link.match(/\]\((.*?)\)/).not_nil![1]
+      mv = url.match(/mv=([abt]+)/).not_nil![1]
+      tampered = mv[0...-1] + (mv[-1] == 'a' ? "b" : "a") # flip the last recorded bracket outcome, not a pool one
+      tampered_query = url.split("?", 2)[1].sub("mv=#{mv}", "mv=#{tampered}")
+
+      result = run_tournament("oij", tampered_query, wiki)
+      result.should contain "This link was changed"
+      result.should_not contain "wins the Tournament"
+    end
   end
 end
