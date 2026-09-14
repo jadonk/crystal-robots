@@ -305,8 +305,22 @@ module CrystalRobots::Web
         docs_file($1)
       when "parse"
         return login_required unless may_run?
-        source = method == "POST" ? HTTP::Params.parse(body)["source"]? : nil
-        reply(parse_page(source || ""))
+        if method == "POST"
+          source = HTTP::Params.parse(body)["source"]? || ""
+          # A source this small round-trips through a GET like a pasted
+          # battle robot does (`PASTE_LIMIT`, "travels in the battle page's
+          # links"): redirecting there means the address bar, refresh and
+          # back all land on a URL that reproduces this exact result.
+          # A longer source cannot fit in a link, so it is rendered straight
+          # from the POST body instead -- never lost, just not bookmarkable.
+          if source.size <= PASTE_LIMIT
+            redirect("#{form_base}/parse?src=#{URI.encode_www_form(source)}")
+          else
+            reply(parse_page(source))
+          end
+        else
+          reply(parse_page(query["src"]? || ""))
+        end
       when "battle"
         return login_required unless may_run?
         reply(battle_page)
@@ -343,6 +357,13 @@ module CrystalRobots::Web
       @out << "Status: " << status << "\r\nContent-Type: text/x-markdown\r\n\r\n" << markdown
     end
 
+    # A redirect the browser follows right away: the address bar (and so
+    # refresh and back) end up on the target URL, not the request that
+    # produced it.
+    def redirect(location : String) : Nil
+      @out << "Status: 302 Found\r\nLocation: " << location << "\r\n\r\n"
+    end
+
     def forbidden : Nil
       @out << "Status: 403 Forbidden\r\nContent-Type: text/html\r\n\r\n"
       @out << "<p>403 Forbidden. <a href=\"/login\">Log in</a> to access this resource.</p>"
@@ -356,7 +377,7 @@ module CrystalRobots::Web
     # styling and script); without a build the route explains how to make one.
     def docs_redirect : Nil
       if Docs.built?
-        @out << "Status: 302 Found\r\nLocation: #{form_base}/docs/index.html\r\n\r\n"
+        redirect("#{form_base}/docs/index.html")
       else
         reply("# API docs not built\n\nThis binary was built without `bin/crystal-robots build-docs`; run it and rebuild. [Back](#{link_base})\n", "404 Not Found")
       end
@@ -466,11 +487,18 @@ module CrystalRobots::Web
       end
     end
 
+    # The editor and the results on one page, always in this order: a
+    # refresh or Back must show the same source above the same passes, so
+    # the form is rendered here every time, never a results-only page.
     def parse_page(source : String) : String
       String.build do |md|
         md << "# Parse\n\n[Back](#{link_base})\n\n"
+        md << "<form method=\"post\" action=\"#{form_base}/parse\">\n"
+        md << "<textarea name=\"source\" rows=\"12\" cols=\"70\">" << HTML.escape(source) << "</textarea><br>\n"
+        md << "<button type=\"submit\">Parse</button>\n"
+        md << "</form>\n\n"
         if source.strip.empty?
-          md << "Nothing to parse. Use the form on the [overview](#{link_base}).\n"
+          md << "Nothing to parse yet. Paste your robot above and press **Parse**.\n"
         elsif source.size > SOURCE_LIMIT
           md << "That is #{source.size} characters; the limit is #{SOURCE_LIMIT}.\n"
         else
