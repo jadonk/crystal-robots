@@ -87,6 +87,17 @@ decided by the repository's user capabilities: reading the overview and
 examples needs `o` or `h` (what anonymous usually has); running battles and
 parsing needs check-in (`i`); seeing saved robots needs wiki read (`j`).
 
+#### Tournament
+
+`/ext/crystal-robots/tournament` lets you pick robots (or **Check
+everyone**) into a tournament: pool play (round-robin, win +1 / loss -1,
+a refight on a tie or a no-winner fight) followed by a single-elimination
+bracket (best of 3, byes for the top seeds) down to one champion. The
+whole thing is stateless like a battle: every stage's outcome round-trips
+through the tournament's own link, so it replays exactly and can be
+shared or resumed from that link alone. Running one needs check-in (`i`),
+the same permission battles need.
+
 ### Self-hosted server without Fossil
 
 Planned: `bin/crystal-robots -p 8080` will serve the same pages directly.
