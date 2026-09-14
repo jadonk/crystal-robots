@@ -182,6 +182,20 @@ describe CrystalRobots::Web::CGI do
     capped.should contain "9 more dropped"
   end
 
+  it "serves /tournament as a series-first alias of battle, posting back to itself" do
+    form = run_cgi("oi", "/tournament")
+    form.should contain "# Tournament"
+    form.should contain "action=\"/ext/robots/tournament\""
+    form.should contain "name=\"matches\" value=\"5\""
+    form.should contain "Start tournament"
+    page = run_cgi("oi", "/tournament", "GET", "r=counter&r=rabbit&seed=4&limit=3000")
+    page.should contain "# Series: counter vs rabbit" # default_matches=5 kicks in without an explicit matches=
+    page.should contain "seeds 4 to 8"
+    single = run_cgi("oi", "/tournament", "GET", "r=counter&r=rabbit&seed=4&limit=3000&matches=1")
+    single.should contain "# Battle: counter vs rabbit" # matches=1 still renders as a plain battle
+    run_cgi("oi", "/").should contain "[run a tournament](/ext/robots/tournament)"
+  end
+
   it "offers robots saved as wiki pages and battles them" do
     pages = {
       "robot/spinner" => "# Spinner\n\nTurns forever.\n\n```crystal\nmain(\"Spinner\") do\n  while true\n    drive(90, 30)\n  end\nend\n```\n",

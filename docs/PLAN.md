@@ -66,7 +66,9 @@ compiler work is fixed alongside the migration, not after it.
 
 | 2026-09-11 | Ocx-aligned plan, part 2 (tickets, at the coordinator's request): a Fossil ticket tree mirrors the two wiki pages for the Agent Console — one Plan ticket (`0e791860fb`), four milestones (core/battlefield/hosting `afe2948bcd`, Phase 7 migration `1ef4fcc3d2`, teaching layers + WASM-on-battlefield `651bf20630`, and a newly surfaced badge-hosted demo `79245b8153`), and work tickets per Backlog item plus the recent gate-relevant fixes, closed ones pointing at their evidence commit. While building it, found pre-existing ticket `cd7ded1952` (opened 2026-09-10 by the maintainer) asking for both "a real plan" and a **BeagleBadge (aarch64) deployment for a mid-September teacher demo** — the badge-hosting ask had not made it into this file or either wiki page until now and no badge work has happened this session; carried forward as milestone `79245b8153`, flagged time-sensitive and `design_input=yes` pending the coordinator/maintainer confirming the date and priority |
 
-Spec suite: 101 examples green with `-Dwasmer`; `scripts/ci.sh --with-wasmer` green end to end.
+| **[try]** 2026-09-14 | `GET /tournament`: the badge coordinator's Phase-1 route list for the teacher demo asked for it alongside `/battle`, since the interpreter needs no wasmer either way. Same picker and match/series logic as `/battle`, reached with a `path`/`default_matches`/`heading` parameterization of `battle_page`/`battle_form` so the form posts back to itself and starts with 5 matches preselected instead of 1; `matches=1` on `/tournament` still renders as a plain battle. Linked from the overview next to the battle link |
+
+Spec suite: 102 examples green with `-Dwasmer`; `scripts/ci.sh --with-wasmer` green end to end.
 
 **WASM robots on the battlefield, decided.** Cycle ticks are injected at
 every operation and builtin call in both engines (above), so a WASM robot

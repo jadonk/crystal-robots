@@ -283,6 +283,9 @@ module CrystalRobots::Web
       when "battle"
         return login_required unless may_run?
         reply(battle_page)
+      when "tournament"
+        return login_required unless may_run?
+        reply(battle_page("tournament", TOURNAMENT_DEFAULT_MATCHES, "Tournament"))
       when /\Aexamples\/([a-z_]+)\z/
         name = $1
         if (src = EXAMPLES[name]?)
@@ -390,7 +393,8 @@ module CrystalRobots::Web
           end
         end
         if may_run?
-          md << "\n## Battle\n\n[Pick robots and fight](#{base}/battle) on the CROBOTS battlefield.\n"
+          md << "\n## Battle\n\n[Pick robots and fight](#{base}/battle) on the CROBOTS battlefield, "
+          md << "or [run a tournament](#{base}/tournament) for a score table like `crobots -m`.\n"
           md << "\n## Parse your own\n\n"
           md << "<form method=\"post\" action=\"#{form_base}/parse\">\n"
           md << "<textarea name=\"source\" rows=\"12\" cols=\"70\">puts 2 + (1 + 2) // 2 * 4</textarea><br>\n"
@@ -455,18 +459,22 @@ module CrystalRobots::Web
     ANIM_CPS     =    300
     ANIM_CPS_MAX = 20_000
     # A series like `crobots -m`: seeds seed, seed+1, ... with a total work cap.
-    MATCHES_MAX      =          10
-    SERIES_CYCLE_MAX = 600_000_i64
+    MATCHES_MAX                =          10
+    SERIES_CYCLE_MAX           = 600_000_i64
+    TOURNAMENT_DEFAULT_MATCHES =           5
 
     # `GET /battle` without robots shows the form; with `r=` parameters it
-    # runs one seeded match and renders a frame of it in Pikchr.
-    def battle_page : String
+    # runs one seeded match and renders a frame of it in Pikchr. `/tournament`
+    # is the same picker and the same match/series logic, reached with `path`,
+    # `default_matches` and `heading` set so the form posts back to itself and
+    # starts with more than one match preselected.
+    def battle_page(path : String = "battle", default_matches : Int32 = 1, heading : String = "Battle") : String
       q = query
       names = q.fetch_all("r").select { |n| EXAMPLES.has_key?(n) }.first(4)
       saved = wiki_visible? ? q.fetch_all("w").select { |n| wiki.names.includes?(n) }.first(4) : [] of String
       pasted = (q["src"]? || "").strip
       pasted = "" if pasted.size > PASTE_LIMIT
-      return battle_form(q.fetch_all("pick")) if names.empty? && saved.empty? && pasted.empty?
+      return battle_form(q.fetch_all("pick"), path, default_matches, heading) if names.empty? && saved.empty? && pasted.empty?
       seed = (q["seed"]?.try(&.to_u64?) || 1_u64)
       limit = (q["limit"]?.try(&.to_i64?) || WEB_CYCLE_LIMIT).clamp(MOTION_STEP, WEB_CYCLE_MAX)
       entries = names.map { |n| {n, EXAMPLES[n]} }
@@ -474,7 +482,7 @@ module CrystalRobots::Web
       entries.unshift({"yours", pasted}) unless pasted.empty?
       entries = entries.first(4)
       entries << entries[0] if entries.size == 1 # CROBOTS clones a lone robot
-      matches = (q["matches"]?.try(&.to_i?) || 1).clamp(1, MATCHES_MAX)
+      matches = (q["matches"]?.try(&.to_i?) || default_matches).clamp(1, MATCHES_MAX)
       if matches > 1
         allowed = Math.min(matches, (SERIES_CYCLE_MAX // limit).to_i32).clamp(1, MATCHES_MAX)
         return series_page(entries, names, saved, pasted, seed, limit, allowed, matches - allowed)
@@ -490,11 +498,11 @@ module CrystalRobots::Web
     private MOTION_STEP = Battle::MOTION_CYCLES.to_i64
 
     # `picked` are saved robots to pre-check (from `pick=` links).
-    def battle_form(picked : Array(String) = [] of String) : String
+    def battle_form(picked : Array(String) = [] of String, path : String = "battle", default_matches : Int32 = 1, heading : String = "Battle") : String
       String.build do |md|
-        md << "# Battle\n\n[Back](#{link_base})\n\n"
+        md << "# #{heading}\n\n[Back](#{link_base})\n\n"
         md << "Pick up to four robots. The match is deterministic for a seed, so a result page can be shared and replayed.\n\n"
-        md << "<form method=\"get\" action=\"#{form_base}/battle\">\n"
+        md << "<form method=\"get\" action=\"#{form_base}/#{path}\">\n"
         md << "<p>Built-in examples:</p>\n"
         EXAMPLES.each_key do |name|
           checked = picked.empty? && {"counter", "rabbit"}.includes?(name) ? " checked" : ""
@@ -515,8 +523,8 @@ module CrystalRobots::Web
         md << "<label>Seed <input type=\"number\" name=\"seed\" value=\"1\" min=\"0\"></label>\n"
         md << "<label>Cycle limit <input type=\"number\" name=\"limit\" value=\"#{WEB_CYCLE_LIMIT}\" min=\"#{MOTION_STEP}\" max=\"#{WEB_CYCLE_MAX}\"></label>\n"
         md << "<label>Replay speed, cycles per second <input type=\"number\" name=\"cps\" value=\"#{ANIM_CPS}\" min=\"1\" max=\"#{ANIM_CPS_MAX}\"></label>\n"
-        md << "<label>Matches <input type=\"number\" name=\"matches\" value=\"1\" min=\"1\" max=\"#{MATCHES_MAX}\"></label> (more than one gives a score table like <code>crobots -m</code>, seeds counting up from the seed)\n"
-        md << "<button type=\"submit\">Fight</button>\n</form>\n"
+        md << "<label>Matches <input type=\"number\" name=\"matches\" value=\"#{default_matches}\" min=\"1\" max=\"#{MATCHES_MAX}\"></label> (more than one gives a score table like <code>crobots -m</code>, seeds counting up from the seed)\n"
+        md << "<button type=\"submit\">#{default_matches > 1 ? "Start tournament" : "Fight"}</button>\n</form>\n"
       end
     end
 
