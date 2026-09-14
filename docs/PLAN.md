@@ -18,41 +18,41 @@ compiler work is fixed alongside the migration, not after it.
 | 2026-09-10 | Phase 1 done: multipass tokenizer in `src/compiler`, all six examples parse, `-t` trace |
 | 2026-09-10 | Phase 2 started: tree-walking interpreter with `Host` seam and `NullHost`, `-i` runs robots to a step limit |
 | 2026-09-10 | Phase 4 started: WASM emitter handles `puts` with full integer expressions, verified under wasmer |
-| **[try]** 2026-09-10 | Phase 5 skeleton: CGI mode, capability gate, Markdown replies, overview, example and parse pages, `extroot` script, `fossil-skin/mainmenu` |
+| **[tried 2026-09-14]** 2026-09-10 | Phase 5 skeleton: CGI mode, capability gate, Markdown replies, overview, example and parse pages, `extroot` script, `fossil-skin/mainmenu` |
 
-| **[try]** 2026-09-10 | Phase 3 done: CROBOTS battlefield ported from `motion.c`, `intrins.c`, `main.c` as `Battle::Field`; robots interleave one interpreter step at a time in fibers; seeded, deterministic, with a frame trace |
+| **[tried 2026-09-14]** 2026-09-10 | Phase 3 done: CROBOTS battlefield ported from `motion.c`, `intrins.c`, `main.c` as `Battle::Field`; robots interleave one interpreter step at a time in fibers; seeded, deterministic, with a frame trace |
 | 2026-09-10 | `-m MATCHES --seed N -l CYCLES` runs matches from the CLI; `GET /battle` renders any frame of a match in Pikchr under the Fossil chrome |
 | 2026-09-10 | Preview verified by the user at `/ext/preview/session-<root>/`; the parse form's POST went to the site root because Fossil does not rewrite raw HTML `action` attributes; fixed by using the full `SCRIPT_NAME` |
 
 | 2026-09-10 | Phase 2 remainder: `Compiler::Checker` reports undefined names, call arity, misplaced `return`/`break` and duplicate `def` with locations; the battlefield, `-t`, `-i` and the web pages use it |
-| **[try]** 2026-09-10 | Battle page takes a pasted robot ("yours") and draws each robot's trail over the frames so far |
+| **[tried 2026-09-14]** 2026-09-10 | Battle page takes a pasted robot ("yours") and draws each robot's trail over the frames so far |
 
 | 2026-09-10 | Phase 4 done: the WASM emitter covers globals, constants, locals, user functions of any arity, if/elsif/else, while/until/break, case/when, all builtins as `env` imports, floored `//` and `%` with CROBOTS's divide-by-zero-is-zero; every example compiles; differential specs run three terminating robots under wasmer and the interpreter with the same scripted host and compare output and builtin call logs |
 
 | 2026-09-10 | Review fixes from the trunk-ops merge of 39d4b976: user text can no longer close a code fence or inject markup (fence sized to the text, prose escaped), parse is POST only, request body capped at 64 KB before allocation, source capped at 20 KB, parser pass budget of 20000, invalid UTF-8 and any other failure answer 400/500 instead of crashing, menu and extroot use `/ext/crystal-robots`, `/docs/` no longer ignored for the git mirror |
 
 | 2026-09-10 | Review fixes from the trunk-ops merge of 85c46a57: the interpreter's shared puts buffer is off for battle hosts and capped elsewhere; a robot fiber rescues everything, marks the robot failed and unwinds; repeated runtime errors also fail the robot; a call-depth limit turns unbounded recursion into a runtime error; angle normalization and integer ops are overflow-safe |
-| **[try]** 2026-09-10 | Battle page reordered (replay on top, static frame, result at the bottom) and given a smooth replay: one SVG with native SMIL animation over 400 keyframes, no script, inside the Fossil chrome |
+| **[tried 2026-09-14]** 2026-09-10 | Battle page reordered (replay on top, static frame, result at the bottom) and given a smooth replay: one SVG with native SMIL animation over 400 keyframes, no script, inside the Fossil chrome |
 
-| **[try]** 2026-09-10 | Review fixes from the trunk-ops merge of cdc29f87/61905033: the parser no longer re-copies the whole source every pass (append-only parts, joined lazily) and has a total-glyph work budget of two million on top of the pass budget, so cost is bounded by work done, not by input length alone; parse and battle require a named login (anonymous and nobody are refused with a Markdown 403) until the parser is opened up again; `fossil-skin/mainmenu` restored (my edit had truncated it); replay runs at a chosen frames-per-second (`fps=`, default 20) instead of a fixed duration, and trails grow with the robot instead of predicting its path |
+| **[tried 2026-09-14]** 2026-09-10 | Review fixes from the trunk-ops merge of cdc29f87/61905033: the parser no longer re-copies the whole source every pass (append-only parts, joined lazily) and has a total-glyph work budget of two million on top of the pass budget, so cost is bounded by work done, not by input length alone; parse and battle require a named login (anonymous and nobody are refused with a Markdown 403) until the parser is opened up again; `fossil-skin/mainmenu` restored (my edit had truncated it); replay runs at a chosen frames-per-second (`fps=`, default 20) instead of a fixed duration, and trails grow with the robot instead of predicting its path |
 
 | 2026-09-10 | Cycle model: the interpreter charges CROBOTS-style cycles (fetch/const 1, operator 1, store 1, builtin 2, call 3, branch 1, statement 1; `Interpreter::Costs`, configurable, `Costs.statements` is the old one-per-statement model) and the emitter can insert `env.tick(n)` at the same points (`-c --ticks`); differential specs show both engines charge identical totals on the test robots |
-| **[try]** 2026-09-10 | Saved robots: wiki pages named `robot/<name>` whose single code block is the source appear on the overview, on the battle form (`w=` parameter) and at `/wiki/<name>`; read through `fossil wiki list/export` with the CGI environment scrubbed |
+| **[tried 2026-09-14]** 2026-09-10 | Saved robots: wiki pages named `robot/<name>` whose single code block is the source appear on the overview, on the battle form (`w=` parameter) and at `/wiki/<name>`; read through `fossil wiki list/export` with the CGI environment scrubbed |
 | 2026-09-10 | The examples list is generated at compile time from `examples/*.cr` by a macro; adding a file is enough |
 
-| **[try]** 2026-09-10 | Review fixes from the trunk-ops merge of 6e876706/58ba5789: the parse page parses once under the budgets and renders the passes it holds, elided to 60 lines of at most 300 glyphs, so the error path can no longer run unbounded; budget errors point at the parser's last reduction instead of 1:1; `fossil-skin/mainmenu` mirrors the deployed skin (Agents, Docs, Run for readers); the overview tells anonymous visitors up front that parse and battle need a login and the login links return to the page (`/login?g=`); the hot-loop 1000-term paste could not be reproduced (chains, nested parentheses and call chains all finish in 1 to 6 s at the 500k limit) |
+| **[tried 2026-09-14]** 2026-09-10 | Review fixes from the trunk-ops merge of 6e876706/58ba5789: the parse page parses once under the budgets and renders the passes it holds, elided to 60 lines of at most 300 glyphs, so the error path can no longer run unbounded; budget errors point at the parser's last reduction instead of 1:1; `fossil-skin/mainmenu` mirrors the deployed skin (Agents, Docs, Run for readers); the overview tells anonymous visitors up front that parse and battle need a login and the login links return to the page (`/login?g=`); the hot-loop 1000-term paste could not be reproduced (chains, nested parentheses and call chains all finish in 1 to 6 s at the 500k limit) |
 
-| **[try]** 2026-09-10 | Wiki robots hardened: sources over 20 KB are ignored, page names must be plain (letters, digits, space, `_ . -`, at most 40 characters) and are escaped in headings, tables and Pikchr labels anyway, the wiki view needs a login, and every wiki read needs Fossil's wiki-read capability (`j`) |
+| **[tried 2026-09-14]** 2026-09-10 | Wiki robots hardened: sources over 20 KB are ignored, page names must be plain (letters, digits, space, `_ . -`, at most 40 characters) and are escaped in headings, tables and Pikchr labels anyway, the wiki view needs a login, and every wiki read needs Fossil's wiki-read capability (`j`) |
 
-| **[try]** 2026-09-10 | Five saved-robot wiki pages ship in `robots/*.md` (hunter, circler, dodger, wallhugger, turret) with `scripts/publish_wiki_robots.sh` to create or update them; each is spec-tested to parse, pass the checker and hit a target placed 200 m away; discovery: the overview lists saved robots with descriptions and fight links, the battle picker pre-checks a robot from a `pick=` link and links to every robot's view, and the wiki view page offers fight, pick-opponents and edit links; `Battle::Field` accepts fixed start positions |
+| **[tried 2026-09-14]** 2026-09-10 | Five saved-robot wiki pages ship in `robots/*.md` (hunter, circler, dodger, wallhugger, turret) with `scripts/publish_wiki_robots.sh` to create or update them; each is spec-tested to parse, pass the checker and hit a target placed 200 m away; discovery: the overview lists saved robots with descriptions and fight links, the battle picker pre-checks a robot from a `pick=` link and links to every robot's view, and the wiki view page offers fight, pick-opponents and edit links; `Battle::Field` accepts fixed start positions |
 
-| **[try]** 2026-09-10 | Replay pace is now CROBOTS cycles per second (`cps=`, default 300: a motion update every 50 ms, a full-speed robot crosses the field in about seven seconds, a missile covers its range in under a second), screen time proportional to cycles; default web cycle limit 60k; `matches=` runs a series like `crobots -m` with a wins/ties score table and a replay link per match, capped at 10 matches and 600k cycles of work |
+| **[tried 2026-09-14]** 2026-09-10 | Replay pace is now CROBOTS cycles per second (`cps=`, default 300: a motion update every 50 ms, a full-speed robot crosses the field in about seven seconds, a missile covers its range in under a second), screen time proportional to cycles; default web cycle limit 60k; `matches=` runs a series like `crobots -m` with a wins/ties score table and a replay link per match, capped at 10 matches and 600k cycles of work |
 
 | 2026-09-11 | Phase 7, from the coordinator's answers: versioned `.fossil-settings/ignore-glob` with `.gitignore` as mirror (1ca7c7ed); `scripts/ci.sh` as the one gate command, `--with-wasmer` installs 4.4.0 under the checkout (b980ca71); `build-docs` subcommand embeds `crystal docs` output, served at `/ext/crystal-robots/docs` (2daa7da4); README points at Fossil with mirrors read-only, Fossil contributing flow, `.gitlab-ci.yml` delegates to ci.sh (dda76b7f); **[try]** permissions on capability letters: o/h read, i battle and parse, j saved robots (af515555) |
 
-| **[try]** 2026-09-11 | Maintainer review notes (trunk-ops thread): saved robots are read in ONE `fossil sql --readonly` query (latest `robot/*` wiki artifacts as hex, W card parsed in-process), no per-robot export and nothing cached across requests; the API docs are served inside the Fossil chrome (body extracted, scripts and search dropped, inline scoped styles, `fossil-doc` wrapper, doc comments intact) instead of crystal-docs' own UI whose inline script the CSP blocks, aligned with the Ollama-Codex docs CGI; Fossil's versioned `manifest` setting keeps `manifest.uuid` in checkouts and tarballs, embedded at compile time, and `--version` and `/version` report `crystal-robots 0.0.1 (check-in <hash>)` so a deploy can be compared with trunk |
+| **[tried 2026-09-14]** 2026-09-11 | Maintainer review notes (trunk-ops thread): saved robots are read in ONE `fossil sql --readonly` query (latest `robot/*` wiki artifacts as hex, W card parsed in-process), no per-robot export and nothing cached across requests; the API docs are served inside the Fossil chrome (body extracted, scripts and search dropped, inline scoped styles, `fossil-doc` wrapper, doc comments intact) instead of crystal-docs' own UI whose inline script the CSP blocks, aligned with the Ollama-Codex docs CGI; Fossil's versioned `manifest` setting keeps `manifest.uuid` in checkouts and tarballs, embedded at compile time, and `--version` and `/version` report `crystal-robots 0.0.1 (check-in <hash>)` so a deploy can be compared with trunk |
 
-| **[try]** 2026-09-11 | Gate regression fix (trunk-ops on `4f6581bb`): the single-query listing split each SQL row at the FIRST space, so any `robot/*` page name with a space — live or a deleted one's leftover tag — crashed the overview, battle and wiki routes for everyone; rows now split at the LAST space (the hex payload never contains one), covered by a spec with a space-named robot and a deleted space-named tag asserting `/`, `/battle` and `/wiki/<name>` stay 200. Also from the same review: a failed `fossil sql` now raises instead of rendering an empty 200 listing; the docs sanitizer strips script tags case-insensitively plus event attributes and `javascript:` links as defense in depth; `search-index.js`/`index.json` are no longer embedded (the search UI they back is already stripped); `scripts/ci.sh` refuses the release `shards build` when `manifest.uuid` is missing or empty (a plain `crystal build` outside ci.sh still falls back to "unknown" for local dev) |
+| **[tried 2026-09-14]** 2026-09-11 | Gate regression fix (trunk-ops on `4f6581bb`): the single-query listing split each SQL row at the FIRST space, so any `robot/*` page name with a space — live or a deleted one's leftover tag — crashed the overview, battle and wiki routes for everyone; rows now split at the LAST space (the hex payload never contains one), covered by a spec with a space-named robot and a deleted space-named tag asserting `/`, `/battle` and `/wiki/<name>` stay 200. Also from the same review: a failed `fossil sql` now raises instead of rendering an empty 200 listing; the docs sanitizer strips script tags case-insensitively plus event attributes and `javascript:` links as defense in depth; `search-index.js`/`index.json` are no longer embedded (the search UI they back is already stripped); `scripts/ci.sh` refuses the release `shards build` when `manifest.uuid` is missing or empty (a plain `crystal build` outside ci.sh still falls back to "unknown" for local dev) |
 
 Spec suite: 101 examples green with `-Dwasmer`; `scripts/ci.sh --with-wasmer` green end to end.
 
@@ -134,7 +134,9 @@ What exists:
 - **`src/compiler/wasm_emitter.cr`**: chasm-derived binary encoder. Sections are
   hard-coded for one `env.puts` import and one `run` export. `codeFromAst`
   checks the wrong variable for the argument type, so it never emits a const.
-- **`crystal_emitter.cr`, `dot_emitter.cr`, `riscv_emitter.cr`**: empty files.
+- **`crystal_emitter.cr`, `riscv_emitter.cr`**: empty files. (`dot_emitter.cr`
+  was a third placeholder here; phase 6 retires it for a markdown/pikchr
+  emitter, so it is no longer part of the plan.)
 - **`Compiler.compile_to_wasm` / `Compiler.interpret`**: return empty `Bytes`,
   so every emitter and interpreter spec fails regardless of the parser.
 - **Web UI / server**: nothing yet. README promises a hosted page with the
@@ -288,20 +290,49 @@ is ever wanted here, the same sidecar approach applies. For a deterministic
 match that completes in milliseconds, one request that returns the whole
 result is simpler and fits Fossil better, which is why it is the first cut.
 
-### Phase 5b: direct hosting and static export (secondary)
+### Phase 5b: browser-hosted WASM compiler, ahead of the self-hosted server
 
-`-p PORT` starts an `HTTP::Server` using the same router through the
-`Web::HTTP` adapter. `-s DIR` writes the page shell and static assets for
-plain file hosting. Running the compiler in the browser via Crystal's wasm32
-target remains a later experiment.
+MAINTAINER 2026-09-14: getting a static-hosted compiler built to Crystal's
+`wasm32` target and running entirely in the browser is a higher priority
+than our own self-hosted HTTP server, though the server stays in scope.
+
+1. **Browser-hosted WASM compiler (priority).** Compile `src/compiler`
+   (tokenizer, interpreter, checker) to `wasm32-unknown-unknown`; a static
+   page loads that module and runs the parse page's passes — tokenize,
+   check, interpret — entirely client-side: parse, interpret and battle in
+   the page, no server round-trip. First concrete unit: get the tokenizer,
+   interpreter and checker building for `wasm32-unknown-unknown` and
+   exercising one example robot from a static HTML page that loads the
+   module and drives it the way the parse page drives the passes today.
+   Known unknowns to spike: how far Crystal's `wasm32-unknown-unknown`
+   support actually reaches (a different target from the wasmer-hosted
+   `wasm32-wasi` path Phase 4 already covers), whether Crystal's GC runs
+   under it or the build needs a no-GC/Boehm flag, and the resulting
+   module's size for a page load.
+2. **`-p PORT`.** Starts an `HTTP::Server` using the same router through the
+   `Web::HTTP` adapter. Stays in scope, secondary to the browser-hosted
+   compiler above.
+3. **`-s DIR`.** Writes the page shell and static assets for plain file
+   hosting. Stays in scope, secondary to the browser-hosted compiler above.
 
 ### Phase 6: teaching layers
 
-The "peel back a layer" goal: `dot_emitter` (AST to Graphviz, matching
-`examples/test.dot`), `crystal_emitter` (AST back to Crystal that compiles
-with the prelude), and later `riscv_emitter`. A language reference for the
-subset and a port of the CROBOTS manual sections, published by the existing
-`crystal docs` pages job.
+MAINTAINER 2026-09-14: move away from the dot emitter; replace it with a
+markdown/pikchr emitter that improves on the compilation visualization the
+parse page already does for the passes, now applied to the AST tree-walk
+side of the problem (the interpreter, not the tokenizer).
+
+The "peel back a layer" goal: a **markdown/pikchr emitter** — the AST
+tree-walk rendered as Pikchr diagrams inside Markdown, the same family as
+the parse page's pass-by-pass derivation but for the interpreter's walk
+instead of the tokenizer's passes. Each diagram shows the walk order (which
+node is entered and left, in sequence), the active scope chain (locals,
+globals, the current function's parameters), and the CROBOTS cycle charge
+accumulated so far, the way the parse page already teaches the tokenizer's
+passes. `crystal_emitter` (AST back to Crystal that compiles with the
+prelude) and later `riscv_emitter` stay as listed. A language reference for
+the subset and a port of the CROBOTS manual sections, published by the
+existing `crystal docs` pages job.
 
 The Tournament (`src/tournament/tournament.cr`, wired up at `/tournament`
 in `src/web/cgi.cr`) is a teaching layer of a different kind: its design
@@ -416,8 +447,11 @@ maintainer's decisions. Recorded here verbatim in substance.
 
 MAINTAINER standing ask: a human must experience key user-visible changes
 before long, prompted by a short "try this" list. Status rows above that
-are user-visible carry the tag **[try]**; section 8 keeps the current short
-list.
+are user-visible carry the tag **[try]** until the maintainer has actually
+tried them, at which point the row is retagged **[tried DATE]**. 2026-09-14:
+the maintainer confirmed phases 1, 2, 3 and 5 have all been tried; their
+rows above are retagged accordingly. Phase 4 and 6 rows with open
+`[try]` tags stay open. Section 8 keeps the current short list.
 
 ## 8. Try this (user-visible changes to experience)
 
