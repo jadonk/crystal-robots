@@ -12,6 +12,7 @@ require "../compiler"
 require "../battle/field"
 require "../tournament/tournament"
 require "./docs"
+require "./robot_api"
 
 module CrystalRobots::Web
   # The example robots, embedded at compile time so the CGI needs no
@@ -469,6 +470,11 @@ module CrystalRobots::Web
     def parse_page(source : String) : String
       String.build do |md|
         md << "# Parse\n\n[Back](#{link_base})\n\n"
+        md << "<form method=\"post\" action=\"#{form_base}/parse\">\n"
+        md << "<textarea name=\"source\" rows=\"12\" cols=\"70\">#{HTML.escape(source)}</textarea><br>\n"
+        md << "<button type=\"submit\">Parse</button>\n"
+        md << "</form>\n\n"
+        md << RobotAPI.panel("#{link_base}/docs")
         if source.strip.empty?
           md << "Nothing to parse. Use the form on the [overview](#{link_base}).\n"
         elsif source.size > SOURCE_LIMIT
@@ -548,6 +554,7 @@ module CrystalRobots::Web
         end
         md << "<p>Or paste your own robot (it fights as <b>yours</b>):</p>\n"
         md << "<textarea name=\"src\" rows=\"10\" cols=\"70\" maxlength=\"#{PASTE_LIMIT}\"></textarea><br>\n"
+        md << RobotAPI.panel("#{link_base}/docs")
         md << "<label>Seed <input type=\"number\" name=\"seed\" value=\"1\" min=\"0\"></label>\n"
         md << "<label>Cycle limit <input type=\"number\" name=\"limit\" value=\"#{WEB_CYCLE_LIMIT}\" min=\"#{MOTION_STEP}\" max=\"#{WEB_CYCLE_MAX}\"></label>\n"
         md << "<label>Replay speed, cycles per second <input type=\"number\" name=\"cps\" value=\"#{ANIM_CPS}\" min=\"1\" max=\"#{ANIM_CPS_MAX}\"></label>\n"
