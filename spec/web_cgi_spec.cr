@@ -30,6 +30,13 @@ private def run_tournament(caps : String, query : String, wiki : CrystalRobots::
   reply.to_s
 end
 
+private def follow_parse_redirect(reply : String, caps : String, user = "jkridner") : String
+  reply.should start_with "Status: 302 Found\r\n"
+  location = reply.match(/Location: (.*?)\r\n/).not_nil![1]
+  query = location.split("?", 2)[1]? || ""
+  run_cgi(caps, "/parse", "GET", query, user: user)
+end
+
 private def run_next_round(reply : String, caps : String, wiki : CrystalRobots::Web::WikiRobots?, script = "/ext/robots") : String
   link = reply.lines.find { |l| l.includes?("Run next round") }.not_nil!
   url = link.match(/\]\((.*?)\)/).not_nil![1]
@@ -82,11 +89,35 @@ describe CrystalRobots::Web::CGI do
   end
 
   it "parses posted source and shows errors with a location" do
-    ok = run_cgi("oi", "/parse", "POST", "", "source=puts+1%2B2")
+    ok = follow_parse_redirect(run_cgi("oi", "/parse", "POST", "", "source=puts+1%2B2"), "oi")
     ok.should contain "  1 add "
-    bad = run_cgi("oi", "/parse", "POST", "", "source=if+x%0Aputs+1")
+    bad = follow_parse_redirect(run_cgi("oi", "/parse", "POST", "", "source=if+x%0Aputs+1"), "oi")
     bad.should contain "**Parse error:** Cannot reduce"
     bad.should contain "at 1:1"
+  end
+
+  it "keeps the submitted source in the editor so a refresh or Back never loses it" do
+    reply = run_cgi("oi", "/parse", "GET", "src=" + URI.encode_www_form("puts 1+2"))
+    reply.should contain "<textarea name=\"source\" rows=\"12\" cols=\"70\">puts 1+2</textarea>"
+    # a source too long to fit in a link's URL guard is rendered straight
+    # from the POST body instead of redirecting, but the editor still holds it
+    huge_source = "puts 1\n" * 4_000
+    page = run_cgi("oi", "/parse", "POST", "", "source=" + URI.encode_www_form(huge_source))
+    page.should start_with "Status: 200 OK"
+    page.should contain "<textarea name=\"source\" rows=\"12\" cols=\"70\">#{HTML.escape(huge_source)}</textarea>"
+  end
+
+  it "makes a parse result reproducible from its URL, like a battle" do
+    posted = run_cgi("oi", "/parse", "POST", "", "source=" + URI.encode_www_form("puts 1+2"))
+    posted.should start_with "Status: 302 Found\r\n"
+    location = posted.match(/Location: (.*?)\r\n/).not_nil![1]
+    location.should contain "/parse?src="
+    query = location.split("?", 2)[1]
+    first = run_cgi("oi", "/parse", "GET", query)
+    second = run_cgi("oi", "/parse", "GET", query)
+    first.should eq second
+    first.should contain "  1 add "
+    first.should contain "<textarea name=\"source\""
   end
 
   it "shows the battle form and runs a seeded match with a Pikchr frame" do
@@ -122,18 +153,18 @@ describe CrystalRobots::Web::CGI do
     broken = run_cgi("oi", "/battle", "GET", "src=#{URI.encode_www_form("puts nope\n")}&limit=300")
     broken.should contain "| yours | failed |"
     broken.should contain "undefined variable or function nope at 1:6"
-    checked = run_cgi("oi", "/parse", "POST", "", "source=puts+nope")
+    checked = follow_parse_redirect(run_cgi("oi", "/parse", "POST", "", "source=puts+nope"), "oi")
     checked.should contain "**Problems:**"
   end
 
-  it "cannot be broken out of a code fence or a table by user text" do
-    evil = URI.encode_www_form("puts 1\n```\n# injected heading\n<script>x</script>\n")
-    page = run_cgi("oi", "/parse", "POST", "", "source=#{evil}")
+  it "cannot be broken out of a code fence, a table or the editor's textarea by user text" do
+    raw = "puts 1\n```\n# injected heading\n<script>x</script>\n"
+    page = follow_parse_redirect(run_cgi("oi", "/parse", "POST", "", "source=#{URI.encode_www_form(raw)}"), "oi")
     # the whole user text sits inside a fence one backtick longer than its own
     page.should contain "````crystal\nputs 1\n```\n# injected heading\n<script>x</script>\n````\n"
-    # the source also echoes into the parse form's textarea, HTML-escaped
-    page.should contain "&lt;script&gt;x&lt;/script&gt;"
-    outside = page.split("````").each_slice(2).map(&.first).join
+    # and, HTML-escaped, inside the editor's textarea
+    page.should contain "<textarea name=\"source\" rows=\"12\" cols=\"70\">#{HTML.escape(raw)}</textarea>"
+    outside = page.gsub(/<textarea.*?<\/textarea>/m, "").split("````").each_slice(2).map(&.first).join
     outside.should_not contain "<script>"
     fight = run_cgi("oi", "/battle", "GET", "src=#{URI.encode_www_form("main(\"M\") do\n  puts \"a | b <b>c</b> `d`\"\n  while true\n    sleep\n  end\nend\n")}&limit=300")
     fight.should contain "puts a &#124; b &lt;b&gt;c&lt;/b&gt; &#96;d&#96;"
@@ -179,7 +210,8 @@ describe CrystalRobots::Web::CGI do
   it "shows a bounded derivation from the one parse, even on a budget error" do
     C::Parser.max_glyphs = 80_000
     begin
-      page = run_cgi("oi", "/parse", "POST", "", "source=" + URI.encode_www_form("puts " + "1+" * 400 + "1"))
+      posted = run_cgi("oi", "/parse", "POST", "", "source=" + URI.encode_www_form("puts " + "1+" * 400 + "1"))
+      page = follow_parse_redirect(posted, "oi")
       page.should contain "**Parse error:** Program is too large to parse"
       page.should contain "passes elided"
       page.should contain "more)" # long lines cut
