@@ -139,6 +139,22 @@ module CrystalRobots::Compiler
 
     property costs : Costs = Costs.crobots
 
+    # One entry per builtin the language exposes, keyed by name. This is the
+    # single table `builtin` dispatches through, so a name can only reach a
+    # robot program by being listed here — nothing else (docs, specs) can
+    # drift from what actually runs.
+    alias BuiltinFn = Array(Value) -> Value
+
+    # Every registered builtin's name, e.g. for a web page listing what a
+    # robot can call. Built from the real dispatch table, not a hand list.
+    def self.builtin_names : Array(String)
+      new(Program.new(""), NullHost.new).builtin_names
+    end
+
+    def builtin_names : Array(String)
+      @builtins.keys
+    end
+
     # Everything `puts` wrote since `puts_clear`, one line per call.
     def self.puts_out : String
       @@puts_out.join("\n")
@@ -159,12 +175,39 @@ module CrystalRobots::Compiler
     # the scheduler between robots (see `Battle::Robot`).
     property on_step : Proc(Nil)? = nil
 
+    @builtins : Hash(String, BuiltinFn)
+
     def initialize(@program : Program, @host : Host = NullHost.new, @step_limit : Int32 = 1_000_000)
       @globals = {} of String => Value
       @constants = {} of String => Value
       @functions = {} of String => Function
       @frames = [] of Hash(String, Value)
       @steps = 0
+      @builtins = build_builtins
+    end
+
+    private def build_builtins : Hash(String, BuiltinFn)
+      {
+        "puts" => BuiltinFn.new { |args|
+          @@puts_out << args[0].to_s if @capture && @@puts_out.size < CAPTURE_LIMIT
+          @host.puts(args[0])
+          0.as(Value)
+        },
+        "damage" => BuiltinFn.new { |args| @host.damage.as(Value) },
+        "speed"  => BuiltinFn.new { |args| @host.speed.as(Value) },
+        "loc_x"  => BuiltinFn.new { |args| @host.loc_x.as(Value) },
+        "loc_y"  => BuiltinFn.new { |args| @host.loc_y.as(Value) },
+        "sleep"  => BuiltinFn.new { |args| @host.sleep.as(Value) },
+        "rand"   => BuiltinFn.new { |args| @host.rand(int(args[0])).as(Value) },
+        "sqrt"   => BuiltinFn.new { |args| @host.sqrt(int(args[0])).as(Value) },
+        "sin"    => BuiltinFn.new { |args| @host.sin(int(args[0])).as(Value) },
+        "cos"    => BuiltinFn.new { |args| @host.cos(int(args[0])).as(Value) },
+        "tan"    => BuiltinFn.new { |args| @host.tan(int(args[0])).as(Value) },
+        "atan"   => BuiltinFn.new { |args| @host.atan(int(args[0])).as(Value) },
+        "scan"   => BuiltinFn.new { |args| @host.scan(int(args[0]), int(args[1])).as(Value) },
+        "cannon" => BuiltinFn.new { |args| @host.cannon(int(args[0]), int(args[1])).as(Value) },
+        "drive"  => BuiltinFn.new { |args| @host.drive(int(args[0]), int(args[1])).as(Value) },
+      } of String => BuiltinFn
     end
 
     def run : Int32
@@ -500,28 +543,8 @@ module CrystalRobots::Compiler
     end
 
     private def builtin(name : String, args : Array(Value)) : Value
-      case name
-      when "puts"
-        @@puts_out << args[0].to_s if @capture && @@puts_out.size < CAPTURE_LIMIT
-        @host.puts(args[0])
-        0
-      when "damage" then @host.damage
-      when "speed"  then @host.speed
-      when "loc_x"  then @host.loc_x
-      when "loc_y"  then @host.loc_y
-      when "sleep"  then @host.sleep
-      when "rand"   then @host.rand(int(args[0]))
-      when "sqrt"   then @host.sqrt(int(args[0]))
-      when "sin"    then @host.sin(int(args[0]))
-      when "cos"    then @host.cos(int(args[0]))
-      when "tan"    then @host.tan(int(args[0]))
-      when "atan"   then @host.atan(int(args[0]))
-      when "scan"   then @host.scan(int(args[0]), int(args[1]))
-      when "cannon" then @host.cannon(int(args[0]), int(args[1]))
-      when "drive"  then @host.drive(int(args[0]), int(args[1]))
-      else
-        raise RuntimeError.new("unknown builtin #{name}")
-      end
+      fn = @builtins[name]? || raise RuntimeError.new("unknown builtin #{name}")
+      fn.call(args)
     end
   end
 end
