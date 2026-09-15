@@ -131,8 +131,9 @@ describe CrystalRobots::Web::CGI do
     page = run_cgi("oi", "/parse", "POST", "", "source=#{evil}")
     # the whole user text sits inside a fence one backtick longer than its own
     page.should contain "````crystal\nputs 1\n```\n# injected heading\n<script>x</script>\n````\n"
+    # the source also echoes into the parse form's textarea, HTML-escaped
+    page.should contain "&lt;script&gt;x&lt;/script&gt;"
     outside = page.split("````").each_slice(2).map(&.first).join
-    outside.should_not contain "injected"
     outside.should_not contain "<script>"
     fight = run_cgi("oi", "/battle", "GET", "src=#{URI.encode_www_form("main(\"M\") do\n  puts \"a | b <b>c</b> `d`\"\n  while true\n    sleep\n  end\nend\n")}&limit=300")
     fight.should contain "puts a &#124; b &lt;b&gt;c&lt;/b&gt; &#96;d&#96;"
@@ -580,6 +581,44 @@ describe CrystalRobots::Web::CGI do
       result = run_tournament("oij", tampered_query, wiki)
       result.should contain "This link was changed"
       result.should_not contain "wins the Tournament"
+    end
+  end
+
+  describe "robot API reference panel" do
+    it "documents every builtin the interpreter table registers, not a hand-picked list" do
+      registered = CrystalRobots::Compiler::Interpreter.builtin_names
+      registered.should_not be_empty
+      # the doc table's keys must match the interpreter's dispatch table exactly:
+      # nothing registered goes undocumented, nothing documented is make-believe
+      CrystalRobots::Web::RobotAPI::ENTRIES.keys.sort.should eq registered.sort
+    end
+
+    it "renders the panel, with every registered builtin, served through the Fossil skin on both pages" do
+      registered = CrystalRobots::Compiler::Interpreter.builtin_names
+      parse = run_cgi("oi", "/parse")
+      parse.should start_with "Status: 200 OK\r\nContent-Type: text/x-markdown"
+      parse.should contain "<details class=\"robot-api\">"
+      parse.should contain "<summary><strong>Robot API reference</strong>"
+      battle = run_cgi("oi", "/battle")
+      battle.should start_with "Status: 200 OK\r\nContent-Type: text/x-markdown"
+      battle.should contain "<details class=\"robot-api\">"
+      [parse, battle].each do |page|
+        registered.each do |name|
+          page.should contain "<code>#{CrystalRobots::Web::RobotAPI::ENTRIES[name].signature}</code>"
+        end
+        # collapsible via <details>/<summary> only, no script (Fossil's CSP forbids it)
+        page.should_not contain "<script"
+        # grouped under the plain-verb headings
+        page.should contain "Sense — look around"
+        page.should contain "Move — get going"
+        page.should contain "Shoot — fire your cannon"
+        page.should contain "Math — work out the numbers"
+        page.should contain "Output — leave yourself a note"
+        # each entry links back to the language reference page
+        page.should contain "href=\"/ext/robots/docs\""
+        # a cycle cost and a one-line example for every entry
+        page.scan(/Costs \d+ cycles\./).size.should eq registered.size
+      end
     end
   end
 end
