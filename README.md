@@ -126,8 +126,8 @@ baseline, and the open parser-architecture decision.
 One command runs everything the review pipeline runs:
 
 ```
-scripts/ci.sh                 # shards, build-docs, build, spec, format check, example builds, CLI smoke
-scripts/ci.sh --with-wasmer   # also runs the WebAssembly specs under wasmer 4.4.0 (installed under ./.wasmer if absent)
+crystal run ci.cr                    # shards, build-docs, build, spec, format check, example builds, CLI smoke
+crystal run ci.cr -- --with-wasmer   # also runs the WebAssembly specs under wasmer 4.4.0 (installed under ./.wasmer if absent)
 ```
 
 The pieces, if you want them separately:
@@ -164,7 +164,7 @@ The repository is Fossil, hosted at <https://ollama.openbeagle.org/crystal-robot
 
 1. `fossil clone https://ollama.openbeagle.org/crystal-robots crystal-robots.fossil` and `fossil open` it.
 2. Work on a branch: `fossil commit --branch my-feature -m "..."`.
-3. Run `scripts/ci.sh` before asking for review; it is the same gate the
+3. Run `crystal run ci.cr` before asking for review; it is the same gate the
    merge pipeline runs.
 4. Ask for review in the project forum. Merges to trunk are done by the
    trunk operator after the suite passes on a merge stand-in; the served

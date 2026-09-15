@@ -68,7 +68,9 @@ compiler work is fixed alongside the migration, not after it.
 
 | **[try]** 2026-09-14 | `GET /tournament`: the badge coordinator's Phase-1 route list for the teacher demo asked for it alongside `/battle`, since the interpreter needs no wasmer either way. Same picker and match/series logic as `/battle`, reached with a `path`/`default_matches`/`heading` parameterization of `battle_page`/`battle_form` so the form posts back to itself and starts with 5 matches preselected instead of 1; `matches=1` on `/tournament` still renders as a plain battle. Linked from the overview next to the battle link |
 
-Spec suite: 102 examples green with `-Dwasmer`; `scripts/ci.sh --with-wasmer` green end to end.
+| 2026-09-15 | Maintainer/coordinator: the declared CI flow is `ci.cr` (`crystal run ci.cr`), matching the convention Ollama-Codex itself just adopted, not `scripts/ci.sh`. Rewritten in Crystal at the repository root with the same steps and flags (`-- --with-wasmer`); `scripts/ci.sh` removed; README, `.gitlab-ci.yml` and this file's forward-looking references updated, the 2026-09-11 dated entries below kept as written since they are the historical record of what ran at the time |
+
+Spec suite: 102 examples green with `-Dwasmer`; `crystal run ci.cr -- --with-wasmer` green end to end.
 
 **WASM robots on the battlefield, decided.** Cycle ticks are injected at
 every operation and builtin call in both engines (above), so a WASM robot
@@ -319,10 +321,11 @@ subset and a port of the CROBOTS manual sections, published by the existing
 
 ### Phase 7: GitLab to Fossil migration and housekeeping
 
-- Replace `.gitlab-ci.yml` with `scripts/ci.sh` that any runner (or a
-  developer) can execute: shards install, wasmer 4.4.0 pin, build, spec,
-  format check, example builds. Keep the GitLab file only as long as the
-  mirror exists.
+- Replace `.gitlab-ci.yml` with `ci.cr` (`scripts/ci.sh` until 2026-09-15,
+  then rewritten in Crystal per the Ollama-Codex convention) that any
+  runner (or a developer) can execute: shards install, wasmer 4.4.0 pin,
+  build, spec, format check, example builds. Keep the GitLab file only as
+  long as the mirror exists.
 - README: source links point at the Fossil repository; the contributing
   section describes `fossil clone`, branch, commit and the review flow
   instead of GitLab forks and merge requests. Move `.gitignore` rules into
@@ -356,7 +359,7 @@ kept here as a pointer so this section does not drift out of sync with it.
 1. Spike: a wasmer-backed `Battle::Robot` whose `env.tick` blocks on the
    scheduler channel; if the runtime tolerates it, WASM robots join the
    field with the same protocol as interpreted ones.
-2. Phase 7 leftovers: the recurring `ci.sh --with-wasmer` regression task
+2. Phase 7 leftovers: the recurring `ci.cr --with-wasmer` regression task
    (coordinator sequences it); dropping `.gitlab-ci.yml` once the GitLab
    mirror is retired; the docs pages inside the Fossil chrome if the raw
    passthrough proves awkward (done 2026-09-11: served through a
