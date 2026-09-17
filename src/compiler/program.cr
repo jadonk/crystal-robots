@@ -7,6 +7,7 @@ module CrystalRobots::Compiler
   # One glyph per token kind. The comment shows the glyph.
   enum Type : Int32
     Number        = 0x00002116 # №
+    String        = 0x0001F40D # 🐍
     Identifier    = 0x0001D465 # 𝑥
     Newline       = 0x000023CE # ⏎  newline, end of input
     Comma         = 0x0000FF0C # ，
@@ -41,12 +42,15 @@ module CrystalRobots::Compiler
     ElseKeyword   = 0x0001F517 # 🔗
     DefKeyword    = 0x0001F515 # 🔕
     ReturnKeyword = 0x000021A9 # ↩
+    MainKeyword   = 0x0001F3C1 # 🏁
+    DoKeyword     = 0x0001F516 # 🔖
 
     WhileHead = 0x0001F186 # 🆆
     UntilHead = 0x0001F184 # 🆄
     IfHead    = 0x0001F178 # 🅸
     ElsifHead = 0x0001F174 # 🅴
     DefHead   = 0x0001F173 # 🅳
+    MainHead  = 0x0001F17C # 🅼
 
     Expression = 0x0001F611 # 😑  any reduced value
     Statement  = 0x00002762 # ❢

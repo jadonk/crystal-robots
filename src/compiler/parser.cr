@@ -10,9 +10,9 @@ require "./program"
 # higher-precedence rules always win. Parsing ends when no rule matches;
 # success is the single Program glyph `⏹`.
 #
-# See docs/PARSER.md for the reasoning; this commit adds `def`, calls with
-# arguments and `return` to the builtins, if/elsif/else, comparisons,
-# loops and globals of the previous ones.
+# See docs/PARSER.md for the reasoning; this commit adds `main("Name") do
+# ... end`, the program's entry point, to the def/calls/return, builtins,
+# if/elsif/else, comparisons, loops and globals of the previous ones.
 module CrystalRobots::Compiler
   class Parser
     class Error < Exception
@@ -32,6 +32,7 @@ module CrystalRobots::Compiler
       "end" => Type::EndKeyword, "break" => Type::BreakKeyword,
       "if" => Type::IfKeyword, "elsif" => Type::ElsifKeyword, "else" => Type::ElseKeyword,
       "def" => Type::DefKeyword, "return" => Type::ReturnKeyword,
+      "main" => Type::MainKeyword, "do" => Type::DoKeyword,
       "damage" => Type::ZeroArgMethod, "speed" => Type::ZeroArgMethod, "loc_x" => Type::ZeroArgMethod,
       "loc_y" => Type::ZeroArgMethod, "sleep" => Type::ZeroArgMethod,
       "puts" => Type::OneArgMethod, "rand" => Type::OneArgMethod, "sqrt" => Type::OneArgMethod,
@@ -56,6 +57,7 @@ module CrystalRobots::Compiler
     LEXICAL = [
       {/\A[ \t\r]+/, :skip},
       {/\A(\n|;)+/, :newline},
+      {/\A"[^"]*"/, :string},
       {/\A[0-9]+/, :number},
       {/\A(\/\/|==|!=|<=|>=|[-+*\/%(),=<>])/, :operator},
       {/\A[A-Za-z_][A-Za-z0-9_]*/, :word},
@@ -87,7 +89,8 @@ module CrystalRobots::Compiler
     # Grammar rules in priority order. Each pass applies the FIRST rule in
     # this list that matches anywhere, to every non-overlapping match.
     GRAMMAR = [
-      # headers first: a def header must never be read as a call
+      # headers first: a def or main header must never be read as a call
+      Rule.new(:main_head, /🏁⟮🐍⟯🔖⏎/, Type::MainHead),
       Rule.new(:global, /🌐⟮𝑥，#{V}⟯⏎/, Type::Statement),
       Rule.new(:def_head, /🔕𝑥(⟮(𝑥(，𝑥)*)?⟯)?⏎/, Type::DefHead),
       Rule.new(:call0, /∉/, Type::Expression),
@@ -116,6 +119,7 @@ module CrystalRobots::Compiler
       Rule.new(:while, /🆆❢*🔙⏎/, Type::Statement),
       Rule.new(:until, /🆄❢*🔙⏎/, Type::Statement),
       Rule.new(:def, /🅳❢*🔙⏎/, Type::Statement),
+      Rule.new(:main, /🅼❢*🔙⏎/, Type::Statement),
       Rule.new(:program, /\A❢+\z/, Type::Program),
     ]
 
@@ -160,6 +164,8 @@ module CrystalRobots::Compiler
             end
           when :number
             layer << p.push(Type::Number, pos, lexeme.size, 0, :lex)
+          when :string
+            layer << p.push(Type::String, pos, lexeme.size, 0, :lex)
           when :operator
             layer << p.push(OPERATORS[lexeme], pos, lexeme.size, 0, :lex)
           when :word
