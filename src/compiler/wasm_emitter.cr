@@ -6,11 +6,11 @@ require "./parser"
 # sections, each a section id byte, the section's byte length, and its own
 # vector of entries.
 #
-# This commit replaces the hand-assembled bytes of the previous two with a
-# real backend: `WASM_Emitter.new(program).to_wasm` walks the AST that
-# `Parser` built and emits the same shapes by hand. The module this
-# produces imports `env.puts` and exports `run`, which calls it once per
-# `puts NUMBER` statement.
+# `WASM_Emitter.new(program).to_wasm` walks the AST that `Parser` built.
+# The module it produces imports `env.puts` and exports `run`, which calls
+# it once per top-level statement; this commit adds parenthesized, unary
+# minus and binary arithmetic expressions as things `puts` can be called
+# with, alongside a bare number literal.
 #
 # https://webassembly.github.io/spec/core/binary/modules.html
 module CrystalRobots::Compiler
@@ -35,6 +35,14 @@ module CrystalRobots::Compiler
       Call      = 0x10
       Drop      = 0x1a
       I32_const = 0x41
+      I32_add   = 0x6a
+      I32_sub   = 0x6b
+      I32_mul   = 0x6c
+      I32_div_s = 0x6d
+      I32_rem_s = 0x6f
+    end
+
+    class Unsupported < Exception
     end
 
     enum ExportType : UInt8
@@ -138,17 +146,48 @@ module CrystalRobots::Compiler
         ]))
     end
 
-    # `run`: one `const; call puts; drop` per top-level `puts NUMBER`
-    # statement. `puts` returns its argument rather than nothing: it is
-    # called as a statement here, but later commits call it as an
-    # expression, and giving every builtin an `i32` result from the start
-    # keeps one calling convention for both.
+    # Emit code that leaves the value of expression node `i` on the stack.
+    def expression(i : Int32) : Bytes
+      n = @program[i]
+      case n.rule
+      when :lex
+        const(@program.value(n).to_i32)
+      when :paren
+        expression(@program.arg(i, 1))
+      when :neg
+        const(0) + expression(@program.arg(i, 1)) + op(Opcodes::I32_sub)
+      when :mul, :add
+        binary(@program.type(@program.arg(i, 1)), expression(@program.arg(i, 0)), expression(@program.arg(i, 2)))
+      when :command1
+        expression(@program.arg(i, 1)) + call(PUTS_IMPORT_INDEX)
+      else
+        raise Unsupported.new("expression #{n.rule} is not supported in WASM")
+      end
+    end
+
+    # `/` and `//` both truncate toward zero for now, and none of the four
+    # trap on division by zero the way WASM's own `i32.div_s` does; CROBOTS's
+    # floored division and its divide-by-zero-is-zero rule are a later
+    # commit's problem, once a robot can actually divide by something that
+    # might be zero.
+    private def binary(opt : Type, left : Bytes, right : Bytes) : Bytes
+      case opt
+      when Type::AddOperator then left + right + op(Opcodes::I32_add)
+      when Type::SubOperator then left + right + op(Opcodes::I32_sub)
+      when Type::MulOperator then left + right + op(Opcodes::I32_mul)
+      when Type::DivOperator, Type::FloorDivOperator
+        left + right + op(Opcodes::I32_div_s)
+      when Type::ModOperator then left + right + op(Opcodes::I32_rem_s)
+      else
+        raise Unsupported.new("operator #{opt} is not supported in WASM")
+      end
+    end
+
+    # `run`: one `expression; drop` per top-level statement.
     def code_section : Bytes
       code = Bytes[]
       @program.children(@program.root).each do |stmt|
-        expr = @program.arg(stmt, 0)
-        number = @program.arg(expr, 1)
-        code += const(@program.value(number).to_i32) + call(PUTS_IMPORT_INDEX) + op(Opcodes::Drop)
+        code += expression(@program.arg(stmt, 0)) + op(Opcodes::Drop)
       end
       code += op(Opcodes::End)
       body = Bytes[0] + code # no locals

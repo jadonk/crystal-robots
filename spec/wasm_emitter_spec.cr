@@ -14,4 +14,24 @@ describe W do
   wasmer_it "compiles and runs several puts statements in order" do
     run_puts("puts 1\nputs 2\nputs 3\n").should eq [1, 2, 3]
   end
+
+  wasmer_it "gives * higher precedence than +" do
+    run_puts("puts 1 + 2 * 3\n").should eq [7]
+  end
+
+  wasmer_it "is left associative within a precedence level" do
+    run_puts("puts 10 - 2 - 3\n").should eq [5]
+  end
+
+  wasmer_it "lets parentheses override precedence" do
+    run_puts("puts (1 + 2) * 3\n").should eq [9]
+  end
+
+  wasmer_it "negates a value" do
+    run_puts("puts -5 + 2\n").should eq [-3]
+  end
+
+  wasmer_it "computes / // and %" do
+    run_puts("puts 7 / 2\nputs 7 // 2\nputs 7 % 2\n").should eq [3, 3, 1]
+  end
 end

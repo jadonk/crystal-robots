@@ -1,3 +1,5 @@
+require "./program"
+
 # The progressive multipass tokenizer.
 #
 # Pass 0 turns the source text into a glyph string with the lexical rules.
@@ -8,8 +10,9 @@
 # higher-precedence rules always win. Parsing ends when no rule matches;
 # success is the single Program glyph `⏹`.
 #
-# See docs/PARSER.md for the reasoning; this commit implements just enough
-# of it to parse one or more `puts NUMBER` statements.
+# See docs/PARSER.md for the reasoning; this commit adds parenthesized,
+# unary-minus and binary arithmetic expressions (`+ - * / // %`) to the
+# `puts NUMBER` statements of the previous one.
 module CrystalRobots::Compiler
   class Parser
     class Error < Exception
@@ -25,21 +28,51 @@ module CrystalRobots::Compiler
 
     KEYWORDS = {"puts" => Type::OneArgMethod}
 
+    OPERATORS = {
+      "//" => Type::FloorDivOperator,
+      "+" => Type::AddOperator, "-" => Type::SubOperator, "*" => Type::MulOperator,
+      "/" => Type::DivOperator, "%" => Type::ModOperator,
+      "(" => Type::OpenParen, ")" => Type::CloseParen,
+    }
+
     # Pass 0 rules, tried in order at the current text position. `:skip`
     # drops the match (whitespace); `:word` looks the lexeme up in
-    # `KEYWORDS`.
+    # `KEYWORDS`; `:operator` looks it up in `OPERATORS`.
     LEXICAL = [
       {/\A[ \t\r]+/, :skip},
       {/\A(\n|;)+/, :newline},
       {/\A[0-9]+/, :number},
+      {/\A(\/\/|[-+*\/%()])/, :operator},
       {/\A[A-Za-z_][A-Za-z0-9_]*/, :word},
     ]
+
+    # Anything that is already a value: a number or a reduced expression.
+    V = "[№😑]"
+
+    # Infix operator glyphs by precedence level, tightest first.
+    MULOPS = "⊗／⊘％"
+    ADDOPS = "⊕⊖"
+
+    # An infix rule at level L reduces `V op V` only when the left operand
+    # is not preceded by an operator of level <= L (that operand belongs to
+    # the earlier operator, giving left associativity) and the right
+    # operand is not followed by an operator of a tighter level (that
+    # operand belongs to the tighter operator instead). See docs/PARSER.md
+    # section 2 for the full reasoning.
+    def self.infix(ops : String, higher : String) : Regex
+      ahead = higher.empty? ? "" : "(?![#{higher}])"
+      Regex.new("(?<![#{higher}#{ops}])#{V}[#{ops}]#{V}#{ahead}")
+    end
 
     # Grammar rules in priority order. Each pass applies the FIRST rule in
     # this list that matches anywhere, to every non-overlapping match.
     GRAMMAR = [
-      Rule.new(:command1, /∊№/, Type::Expression),
-      Rule.new(:exprstmt, /😑⏎/, Type::Statement),
+      Rule.new(:paren, /⟮#{V}⟯/, Type::Expression),
+      Rule.new(:neg, /(?<![№😑⟯])⊖#{V}/, Type::Expression),
+      Rule.new(:mul, infix(MULOPS, ""), Type::Expression),
+      Rule.new(:add, infix(ADDOPS, MULOPS), Type::Expression),
+      Rule.new(:command1, /∊#{V}(?=[⏎⟯])/, Type::Expression),
+      Rule.new(:exprstmt, /#{V}⏎/, Type::Statement),
       Rule.new(:program, /\A❢+\z/, Type::Program),
     ]
 
@@ -84,6 +117,8 @@ module CrystalRobots::Compiler
             end
           when :number
             layer << p.push(Type::Number, pos, lexeme.size, 0, :lex)
+          when :operator
+            layer << p.push(OPERATORS[lexeme], pos, lexeme.size, 0, :lex)
           when :word
             t = KEYWORDS[lexeme]? || raise Error.new("Unexpected word #{lexeme.inspect}")
             layer << p.push(t, pos, lexeme.size, 0, :lex)

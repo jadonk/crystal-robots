@@ -10,6 +10,16 @@ module CrystalRobots::Compiler
     Newline      = 0x000023CE # ⏎  newline, end of input
     OneArgMethod = 0x0000220A # ∊  puts
 
+    OpenParen  = 0x000027EE # ⟮
+    CloseParen = 0x000027EF # ⟯
+
+    AddOperator      = 0x00002295 # ⊕
+    SubOperator      = 0x00002296 # ⊖
+    MulOperator      = 0x00002297 # ⊗
+    DivOperator      = 0x0000FF0F # ／
+    FloorDivOperator = 0x00002298 # ⊘
+    ModOperator      = 0x0000FF05 # ％
+
     Expression = 0x0001F611 # 😑  any reduced value
     Statement  = 0x00002762 # ❢
     Program    = 0x000023F9 # ⏹
