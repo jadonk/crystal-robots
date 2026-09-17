@@ -178,5 +178,24 @@ module CrystalRobots::Compiler
       raise "node #{i} has no child #{n}" unless n < kids.size
       kids[n]
     end
+
+    # The source text offset where node i begins: its own, if it is a
+    # level 0 node, otherwise its first child's, recursively.
+    def origin(i : Int32) : Int32
+      n = @ast[i]
+      return n.start if n.level == 0
+      kids = children(i)
+      kids.empty? ? 0 : origin(kids[0])
+    end
+
+    # 1-based line and column of a text offset.
+    def line_col(offset : Int32) : {Int32, Int32}
+      before = @text[0, offset]
+      {before.count('\n') + 1, offset - (before.rindex('\n') || -1)}
+    end
+
+    def location(i : Int32) : {Int32, Int32}
+      line_col(origin(i))
+    end
   end
 end
