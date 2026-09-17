@@ -459,11 +459,22 @@ module CrystalRobots::Compiler
       count == 0 ? Bytes[0] : Bytes[1] + WASM_Emitter.unsignedLEB128(count) + Bytes[Valtype::I32.value]
     end
 
-    # `run`: one `statement` per top-level statement, `def`s excluded.
+    # `run`: every top-level statement except `def` (compiled separately)
+    # and `main` (deferred: its body runs last, as the entry point).
     private def run_body : Bytes
       ctx = Ctx.new
+      main_stmts = [] of Int32
       code = Bytes[]
-      body_of(@program.root).each { |stmt| code += statement(stmt, ctx) }
+      body_of(@program.root).each do |stmt|
+        case @program[stmt].rule
+        when :def
+        when :main
+          main_stmts = body_of(stmt)
+        else
+          code += statement(stmt, ctx)
+        end
+      end
+      main_stmts.each { |s| code += statement(s, ctx) }
       code += op(Opcodes::End)
       locals_decl(ctx.locals.size) + code
     end

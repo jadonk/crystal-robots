@@ -140,6 +140,21 @@ describe W do
     run_puts(source).should eq [120]
   end
 
+  wasmer_it "runs the main block after every other top-level statement" do
+    source = <<-ROBOT
+      def double(n)
+      n * 2
+      end
+      global(count, 0)
+      puts 1
+      main("Sniper") do
+      puts double(count + 1)
+      end
+      puts 99
+      ROBOT
+    run_puts(source).should eq [1, 99, 2]
+  end
+
   wasmer_it "counts fizzbuzz-style with if/elsif/else inside a while loop" do
     source = <<-ROBOT
       global(i, 1)

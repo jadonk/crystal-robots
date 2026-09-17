@@ -62,6 +62,10 @@ describe Parser do
     Parser.new("def go(a, b)\nreturn a\nend\n").program.parsed?.should be_true
   end
 
+  it "parses main(\"Name\") do ... end" do
+    Parser.new(%(main("Sniper") do\nputs 1\nend\n)).program.parsed?.should be_true
+  end
+
   it "parses if, elsif and else" do
     Parser.new("if 1 == 1\nputs 1\nend\n").program.parsed?.should be_true
     Parser.new("if 1 == 1\nputs 1\nelse\nputs 2\nend\n").program.parsed?.should be_true
