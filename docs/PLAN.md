@@ -12,6 +12,13 @@ reserved Unicode glyphs with a regex grammar rule, so `Program#derivation`
 prints the whole parse as one line per pass. That design document is written
 first, as the target; the commits below build up to it one rule at a time.
 
+**Status 2026-09-17: Phase A done**, commits A.1 through A.14 below, all on
+the `session/bab6654802593d134c4c380d63e96c01a10e052943f93399d6829382eb005b93`
+branch pending review and merge. `crystal spec -Dwasmer` is green end to
+end (66 examples); the differential spec (`spec/differential_spec.cr`)
+runs three robots through both the interpreter and wasmer and checks
+identical `puts` output. Phases B through E are next.
+
 ## Phase A — the compiler and WASM emitter (mirrors the chasm blog post)
 
 1. **Project skeleton** — `shard.yml`, a `crystal-robots` CLI that only
@@ -44,8 +51,11 @@ first, as the target; the commits below build up to it one rule at a time.
 13. **The reference interpreter** — a tree-walking evaluator behind a
     `Host` interface; a differential spec runs the same robot through the
     interpreter and through wasmer and compares output.
-14. **CLI wiring** — `-t` (trace), `-c -o` (compile), `-i` (interpret), a
-    `.wat` text emitter as a debugging aid.
+14. **CLI wiring** — `-t` (trace), `-k` (check), `-c -o` (compile), `-i`
+    (interpret), `-d` (a disassembler, this project's `.wat`-equivalent
+    debugging aid).
+
+All fourteen are done.
 
 ## Phase B — the battlefield and the cycle model
 
