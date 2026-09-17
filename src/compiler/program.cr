@@ -23,6 +23,20 @@ module CrystalRobots::Compiler
     DivOperator      = 0x0000FF0F # ／
     FloorDivOperator = 0x00002298 # ⊘
     ModOperator      = 0x0000FF05 # ％
+    EqOperator       = 0x0000225F # ≟
+    NeOperator       = 0x00002260 # ≠
+    GtOperator       = 0x0000227B # ≻
+    LtOperator       = 0x0000227A # ≺
+    GeOperator       = 0x0000227D # ≽
+    LeOperator       = 0x0000227C # ≼
+
+    WhileKeyword = 0x0001F523 # 🔣
+    UntilKeyword = 0x0001F502 # 🔂
+    EndKeyword   = 0x0001F519 # 🔙
+    BreakKeyword = 0x0001F513 # 🔓
+
+    WhileHead = 0x0001F186 # 🆆
+    UntilHead = 0x0001F184 # 🆄
 
     Expression = 0x0001F611 # 😑  any reduced value
     Statement  = 0x00002762 # ❢

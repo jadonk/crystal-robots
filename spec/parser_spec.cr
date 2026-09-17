@@ -35,6 +35,17 @@ describe Parser do
     Parser.new("global(count, 0)\ncount = count + 1\nputs count\n").program.parsed?.should be_true
   end
 
+  it "parses while, until and break" do
+    Parser.new("global(i, 0)\nwhile i < 5\ni = i + 1\nend\n").program.parsed?.should be_true
+    Parser.new("global(i, 5)\nuntil i == 0\ni = i - 1\nend\n").program.parsed?.should be_true
+    Parser.new("global(i, 0)\nwhile i < 5\nbreak\nend\n").program.parsed?.should be_true
+  end
+
+  it "parses comparisons at a lower precedence than arithmetic" do
+    Parser.new("puts 1 + 2 < 3 * 4\n").program.parsed?.should be_true
+    Parser.new("puts 1 < 2 == 3 < 4\n").program.parsed?.should be_true
+  end
+
   it "parses precedence, associativity and parenthesized expressions" do
     Parser.new("puts 1 + 2 * 3\n").program.parsed?.should be_true
     Parser.new("puts 1 - 2 - 3\n").program.parsed?.should be_true
