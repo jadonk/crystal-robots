@@ -1,22 +1,17 @@
 name: crystal-robots
 version: 0.0.1
 description: |
-  Start to learn the Crystal Programming Language by creating robots that battle on a virtual field using a toy compiler that runs in your browser.
-
-documentation: https://jkridner.beagleboard.io/crystal-robots
-homepage: https://openbeagle.org/jkridner/crystal-robots
+  Learn programming by writing robots that battle on a virtual field, then
+  learn how a programming language turns that source into machine
+  instructions by building the compiler yourself, one commit at a time.
 
 authors:
   - Jason Kridner <jkridner@beagleboard.org>
-
-development_dependencies:
-  wasmer:
-    github: naqvis/wasmer-crystal
 
 targets:
   crystal-robots:
     main: src/cli.cr
 
-crystal: '>= 1.14.0'
+crystal: ">= 1.14.0"
 
 license: GPLv2
