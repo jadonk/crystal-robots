@@ -10,9 +10,9 @@ require "./program"
 # higher-precedence rules always win. Parsing ends when no rule matches;
 # success is the single Program glyph `⏹`.
 #
-# See docs/PARSER.md for the reasoning; this commit adds parenthesized,
-# unary-minus and binary arithmetic expressions (`+ - * / // %`) to the
-# `puts NUMBER` statements of the previous one.
+# See docs/PARSER.md for the reasoning; this commit adds `global(name,
+# init)` declarations, identifiers as values, and assignment to the
+# arithmetic expressions of the previous one.
 module CrystalRobots::Compiler
   class Parser
     class Error < Exception
@@ -26,28 +26,30 @@ module CrystalRobots::Compiler
       end
     end
 
-    KEYWORDS = {"puts" => Type::OneArgMethod}
+    KEYWORDS = {"puts" => Type::OneArgMethod, "global" => Type::GlobalKeyword}
 
     OPERATORS = {
       "//" => Type::FloorDivOperator,
       "+" => Type::AddOperator, "-" => Type::SubOperator, "*" => Type::MulOperator,
-      "/" => Type::DivOperator, "%" => Type::ModOperator,
-      "(" => Type::OpenParen, ")" => Type::CloseParen,
+      "/" => Type::DivOperator, "%" => Type::ModOperator, "=" => Type::Assign,
+      "(" => Type::OpenParen, ")" => Type::CloseParen, "," => Type::Comma,
     }
 
     # Pass 0 rules, tried in order at the current text position. `:skip`
     # drops the match (whitespace); `:word` looks the lexeme up in
-    # `KEYWORDS`; `:operator` looks it up in `OPERATORS`.
+    # `KEYWORDS`, falling back to an identifier; `:operator` looks it up in
+    # `OPERATORS`.
     LEXICAL = [
       {/\A[ \t\r]+/, :skip},
       {/\A(\n|;)+/, :newline},
       {/\A[0-9]+/, :number},
-      {/\A(\/\/|[-+*\/%()])/, :operator},
+      {/\A(\/\/|[-+*\/%(),=])/, :operator},
       {/\A[A-Za-z_][A-Za-z0-9_]*/, :word},
     ]
 
-    # Anything that is already a value: a number or a reduced expression.
-    V = "[№😑]"
+    # Anything that is already a value: a number, an identifier, or a
+    # reduced expression.
+    V = "[№𝑥😑]"
 
     # Infix operator glyphs by precedence level, tightest first.
     MULOPS = "⊗／⊘％"
@@ -67,11 +69,15 @@ module CrystalRobots::Compiler
     # Grammar rules in priority order. Each pass applies the FIRST rule in
     # this list that matches anywhere, to every non-overlapping match.
     GRAMMAR = [
+      # a global header must never be read as anything else
+      Rule.new(:global, /🌐⟮𝑥，#{V}⟯⏎/, Type::Statement),
       Rule.new(:paren, /⟮#{V}⟯/, Type::Expression),
-      Rule.new(:neg, /(?<![№😑⟯])⊖#{V}/, Type::Expression),
+      Rule.new(:neg, /(?<![№𝑥😑⟯])⊖#{V}/, Type::Expression),
       Rule.new(:mul, infix(MULOPS, ""), Type::Expression),
       Rule.new(:add, infix(ADDOPS, MULOPS), Type::Expression),
       Rule.new(:command1, /∊#{V}(?=[⏎⟯])/, Type::Expression),
+      # assignment is right associative: only once the value is complete
+      Rule.new(:assign, /𝑥＝#{V}(?=⏎)/, Type::Expression),
       Rule.new(:exprstmt, /#{V}⏎/, Type::Statement),
       Rule.new(:program, /\A❢+\z/, Type::Program),
     ]
@@ -120,8 +126,7 @@ module CrystalRobots::Compiler
           when :operator
             layer << p.push(OPERATORS[lexeme], pos, lexeme.size, 0, :lex)
           when :word
-            t = KEYWORDS[lexeme]? || raise Error.new("Unexpected word #{lexeme.inspect}")
-            layer << p.push(t, pos, lexeme.size, 0, :lex)
+            layer << p.push(KEYWORDS.fetch(lexeme, Type::Identifier), pos, lexeme.size, 0, :lex)
           end
           pos += lexeme.size
           break

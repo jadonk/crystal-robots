@@ -8,9 +8,9 @@ require "./parser"
 #
 # `WASM_Emitter.new(program).to_wasm` walks the AST that `Parser` built.
 # The module it produces imports `env.puts` and exports `run`, which calls
-# it once per top-level statement; this commit adds parenthesized, unary
-# minus and binary arithmetic expressions as things `puts` can be called
-# with, alongside a bare number literal.
+# it once per top-level statement; this commit adds a mutable i32 WASM
+# global per `global(name, init)` declaration, and identifiers and
+# assignment as expressions.
 #
 # https://webassembly.github.io/spec/core/binary/modules.html
 module CrystalRobots::Compiler
@@ -20,6 +20,7 @@ module CrystalRobots::Compiler
       Type   =  1
       Import =  2
       Func   =  3
+      Global =  6
       Export =  7
       Code   = 10
     end
@@ -31,15 +32,17 @@ module CrystalRobots::Compiler
 
     # https://webassembly.github.io/spec/core/binary/instructions.html
     enum Opcodes : UInt8
-      End       = 0x0b
-      Call      = 0x10
-      Drop      = 0x1a
-      I32_const = 0x41
-      I32_add   = 0x6a
-      I32_sub   = 0x6b
-      I32_mul   = 0x6c
-      I32_div_s = 0x6d
-      I32_rem_s = 0x6f
+      End        = 0x0b
+      Call       = 0x10
+      Drop       = 0x1a
+      Global_get = 0x23
+      Global_set = 0x24
+      I32_const  = 0x41
+      I32_add    = 0x6a
+      I32_sub    = 0x6b
+      I32_mul    = 0x6c
+      I32_div_s  = 0x6d
+      I32_rem_s  = 0x6f
     end
 
     class Unsupported < Exception
@@ -103,6 +106,11 @@ module CrystalRobots::Compiler
     getter program : Program
 
     def initialize(@program : Program)
+      @globals = [] of String
+      @program.children(@program.root).each do |stmt|
+        # global(name, init): children are 🌐 ⟮ name ， init ⟯ ⏎
+        @globals << @program.value(@program.arg(stmt, 2)) if @program[stmt].rule == :global
+      end
     end
 
     private def op(code : Opcodes) : Bytes
@@ -139,6 +147,26 @@ module CrystalRobots::Compiler
       WASM_Emitter.createSection(Section::Func, WASM_Emitter.encodeVector([Bytes[1]]))
     end
 
+    # One mutable i32 global per `global(...)` declaration, all initialized
+    # to 0; `run` sets each to its declared init expression's value.
+    def global_section : Bytes
+      return Bytes[] if @globals.empty?
+      entry = Bytes[Valtype::I32.value, 1] + const(0) + op(Opcodes::End)
+      WASM_Emitter.createSection(Section::Global, WASM_Emitter.encodeVector(@globals.map { entry }))
+    end
+
+    private def global_index(name : String) : Int32
+      @globals.index(name) || raise Unsupported.new("unknown global #{name}")
+    end
+
+    private def global_get(name : String) : Bytes
+      op(Opcodes::Global_get) + WASM_Emitter.unsignedLEB128(global_index(name))
+    end
+
+    private def global_set(name : String) : Bytes
+      op(Opcodes::Global_set) + WASM_Emitter.unsignedLEB128(global_index(name))
+    end
+
     def export_section : Bytes
       WASM_Emitter.createSection(Section::Export,
         WASM_Emitter.encodeVector([
@@ -151,7 +179,10 @@ module CrystalRobots::Compiler
       n = @program[i]
       case n.rule
       when :lex
-        const(@program.value(n).to_i32)
+        n.type == Type::Identifier ? global_get(@program.value(n)) : const(@program.value(n).to_i32)
+      when :assign
+        name = @program.value(@program.arg(i, 0))
+        expression(@program.arg(i, 2)) + global_set(name) + global_get(name)
       when :paren
         expression(@program.arg(i, 1))
       when :neg
@@ -183,11 +214,16 @@ module CrystalRobots::Compiler
       end
     end
 
-    # `run`: one `expression; drop` per top-level statement.
+    # `run`: a `global(...)` statement evaluates its init expression and
+    # sets the global; anything else is `expression; drop`.
     def code_section : Bytes
       code = Bytes[]
       @program.children(@program.root).each do |stmt|
-        code += expression(@program.arg(stmt, 0)) + op(Opcodes::Drop)
+        if @program[stmt].rule == :global
+          code += expression(@program.arg(stmt, 4)) + global_set(@program.value(@program.arg(stmt, 2)))
+        else
+          code += expression(@program.arg(stmt, 0)) + op(Opcodes::Drop)
+        end
       end
       code += op(Opcodes::End)
       body = Bytes[0] + code # no locals
@@ -196,7 +232,8 @@ module CrystalRobots::Compiler
     end
 
     def to_wasm : Bytes
-      WASM_Emitter.minimal_module + type_section + import_section + func_section + export_section + code_section
+      WASM_Emitter.minimal_module + type_section + import_section + func_section +
+        global_section + export_section + code_section
     end
   end
 end
