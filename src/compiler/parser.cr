@@ -10,10 +10,9 @@ require "./program"
 # higher-precedence rules always win. Parsing ends when no rule matches;
 # success is the single Program glyph `⏹`.
 #
-# See docs/PARSER.md for the reasoning; this commit adds the CROBOTS
-# builtins with 0 and 2 arguments (`call0`/`command2`) alongside the
-# 1-argument ones (`puts`, now joined by `rand sqrt sin cos tan atan`) to
-# the if/elsif/else, comparisons, loops and globals of the previous ones.
+# See docs/PARSER.md for the reasoning; this commit adds `def`, calls with
+# arguments and `return` to the builtins, if/elsif/else, comparisons,
+# loops and globals of the previous ones.
 module CrystalRobots::Compiler
   class Parser
     class Error < Exception
@@ -32,6 +31,7 @@ module CrystalRobots::Compiler
       "while" => Type::WhileKeyword, "until" => Type::UntilKeyword,
       "end" => Type::EndKeyword, "break" => Type::BreakKeyword,
       "if" => Type::IfKeyword, "elsif" => Type::ElsifKeyword, "else" => Type::ElseKeyword,
+      "def" => Type::DefKeyword, "return" => Type::ReturnKeyword,
       "damage" => Type::ZeroArgMethod, "speed" => Type::ZeroArgMethod, "loc_x" => Type::ZeroArgMethod,
       "loc_y" => Type::ZeroArgMethod, "sleep" => Type::ZeroArgMethod,
       "puts" => Type::OneArgMethod, "rand" => Type::OneArgMethod, "sqrt" => Type::OneArgMethod,
@@ -61,9 +61,11 @@ module CrystalRobots::Compiler
       {/\A[A-Za-z_][A-Za-z0-9_]*/, :word},
     ]
 
-    # Anything that is already a value: a number, an identifier, or a
-    # reduced expression.
-    V = "[№𝑥😑]"
+    # Anything that is already a value: a number, a reduced expression, or
+    # an identifier -- but not one immediately followed by `(`, which is a
+    # pending call and must wait for the `call` rule, not be scooped up as
+    # a bare value by an infix rule first.
+    V = "(?:[№😑]|𝑥(?!⟮))"
 
     # Infix operator glyphs by precedence level, tightest first.
     MULOPS = "⊗／⊘％"
@@ -85,9 +87,11 @@ module CrystalRobots::Compiler
     # Grammar rules in priority order. Each pass applies the FIRST rule in
     # this list that matches anywhere, to every non-overlapping match.
     GRAMMAR = [
-      # a global header must never be read as anything else
+      # headers first: a def header must never be read as a call
       Rule.new(:global, /🌐⟮𝑥，#{V}⟯⏎/, Type::Statement),
+      Rule.new(:def_head, /🔕𝑥(⟮(𝑥(，𝑥)*)?⟯)?⏎/, Type::DefHead),
       Rule.new(:call0, /∉/, Type::Expression),
+      Rule.new(:call, /𝑥⟮(#{V}(，#{V})*)?⟯/, Type::Expression),
       Rule.new(:paren, /⟮#{V}⟯/, Type::Expression),
       Rule.new(:neg, /(?<![№𝑥😑⟯])⊖#{V}/, Type::Expression),
       Rule.new(:mul, infix(MULOPS, ""), Type::Expression),
@@ -104,12 +108,14 @@ module CrystalRobots::Compiler
       Rule.new(:while_head, /🔣#{V}⏎/, Type::WhileHead),
       Rule.new(:until_head, /🔂#{V}⏎/, Type::UntilHead),
       # simple statements
+      Rule.new(:return, /↩#{V}?⏎/, Type::Statement),
       Rule.new(:break, /🔓⏎/, Type::Statement),
       Rule.new(:exprstmt, /#{V}⏎/, Type::Statement),
       # blocks reduce only once their body is entirely statements
       Rule.new(:if, /🅸❢*(🅴❢*)*(🔗⏎❢*)?🔙⏎/, Type::Statement),
       Rule.new(:while, /🆆❢*🔙⏎/, Type::Statement),
       Rule.new(:until, /🆄❢*🔙⏎/, Type::Statement),
+      Rule.new(:def, /🅳❢*🔙⏎/, Type::Statement),
       Rule.new(:program, /\A❢+\z/, Type::Program),
     ]
 

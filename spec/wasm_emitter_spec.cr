@@ -88,6 +88,58 @@ describe W do
     W.new(program).imports.should eq ["puts", "damage"]
   end
 
+  wasmer_it "calls a user function and uses its implicit last-expression return" do
+    source = <<-ROBOT
+      def double(n)
+      n * 2
+      end
+      puts double(21)
+      ROBOT
+    run_puts(source).should eq [42]
+  end
+
+  wasmer_it "returns explicitly, short-circuiting the rest of the function" do
+    source = <<-ROBOT
+      def first_positive(a, b)
+      if a > 0
+      return a
+      end
+      b
+      end
+      puts first_positive(-1, 7)
+      puts first_positive(3, 7)
+      ROBOT
+    run_puts(source).should eq [7, 3]
+  end
+
+  wasmer_it "keeps a function's locals separate from a global of the same shape" do
+    source = <<-ROBOT
+      global(total, 0)
+      def add(a, b)
+      sum = a + b
+      total = total + sum
+      sum
+      end
+      puts add(2, 3)
+      puts add(10, 20)
+      puts total
+      ROBOT
+    run_puts(source).should eq [5, 30, 35]
+  end
+
+  wasmer_it "recurses" do
+    source = <<-ROBOT
+      def fact(n)
+      if n == 0
+      return 1
+      end
+      n * fact(n - 1)
+      end
+      puts fact(5)
+      ROBOT
+    run_puts(source).should eq [120]
+  end
+
   wasmer_it "counts fizzbuzz-style with if/elsif/else inside a while loop" do
     source = <<-ROBOT
       global(i, 1)
