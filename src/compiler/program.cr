@@ -10,7 +10,9 @@ module CrystalRobots::Compiler
     Identifier    = 0x0001D465 # 𝑥
     Newline       = 0x000023CE # ⏎  newline, end of input
     Comma         = 0x0000FF0C # ，
-    OneArgMethod  = 0x0000220A # ∊  puts
+    ZeroArgMethod = 0x00002209 # ∉  damage speed loc_x loc_y sleep
+    OneArgMethod  = 0x0000220A # ∊  puts rand sqrt sin cos tan atan
+    TwoArgMethod  = 0x0000220B # ∋  scan cannon drive
     GlobalKeyword = 0x0001F310 # 🌐
 
     OpenParen  = 0x000027EE # ⟮
@@ -144,6 +146,14 @@ module CrystalRobots::Compiler
 
     def value(i : Int32) : String
       value(@ast[i])
+    end
+
+    # The lexeme of a level 0 node, or of the first level 0 node under it
+    # (a node made by wrapping a single glyph in a rule like `call0`).
+    def lexeme(i : Int32) : String
+      n = @ast[i]
+      return value(n) if n.level == 0
+      lexeme(children(i)[0])
     end
 
     # Indexes of the nodes a reduction replaced, in order. Empty for level 0.
