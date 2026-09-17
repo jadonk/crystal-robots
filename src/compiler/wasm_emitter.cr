@@ -8,9 +8,8 @@ require "./parser"
 #
 # `WASM_Emitter.new(program).to_wasm` walks the AST that `Parser` built.
 # The module it produces imports `env.puts` and exports `run`, which calls
-# it once per top-level statement; this commit adds comparisons and
-# `while`/`until`/`break` loops, each compiled to WASM's structured
-# `block { loop { ... } }` control flow.
+# it once per top-level statement; this commit adds `if`/`elsif`/`else`,
+# compiled to a chain of nested WASM `if`/`else` blocks.
 #
 # https://webassembly.github.io/spec/core/binary/modules.html
 module CrystalRobots::Compiler
@@ -34,6 +33,8 @@ module CrystalRobots::Compiler
     enum Opcodes : UInt8
       Block      = 0x02
       Loop       = 0x03
+      If         = 0x04
+      Else       = 0x05
       End        = 0x0b
       Br         = 0x0c
       Br_if      = 0x0d
@@ -257,6 +258,8 @@ module CrystalRobots::Compiler
       when :break
         exit = ctx.loops.last? || raise Unsupported.new("break outside of a loop")
         op(Opcodes::Br) + WASM_Emitter.unsignedLEB128(ctx.depth - exit)
+      when :if
+        if_statement(stmt, ctx)
       else
         expression(@program.arg(stmt, 0)) + op(Opcodes::Drop)
       end
@@ -285,6 +288,40 @@ module CrystalRobots::Compiler
       ctx.depth -= 1
       code += op(Opcodes::End) # block
       code
+    end
+
+    # `if`/`elsif`/`else`, each a `{condition, statements}` branch (`else`'s
+    # condition is `nil`), as nested WASM `if { ... } else { ... }` blocks.
+    private def if_statement(stmt : Int32, ctx : Ctx) : Bytes
+      branches = [] of {Int32?, Array(Int32)}
+      @program.children(stmt).each do |k|
+        case @program.type(k)
+        when Type::IfHead, Type::ElsifHead
+          branches << {@program.arg(k, 1), [] of Int32}
+        when Type::ElseKeyword
+          branches << {nil, [] of Int32}
+        when Type::Statement
+          branches.last[1] << k
+        end
+      end
+      emit_branches(branches, ctx)
+    end
+
+    private def emit_branches(branches : Array({Int32?, Array(Int32)}), ctx : Ctx) : Bytes
+      return Bytes[] if branches.empty?
+      cond, stmts = branches[0]
+      if cond.nil?
+        return stmts.reduce(Bytes[]) { |code, s| code + statement(s, ctx) }
+      end
+      code = expression(cond) + op(Opcodes::If) + Bytes[BlockVoid]
+      ctx.depth += 1
+      code = stmts.reduce(code) { |c, s| c + statement(s, ctx) }
+      rest = branches[1..]
+      unless rest.empty?
+        code += op(Opcodes::Else) + emit_branches(rest, ctx)
+      end
+      ctx.depth -= 1
+      code + op(Opcodes::End)
     end
 
     # `run`: one `statement` per top-level statement.
