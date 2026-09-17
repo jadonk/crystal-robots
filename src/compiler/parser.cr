@@ -10,8 +10,10 @@ require "./program"
 # higher-precedence rules always win. Parsing ends when no rule matches;
 # success is the single Program glyph `⏹`.
 #
-# See docs/PARSER.md for the reasoning; this commit adds `if`/`elsif`/`else`
-# to the comparisons, loops and globals of the previous ones.
+# See docs/PARSER.md for the reasoning; this commit adds the CROBOTS
+# builtins with 0 and 2 arguments (`call0`/`command2`) alongside the
+# 1-argument ones (`puts`, now joined by `rand sqrt sin cos tan atan`) to
+# the if/elsif/else, comparisons, loops and globals of the previous ones.
 module CrystalRobots::Compiler
   class Parser
     class Error < Exception
@@ -26,10 +28,16 @@ module CrystalRobots::Compiler
     end
 
     KEYWORDS = {
-      "puts" => Type::OneArgMethod, "global" => Type::GlobalKeyword,
+      "global" => Type::GlobalKeyword,
       "while" => Type::WhileKeyword, "until" => Type::UntilKeyword,
       "end" => Type::EndKeyword, "break" => Type::BreakKeyword,
       "if" => Type::IfKeyword, "elsif" => Type::ElsifKeyword, "else" => Type::ElseKeyword,
+      "damage" => Type::ZeroArgMethod, "speed" => Type::ZeroArgMethod, "loc_x" => Type::ZeroArgMethod,
+      "loc_y" => Type::ZeroArgMethod, "sleep" => Type::ZeroArgMethod,
+      "puts" => Type::OneArgMethod, "rand" => Type::OneArgMethod, "sqrt" => Type::OneArgMethod,
+      "sin" => Type::OneArgMethod, "cos" => Type::OneArgMethod, "tan" => Type::OneArgMethod,
+      "atan" => Type::OneArgMethod,
+      "scan" => Type::TwoArgMethod, "cannon" => Type::TwoArgMethod, "drive" => Type::TwoArgMethod,
     }
 
     OPERATORS = {
@@ -79,6 +87,7 @@ module CrystalRobots::Compiler
     GRAMMAR = [
       # a global header must never be read as anything else
       Rule.new(:global, /🌐⟮𝑥，#{V}⟯⏎/, Type::Statement),
+      Rule.new(:call0, /∉/, Type::Expression),
       Rule.new(:paren, /⟮#{V}⟯/, Type::Expression),
       Rule.new(:neg, /(?<![№𝑥😑⟯])⊖#{V}/, Type::Expression),
       Rule.new(:mul, infix(MULOPS, ""), Type::Expression),
@@ -86,6 +95,7 @@ module CrystalRobots::Compiler
       Rule.new(:cmp, infix(CMPOPS, MULOPS + ADDOPS), Type::Expression),
       Rule.new(:eq, infix(EQOPS, MULOPS + ADDOPS + CMPOPS), Type::Expression),
       Rule.new(:command1, /∊#{V}(?=[⏎⟯])/, Type::Expression),
+      Rule.new(:command2, /∋#{V}，#{V}(?=[⏎⟯])/, Type::Expression),
       # assignment is right associative: only once the value is complete
       Rule.new(:assign, /𝑥＝#{V}(?=⏎)/, Type::Expression),
       # block headers

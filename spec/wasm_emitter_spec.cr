@@ -71,6 +71,23 @@ describe W do
     run_puts("global(n, 2)\nif n == 1\nputs 1\nelsif n == 2\nputs 2\nelse\nputs 3\nend\n").should eq [2]
   end
 
+  wasmer_it "calls a zero-argument builtin" do
+    run_puts("puts damage\nputs speed\n").should eq [11, 22]
+  end
+
+  wasmer_it "calls a two-argument builtin with both arguments in order" do
+    run_puts("puts scan 3, 4\n").should eq [7]
+  end
+
+  wasmer_it "calls the math one-argument builtins" do
+    run_puts("puts sqrt(16)\nputs sin(90)\nputs cos(0)\n").should eq [4, 1, 1]
+  end
+
+  it "only imports the builtins the program actually calls" do
+    program = CrystalRobots::Compiler::Parser.new("puts damage\n").program
+    W.new(program).imports.should eq ["puts", "damage"]
+  end
+
   wasmer_it "counts fizzbuzz-style with if/elsif/else inside a while loop" do
     source = <<-ROBOT
       global(i, 1)

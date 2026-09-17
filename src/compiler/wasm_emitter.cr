@@ -6,10 +6,12 @@ require "./parser"
 # sections, each a section id byte, the section's byte length, and its own
 # vector of entries.
 #
-# `WASM_Emitter.new(program).to_wasm` walks the AST that `Parser` built.
-# The module it produces imports `env.puts` and exports `run`, which calls
-# it once per top-level statement; this commit adds `if`/`elsif`/`else`,
-# compiled to a chain of nested WASM `if`/`else` blocks.
+# `WASM_Emitter.new(program).to_wasm` walks the AST that `Parser` built and
+# exports `run`. This commit adds the rest of the CROBOTS builtins as
+# `env.*` imports (0, 1 or 2 `i32` arguments, always an `i32` result): the
+# module imports only the ones the program actually calls, each typed by
+# its arity, in a fixed order so two programs that use the same builtins
+# get the same import section.
 #
 # https://webassembly.github.io/spec/core/binary/modules.html
 module CrystalRobots::Compiler
@@ -125,7 +127,15 @@ module CrystalRobots::Compiler
       Bytes[type.value] + unsignedLEB128(data.size) + data
     end
 
+    # Builtins in import order, with how many `i32` arguments each takes.
+    IMPORTS = {
+      "puts" => 1, "scan" => 2, "cannon" => 2, "drive" => 2,
+      "damage" => 0, "speed" => 0, "loc_x" => 0, "loc_y" => 0, "sleep" => 0,
+      "rand" => 1, "sqrt" => 1, "sin" => 1, "cos" => 1, "tan" => 1, "atan" => 1,
+    }
+
     getter program : Program
+    getter imports : Array(String)
 
     def initialize(@program : Program)
       @globals = [] of String
@@ -133,6 +143,19 @@ module CrystalRobots::Compiler
         # global(name, init): children are 🌐 ⟮ name ， init ⟯ ⏎
         @globals << @program.value(@program.arg(stmt, 2)) if @program[stmt].rule == :global
       end
+      used = Set(String).new
+      @program.ast.each do |n|
+        used << @program.value(n) if n.level == 0 && {Type::ZeroArgMethod, Type::OneArgMethod, Type::TwoArgMethod}.includes?(n.type)
+      end
+      @imports = IMPORTS.keys.select { |name| used.includes?(name) }
+    end
+
+    private def import_index(name : String) : Int32
+      @imports.index(name) || raise Unsupported.new("no import for #{name}")
+    end
+
+    private def run_index : Int32
+      @imports.size
     end
 
     private def op(code : Opcodes) : Bytes
@@ -147,26 +170,29 @@ module CrystalRobots::Compiler
       op(Opcodes::Call) + WASM_Emitter.unsignedLEB128(i)
     end
 
-    PUTS_IMPORT_INDEX = 0
-    RUN_FUNC_INDEX    = 1 # after the one import
+    # Types 0..2 are one per builtin arity (0, 1 or 2 `i32` params, one
+    # `i32` result); type 3 is `run`'s, `() -> ()`.
+    RUN_TYPE = 3
 
     def type_section : Bytes
       WASM_Emitter.createSection(Section::Type,
         WASM_Emitter.encodeVector([
-          Bytes[FunctionType, 1, Valtype::I32.value, 1, Valtype::I32.value], # 0: (i32) -> i32  puts
-          Bytes[FunctionType, 0, 0],                                         # 1: () -> ()      run
+          Bytes[FunctionType, 0, 1, Valtype::I32.value],                                         # 0: () -> i32
+          Bytes[FunctionType, 1, Valtype::I32.value, 1, Valtype::I32.value],                     # 1: (i32) -> i32
+          Bytes[FunctionType, 2, Valtype::I32.value, Valtype::I32.value, 1, Valtype::I32.value], # 2: (i32, i32) -> i32
+          Bytes[FunctionType, 0, 0],                                                             # 3: () -> ()
         ]))
     end
 
     def import_section : Bytes
       WASM_Emitter.createSection(Section::Import,
-        WASM_Emitter.encodeVector([
-          WASM_Emitter.encodeString("env") + WASM_Emitter.encodeString("puts") + Bytes[ExportType::Func.value, 0],
-        ]))
+        WASM_Emitter.encodeVector(@imports.map { |name|
+          WASM_Emitter.encodeString("env") + WASM_Emitter.encodeString(name) + Bytes[ExportType::Func.value, IMPORTS[name].to_u8]
+        }))
     end
 
     def func_section : Bytes
-      WASM_Emitter.createSection(Section::Func, WASM_Emitter.encodeVector([Bytes[1]]))
+      WASM_Emitter.createSection(Section::Func, WASM_Emitter.encodeVector([Bytes[RUN_TYPE.to_u8]]))
     end
 
     # One mutable i32 global per `global(...)` declaration, all initialized
@@ -192,7 +218,7 @@ module CrystalRobots::Compiler
     def export_section : Bytes
       WASM_Emitter.createSection(Section::Export,
         WASM_Emitter.encodeVector([
-          WASM_Emitter.encodeString("run") + Bytes[ExportType::Func.value] + WASM_Emitter.unsignedLEB128(RUN_FUNC_INDEX),
+          WASM_Emitter.encodeString("run") + Bytes[ExportType::Func.value] + WASM_Emitter.unsignedLEB128(run_index),
         ]))
     end
 
@@ -211,8 +237,13 @@ module CrystalRobots::Compiler
         const(0) + expression(@program.arg(i, 1)) + op(Opcodes::I32_sub)
       when :mul, :add, :cmp, :eq
         binary(@program.type(@program.arg(i, 1)), expression(@program.arg(i, 0)), expression(@program.arg(i, 2)))
+      when :call0
+        call(import_index(@program.lexeme(i)))
       when :command1
-        expression(@program.arg(i, 1)) + call(PUTS_IMPORT_INDEX)
+        expression(@program.arg(i, 1)) + call(import_index(@program.lexeme(@program.arg(i, 0))))
+      when :command2
+        expression(@program.arg(i, 1)) + expression(@program.arg(i, 3)) +
+          call(import_index(@program.lexeme(@program.arg(i, 0))))
       else
         raise Unsupported.new("expression #{n.rule} is not supported in WASM")
       end
