@@ -2,7 +2,18 @@ require "spec"
 require "../src/compiler/program"
 require "../src/compiler/parser"
 require "../src/compiler/checker"
+require "../src/compiler/interpreter"
 require "../src/compiler/wasm_emitter"
+
+# Parses and interprets `source` against a fresh `NullHost`, returning
+# what it printed -- the same shape `run_puts` returns for the WASM path,
+# so a spec can run one robot through both and compare.
+def interpret_puts(source : String) : Array(Int32)
+  program = CrystalRobots::Compiler::Parser.new(source).program
+  host = CrystalRobots::Compiler::NullHost.new
+  CrystalRobots::Compiler::Interpreter.execute(program, host)
+  host.puts_out
+end
 
 # The wasmer runtime is optional. Specs that execute emitted WebAssembly
 # compile only when the `wasmer` flag is set (`crystal spec -Dwasmer`) and
