@@ -96,6 +96,15 @@ module CrystalRobots::Compiler
     end
   end
 
+  # Behaves exactly like `NullHost` -- there is still no battlefield -- but
+  # also echoes every `puts` to the console, for the CLI's `-i`.
+  class ConsoleHost < NullHost
+    def puts(n : Int32) : Int32
+      STDOUT.puts n
+      super
+    end
+  end
+
   class Interpreter
     private class BreakSignal < Exception
     end
