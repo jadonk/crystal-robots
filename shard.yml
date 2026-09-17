@@ -8,6 +8,11 @@ description: |
 authors:
   - Jason Kridner <jkridner@beagleboard.org>
 
+development_dependencies:
+  wasmer:
+    github: naqvis/wasmer-crystal
+    version: 0.2.3
+
 targets:
   crystal-robots:
     main: src/cli.cr
