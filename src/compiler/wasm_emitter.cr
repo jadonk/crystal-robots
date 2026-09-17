@@ -8,9 +8,9 @@ require "./parser"
 #
 # `WASM_Emitter.new(program).to_wasm` walks the AST that `Parser` built.
 # The module it produces imports `env.puts` and exports `run`, which calls
-# it once per top-level statement; this commit adds a mutable i32 WASM
-# global per `global(name, init)` declaration, and identifiers and
-# assignment as expressions.
+# it once per top-level statement; this commit adds comparisons and
+# `while`/`until`/`break` loops, each compiled to WASM's structured
+# `block { loop { ... } }` control flow.
 #
 # https://webassembly.github.io/spec/core/binary/modules.html
 module CrystalRobots::Compiler
@@ -32,12 +32,23 @@ module CrystalRobots::Compiler
 
     # https://webassembly.github.io/spec/core/binary/instructions.html
     enum Opcodes : UInt8
+      Block      = 0x02
+      Loop       = 0x03
       End        = 0x0b
+      Br         = 0x0c
+      Br_if      = 0x0d
       Call       = 0x10
       Drop       = 0x1a
       Global_get = 0x23
       Global_set = 0x24
       I32_const  = 0x41
+      I32_eqz    = 0x45
+      I32_eq     = 0x46
+      I32_ne     = 0x47
+      I32_lt_s   = 0x48
+      I32_gt_s   = 0x4a
+      I32_le_s   = 0x4c
+      I32_ge_s   = 0x4e
       I32_add    = 0x6a
       I32_sub    = 0x6b
       I32_mul    = 0x6c
@@ -45,7 +56,17 @@ module CrystalRobots::Compiler
       I32_rem_s  = 0x6f
     end
 
+    BlockVoid = 0x40_u8
+
     class Unsupported < Exception
+    end
+
+    # Per-`run`/function compilation state: how many WASM labels
+    # (block/loop) currently enclose the code being emitted, and the label
+    # depth `break` should branch to for each loop it is nested in.
+    private class Ctx
+      property depth = 0
+      getter loops = [] of Int32
     end
 
     enum ExportType : UInt8
@@ -187,7 +208,7 @@ module CrystalRobots::Compiler
         expression(@program.arg(i, 1))
       when :neg
         const(0) + expression(@program.arg(i, 1)) + op(Opcodes::I32_sub)
-      when :mul, :add
+      when :mul, :add, :cmp, :eq
         binary(@program.type(@program.arg(i, 1)), expression(@program.arg(i, 0)), expression(@program.arg(i, 2)))
       when :command1
         expression(@program.arg(i, 1)) + call(PUTS_IMPORT_INDEX)
@@ -209,22 +230,68 @@ module CrystalRobots::Compiler
       when Type::DivOperator, Type::FloorDivOperator
         left + right + op(Opcodes::I32_div_s)
       when Type::ModOperator then left + right + op(Opcodes::I32_rem_s)
+      when Type::EqOperator  then left + right + op(Opcodes::I32_eq)
+      when Type::NeOperator  then left + right + op(Opcodes::I32_ne)
+      when Type::LtOperator  then left + right + op(Opcodes::I32_lt_s)
+      when Type::GtOperator  then left + right + op(Opcodes::I32_gt_s)
+      when Type::LeOperator  then left + right + op(Opcodes::I32_le_s)
+      when Type::GeOperator  then left + right + op(Opcodes::I32_ge_s)
       else
         raise Unsupported.new("operator #{opt} is not supported in WASM")
       end
     end
 
-    # `run`: a `global(...)` statement evaluates its init expression and
-    # sets the global; anything else is `expression; drop`.
-    def code_section : Bytes
-      code = Bytes[]
-      @program.children(@program.root).each do |stmt|
-        if @program[stmt].rule == :global
-          code += expression(@program.arg(stmt, 4)) + global_set(@program.value(@program.arg(stmt, 2)))
-        else
-          code += expression(@program.arg(stmt, 0)) + op(Opcodes::Drop)
-        end
+    # Statements a `while`/`until` body or `run` can contain.
+    private def body_of(block : Int32) : Array(Int32)
+      @program.children(block).select { |i| @program.type(i) == Type::Statement }
+    end
+
+    def statement(stmt : Int32, ctx : Ctx) : Bytes
+      case @program[stmt].rule
+      when :global
+        expression(@program.arg(stmt, 4)) + global_set(@program.value(@program.arg(stmt, 2)))
+      when :while
+        loop_statement(stmt, ctx, while_true: true)
+      when :until
+        loop_statement(stmt, ctx, while_true: false)
+      when :break
+        exit = ctx.loops.last? || raise Unsupported.new("break outside of a loop")
+        op(Opcodes::Br) + WASM_Emitter.unsignedLEB128(ctx.depth - exit)
+      else
+        expression(@program.arg(stmt, 0)) + op(Opcodes::Drop)
       end
+    end
+
+    # `while`/`until`: `block { loop { cond; br_if exit; body; br loop } }`.
+    # `while` exits when the condition is false (`i32.eqz` first); `until`
+    # exits when it is true.
+    private def loop_statement(stmt : Int32, ctx : Ctx, while_true : Bool) : Bytes
+      head = @program.children(stmt)[0]
+      cond = @program.arg(head, 1)
+      code = op(Opcodes::Block) + Bytes[BlockVoid]
+      ctx.depth += 1
+      exit = ctx.depth
+      ctx.loops << exit
+      code += op(Opcodes::Loop) + Bytes[BlockVoid]
+      ctx.depth += 1
+      code += expression(cond)
+      code += op(Opcodes::I32_eqz) if while_true
+      code += op(Opcodes::Br_if) + WASM_Emitter.unsignedLEB128(ctx.depth - exit)
+      body_of(stmt).each { |s| code += statement(s, ctx) }
+      code += op(Opcodes::Br) + WASM_Emitter.unsignedLEB128(0)
+      ctx.depth -= 1
+      code += op(Opcodes::End) # loop
+      ctx.loops.pop
+      ctx.depth -= 1
+      code += op(Opcodes::End) # block
+      code
+    end
+
+    # `run`: one `statement` per top-level statement.
+    def code_section : Bytes
+      ctx = Ctx.new
+      code = Bytes[]
+      body_of(@program.root).each { |stmt| code += statement(stmt, ctx) }
       code += op(Opcodes::End)
       body = Bytes[0] + code # no locals
       WASM_Emitter.createSection(Section::Code,

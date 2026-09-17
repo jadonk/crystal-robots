@@ -10,9 +10,9 @@ require "./program"
 # higher-precedence rules always win. Parsing ends when no rule matches;
 # success is the single Program glyph `⏹`.
 #
-# See docs/PARSER.md for the reasoning; this commit adds `global(name,
-# init)` declarations, identifiers as values, and assignment to the
-# arithmetic expressions of the previous one.
+# See docs/PARSER.md for the reasoning; this commit adds comparisons and
+# `while`/`until`/`break` loops to the arithmetic and globals of the
+# previous ones.
 module CrystalRobots::Compiler
   class Parser
     class Error < Exception
@@ -26,12 +26,18 @@ module CrystalRobots::Compiler
       end
     end
 
-    KEYWORDS = {"puts" => Type::OneArgMethod, "global" => Type::GlobalKeyword}
+    KEYWORDS = {
+      "puts" => Type::OneArgMethod, "global" => Type::GlobalKeyword,
+      "while" => Type::WhileKeyword, "until" => Type::UntilKeyword,
+      "end" => Type::EndKeyword, "break" => Type::BreakKeyword,
+    }
 
     OPERATORS = {
-      "//" => Type::FloorDivOperator,
+      "//" => Type::FloorDivOperator, "==" => Type::EqOperator, "!=" => Type::NeOperator,
+      "<=" => Type::LeOperator, ">=" => Type::GeOperator,
       "+" => Type::AddOperator, "-" => Type::SubOperator, "*" => Type::MulOperator,
       "/" => Type::DivOperator, "%" => Type::ModOperator, "=" => Type::Assign,
+      "<" => Type::LtOperator, ">" => Type::GtOperator,
       "(" => Type::OpenParen, ")" => Type::CloseParen, "," => Type::Comma,
     }
 
@@ -43,7 +49,7 @@ module CrystalRobots::Compiler
       {/\A[ \t\r]+/, :skip},
       {/\A(\n|;)+/, :newline},
       {/\A[0-9]+/, :number},
-      {/\A(\/\/|[-+*\/%(),=])/, :operator},
+      {/\A(\/\/|==|!=|<=|>=|[-+*\/%(),=<>])/, :operator},
       {/\A[A-Za-z_][A-Za-z0-9_]*/, :word},
     ]
 
@@ -54,6 +60,8 @@ module CrystalRobots::Compiler
     # Infix operator glyphs by precedence level, tightest first.
     MULOPS = "⊗／⊘％"
     ADDOPS = "⊕⊖"
+    CMPOPS = "≺≻≼≽"
+    EQOPS  = "≟≠"
 
     # An infix rule at level L reduces `V op V` only when the left operand
     # is not preceded by an operator of level <= L (that operand belongs to
@@ -75,10 +83,20 @@ module CrystalRobots::Compiler
       Rule.new(:neg, /(?<![№𝑥😑⟯])⊖#{V}/, Type::Expression),
       Rule.new(:mul, infix(MULOPS, ""), Type::Expression),
       Rule.new(:add, infix(ADDOPS, MULOPS), Type::Expression),
+      Rule.new(:cmp, infix(CMPOPS, MULOPS + ADDOPS), Type::Expression),
+      Rule.new(:eq, infix(EQOPS, MULOPS + ADDOPS + CMPOPS), Type::Expression),
       Rule.new(:command1, /∊#{V}(?=[⏎⟯])/, Type::Expression),
       # assignment is right associative: only once the value is complete
       Rule.new(:assign, /𝑥＝#{V}(?=⏎)/, Type::Expression),
+      # block headers
+      Rule.new(:while_head, /🔣#{V}⏎/, Type::WhileHead),
+      Rule.new(:until_head, /🔂#{V}⏎/, Type::UntilHead),
+      # simple statements
+      Rule.new(:break, /🔓⏎/, Type::Statement),
       Rule.new(:exprstmt, /#{V}⏎/, Type::Statement),
+      # blocks reduce only once their body is entirely statements
+      Rule.new(:while, /🆆❢*🔙⏎/, Type::Statement),
+      Rule.new(:until, /🆄❢*🔙⏎/, Type::Statement),
       Rule.new(:program, /\A❢+\z/, Type::Program),
     ]
 
