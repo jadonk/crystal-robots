@@ -34,4 +34,12 @@ describe W do
   wasmer_it "computes / // and %" do
     run_puts("puts 7 / 2\nputs 7 // 2\nputs 7 % 2\n").should eq [3, 3, 1]
   end
+
+  wasmer_it "declares a global and reads it back" do
+    run_puts("global(count, 5)\nputs count\n").should eq [5]
+  end
+
+  wasmer_it "assigns to a global and keeps mutating it" do
+    run_puts("global(count, 0)\ncount = count + 1\ncount = count + 1\nputs count\n").should eq [2]
+  end
 end

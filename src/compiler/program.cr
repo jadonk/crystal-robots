@@ -6,12 +6,16 @@
 module CrystalRobots::Compiler
   # One glyph per token kind. The comment shows the glyph.
   enum Type : Int32
-    Number       = 0x00002116 # №
-    Newline      = 0x000023CE # ⏎  newline, end of input
-    OneArgMethod = 0x0000220A # ∊  puts
+    Number        = 0x00002116 # №
+    Identifier    = 0x0001D465 # 𝑥
+    Newline       = 0x000023CE # ⏎  newline, end of input
+    Comma         = 0x0000FF0C # ，
+    OneArgMethod  = 0x0000220A # ∊  puts
+    GlobalKeyword = 0x0001F310 # 🌐
 
     OpenParen  = 0x000027EE # ⟮
     CloseParen = 0x000027EF # ⟯
+    Assign     = 0x0000FF1D # ＝
 
     AddOperator      = 0x00002295 # ⊕
     SubOperator      = 0x00002296 # ⊖

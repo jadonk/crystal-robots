@@ -23,8 +23,16 @@ describe Parser do
       DERIVATION
   end
 
-  it "raises with the offending word for anything else" do
-    expect_raises(Parser::Error) { Parser.new("banana\n") }
+  it "raises when nothing reduces the input" do
+    expect_raises(Parser::Error) { Parser.new(")\n") }
+  end
+
+  it "parses a global declaration and a reference to it" do
+    Parser.new("global(count, 0)\nputs count\n").program.parsed?.should be_true
+  end
+
+  it "parses assignment as a statement" do
+    Parser.new("global(count, 0)\ncount = count + 1\nputs count\n").program.parsed?.should be_true
   end
 
   it "parses precedence, associativity and parenthesized expressions" do
