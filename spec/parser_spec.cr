@@ -26,4 +26,11 @@ describe Parser do
   it "raises with the offending word for anything else" do
     expect_raises(Parser::Error) { Parser.new("banana\n") }
   end
+
+  it "parses precedence, associativity and parenthesized expressions" do
+    Parser.new("puts 1 + 2 * 3\n").program.parsed?.should be_true
+    Parser.new("puts 1 - 2 - 3\n").program.parsed?.should be_true
+    Parser.new("puts (1 + 2) * 3\n").program.parsed?.should be_true
+    Parser.new("puts -5 + 2\n").program.parsed?.should be_true
+  end
 end
