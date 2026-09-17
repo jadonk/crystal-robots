@@ -58,4 +58,33 @@ describe W do
   wasmer_it "break stops a while loop before its condition would" do
     run_puts("global(i, 0)\nwhile i < 100\ni = i + 1\nbreak\nend\nputs i\n").should eq [1]
   end
+
+  wasmer_it "takes the if branch" do
+    run_puts("if 1 == 1\nputs 10\nend\n").should eq [10]
+  end
+
+  wasmer_it "takes the else branch" do
+    run_puts("if 1 == 2\nputs 10\nelse\nputs 20\nend\n").should eq [20]
+  end
+
+  wasmer_it "takes the matching elsif branch" do
+    run_puts("global(n, 2)\nif n == 1\nputs 1\nelsif n == 2\nputs 2\nelse\nputs 3\nend\n").should eq [2]
+  end
+
+  wasmer_it "counts fizzbuzz-style with if/elsif/else inside a while loop" do
+    source = <<-ROBOT
+      global(i, 1)
+      while i < 4
+      if i == 1
+      puts 100
+      elsif i == 2
+      puts 200
+      else
+      puts 300
+      end
+      i = i + 1
+      end
+      ROBOT
+    run_puts(source).should eq [100, 200, 300]
+  end
 end

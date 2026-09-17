@@ -10,9 +10,8 @@ require "./program"
 # higher-precedence rules always win. Parsing ends when no rule matches;
 # success is the single Program glyph `⏹`.
 #
-# See docs/PARSER.md for the reasoning; this commit adds comparisons and
-# `while`/`until`/`break` loops to the arithmetic and globals of the
-# previous ones.
+# See docs/PARSER.md for the reasoning; this commit adds `if`/`elsif`/`else`
+# to the comparisons, loops and globals of the previous ones.
 module CrystalRobots::Compiler
   class Parser
     class Error < Exception
@@ -30,6 +29,7 @@ module CrystalRobots::Compiler
       "puts" => Type::OneArgMethod, "global" => Type::GlobalKeyword,
       "while" => Type::WhileKeyword, "until" => Type::UntilKeyword,
       "end" => Type::EndKeyword, "break" => Type::BreakKeyword,
+      "if" => Type::IfKeyword, "elsif" => Type::ElsifKeyword, "else" => Type::ElseKeyword,
     }
 
     OPERATORS = {
@@ -89,12 +89,15 @@ module CrystalRobots::Compiler
       # assignment is right associative: only once the value is complete
       Rule.new(:assign, /𝑥＝#{V}(?=⏎)/, Type::Expression),
       # block headers
+      Rule.new(:if_head, /🔜#{V}⏎/, Type::IfHead),
+      Rule.new(:elsif_head, /🔘#{V}⏎/, Type::ElsifHead),
       Rule.new(:while_head, /🔣#{V}⏎/, Type::WhileHead),
       Rule.new(:until_head, /🔂#{V}⏎/, Type::UntilHead),
       # simple statements
       Rule.new(:break, /🔓⏎/, Type::Statement),
       Rule.new(:exprstmt, /#{V}⏎/, Type::Statement),
       # blocks reduce only once their body is entirely statements
+      Rule.new(:if, /🅸❢*(🅴❢*)*(🔗⏎❢*)?🔙⏎/, Type::Statement),
       Rule.new(:while, /🆆❢*🔙⏎/, Type::Statement),
       Rule.new(:until, /🆄❢*🔙⏎/, Type::Statement),
       Rule.new(:program, /\A❢+\z/, Type::Program),
