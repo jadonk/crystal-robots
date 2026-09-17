@@ -52,6 +52,16 @@ describe Parser do
     Parser.new("puts sqrt 16\n").program.parsed?.should be_true
   end
 
+  it "parses def, calls with arguments, and return" do
+    Parser.new("def go(a, b)\na + b\nend\nputs go(1, 2)\n").program.parsed?.should be_true
+    Parser.new("def zero\n0\nend\nputs zero()\n").program.parsed?.should be_true
+    Parser.new("def early(n)\nreturn n\nend\n").program.parsed?.should be_true
+  end
+
+  it "does not read a def header as a call" do
+    Parser.new("def go(a, b)\nreturn a\nend\n").program.parsed?.should be_true
+  end
+
   it "parses if, elsif and else" do
     Parser.new("if 1 == 1\nputs 1\nend\n").program.parsed?.should be_true
     Parser.new("if 1 == 1\nputs 1\nelse\nputs 2\nend\n").program.parsed?.should be_true

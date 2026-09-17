@@ -32,18 +32,21 @@ module CrystalRobots::Compiler
     GeOperator       = 0x0000227D # ≽
     LeOperator       = 0x0000227C # ≼
 
-    WhileKeyword = 0x0001F523 # 🔣
-    UntilKeyword = 0x0001F502 # 🔂
-    EndKeyword   = 0x0001F519 # 🔙
-    BreakKeyword = 0x0001F513 # 🔓
-    IfKeyword    = 0x0001F51C # 🔜
-    ElsifKeyword = 0x0001F518 # 🔘
-    ElseKeyword  = 0x0001F517 # 🔗
+    WhileKeyword  = 0x0001F523 # 🔣
+    UntilKeyword  = 0x0001F502 # 🔂
+    EndKeyword    = 0x0001F519 # 🔙
+    BreakKeyword  = 0x0001F513 # 🔓
+    IfKeyword     = 0x0001F51C # 🔜
+    ElsifKeyword  = 0x0001F518 # 🔘
+    ElseKeyword   = 0x0001F517 # 🔗
+    DefKeyword    = 0x0001F515 # 🔕
+    ReturnKeyword = 0x000021A9 # ↩
 
     WhileHead = 0x0001F186 # 🆆
     UntilHead = 0x0001F184 # 🆄
     IfHead    = 0x0001F178 # 🅸
     ElsifHead = 0x0001F174 # 🅴
+    DefHead   = 0x0001F173 # 🅳
 
     Expression = 0x0001F611 # 😑  any reduced value
     Statement  = 0x00002762 # ❢
