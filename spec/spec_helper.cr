@@ -1,6 +1,7 @@
 require "spec"
 require "../src/compiler/program"
 require "../src/compiler/parser"
+require "../src/compiler/checker"
 require "../src/compiler/wasm_emitter"
 
 # The wasmer runtime is optional. Specs that execute emitted WebAssembly
