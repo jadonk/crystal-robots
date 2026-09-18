@@ -46,6 +46,7 @@ module CrystalRobots::Compiler
     OPERATORS = {
       "//" => Type::FloorDivOperator, "==" => Type::EqOperator, "!=" => Type::NeOperator,
       "<=" => Type::LeOperator, ">=" => Type::GeOperator,
+      "+=" => Type::AddAssign, "-=" => Type::SubAssign, "*=" => Type::MulAssign, "%=" => Type::ModAssign,
       "+" => Type::AddOperator, "-" => Type::SubOperator, "*" => Type::MulOperator,
       "/" => Type::DivOperator, "%" => Type::ModOperator, "=" => Type::Assign,
       "<" => Type::LtOperator, ">" => Type::GtOperator,
@@ -62,7 +63,7 @@ module CrystalRobots::Compiler
       {/\A(\n|;)+/, :newline},
       {/\A"[^"]*"/, :string},
       {/\A[0-9]+/, :number},
-      {/\A(\/\/|==|!=|<=|>=|[-+*\/%(),=<>])/, :operator},
+      {/\A(\/\/|==|!=|<=|>=|\+=|-=|\*=|%=|[-+*\/%(),=<>])/, :operator},
       {/\A[A-Za-z_][A-Za-z0-9_]*/, :word},
     ]
 
@@ -111,6 +112,7 @@ module CrystalRobots::Compiler
       Rule.new(:command2, /∋#{V}，#{V}(?=[⏎⟯])/, Type::Expression),
       # assignment is right associative: only once the value is complete
       Rule.new(:assign, /𝑥＝#{V}(?=⏎)/, Type::Expression),
+      Rule.new(:opassign, /𝑥[➕➖✖⁒]#{V}(?=⏎)/, Type::Expression),
       # block headers
       Rule.new(:if_head, /🔜#{V}⏎/, Type::IfHead),
       Rule.new(:elsif_head, /🔘#{V}⏎/, Type::ElsifHead),

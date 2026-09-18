@@ -101,7 +101,7 @@ module CrystalRobots::Compiler
       case @program[stmt].rule
       when :exprstmt
         expr = @program.arg(stmt, 0)
-        names << @program.value(@program.arg(expr, 0)) if @program[expr].rule == :assign
+        names << @program.value(@program.arg(expr, 0)) if {:assign, :opassign}.includes?(@program[expr].rule)
       when :while, :until
         body_of(stmt).each { |s| names.concat(assigned_names(s)) }
       when :if
@@ -148,7 +148,7 @@ module CrystalRobots::Compiler
           known = scope.locals.includes?(name) || @globals.includes?(name) || @arity[name]? == 0
           issue(i, "undefined variable #{name}") unless known
         end
-      when :assign
+      when :assign, :opassign
         check_expression(@program.arg(i, 2), scope)
       when :paren, :neg
         check_expression(@program.arg(i, 1), scope)

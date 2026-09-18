@@ -336,6 +336,15 @@ module CrystalRobots::Compiler
       when :assign
         name = @program.value(@program.arg(i, 0))
         expression(@program.arg(i, 2), ctx) + variable_tee(name, ctx)
+      when :opassign
+        name = @program.value(@program.arg(i, 0))
+        opt = case @program.type(@program.arg(i, 1))
+              when Type::AddAssign then Type::AddOperator
+              when Type::SubAssign then Type::SubOperator
+              when Type::MulAssign then Type::MulOperator
+              else                      Type::ModOperator
+              end
+        binary(opt, variable_get(name, ctx), expression(@program.arg(i, 2), ctx)) + variable_tee(name, ctx)
       when :paren
         expression(@program.arg(i, 1), ctx)
       when :neg
