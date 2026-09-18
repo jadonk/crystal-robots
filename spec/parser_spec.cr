@@ -85,6 +85,11 @@ describe Parser do
     Parser.new("puts 1 ^ 2\n").program.parsed?.should be_true
   end
 
+  it "parses an assignment inside a condition, and a bare builtin call as a call argument" do
+    Parser.new("i = 3\nwhile (n = i) > 0\ni -= 1\nend\n").program.parsed?.should be_true
+    Parser.new("def sum(a, b)\na + b\nend\nputs sum(sqrt 16, sqrt 9)\n").program.parsed?.should be_true
+  end
+
   it "parses compound assignment" do
     Parser.new("global(i, 0)\ni += 1\ni -= 1\ni *= 2\ni %= 3\n").program.parsed?.should be_true
   end

@@ -150,6 +150,13 @@ module CrystalRobots::Compiler
         end
       when :assign, :opassign
         check_expression(@program.arg(i, 2), scope)
+        # The target is a known name for anything checked after it,
+        # including later in the same condition -- while (range =
+        # scan(...)) > 0, the shape counter.cr uses. assigned_names's
+        # function-wide pre-scan only reaches a function body's own
+        # statements, not an assignment embedded in a condition like
+        # that one, or one at the top level or inside main.
+        scope.locals << @program.value(@program.arg(i, 0))
       when :paren, :neg
         check_expression(@program.arg(i, 1), scope)
       when :mul, :add, :cmp, :eq, :and, :or

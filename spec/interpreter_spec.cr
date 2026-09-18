@@ -44,6 +44,11 @@ describe Interpreter do
     interpret_puts(source).should eq [0, 1, 6]
   end
 
+  it "allows an assignment inside a condition, and a bare builtin call as a call argument" do
+    interpret_puts("i = 3\nwhile (n = i) > 0\ni -= 1\nend\nputs n\n").should eq [0]
+    interpret_puts("def sum(a, b)\na + b\nend\nputs sum(sqrt 16, sqrt 9)\n").should eq [7]
+  end
+
   it "compound-assigns += -= *= %=" do
     interpret_puts("global(i, 10)\ni += 5\ni -= 2\ni *= 3\ni %= 10\nputs i\n").should eq [((10 + 5 - 2) * 3) % 10]
   end
