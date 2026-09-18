@@ -50,6 +50,15 @@ describe Interpreter do
     interpret_puts(source).should eq [120]
   end
 
+  it "treats true and false as 1 and 0, and ignores comments" do
+    source = <<-ROBOT
+      # a leading comment
+      puts true # trailing
+      puts false
+      ROBOT
+    interpret_puts(source).should eq [1, 0]
+  end
+
   it "runs main last" do
     interpret_puts("puts 1\nmain(\"Test\") do\nputs 2\nend\n").should eq [1, 2]
   end

@@ -71,6 +71,10 @@ describe W do
     run_puts("global(n, 2)\nif n == 1\nputs 1\nelsif n == 2\nputs 2\nelse\nputs 3\nend\n").should eq [2]
   end
 
+  wasmer_it "treats true and false as 1 and 0, and ignores comments" do
+    run_puts("# a leading comment\nputs true # trailing\nputs false\n").should eq [1, 0]
+  end
+
   wasmer_it "calls a zero-argument builtin" do
     run_puts("puts damage\nputs speed\n").should eq [11, 22]
   end

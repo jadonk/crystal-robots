@@ -232,6 +232,8 @@ module CrystalRobots::Compiler
         return @program.value(n).to_i32 unless n.type == Type::Identifier
         name = @program.value(n)
         scope.locals[name]? || @globals[name]? || raise "undefined variable #{name}"
+      when :literal
+        @program.type(@program.arg(i, 0)) == Type::TrueKeyword ? 1 : 0
       when :assign
         name = @program.value(@program.arg(i, 0))
         value = eval(@program.arg(i, 2), scope)

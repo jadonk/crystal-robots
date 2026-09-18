@@ -311,6 +311,8 @@ module CrystalRobots::Compiler
       case n.rule
       when :lex
         n.type == Type::Identifier ? variable_get(@program.value(n), ctx) : const(@program.value(n).to_i32)
+      when :literal
+        const(@program.type(@program.arg(i, 0)) == Type::TrueKeyword ? 1 : 0)
       when :assign
         name = @program.value(@program.arg(i, 0))
         expression(@program.arg(i, 2), ctx) + variable_tee(name, ctx)
