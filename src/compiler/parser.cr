@@ -47,8 +47,9 @@ module CrystalRobots::Compiler
       "//" => Type::FloorDivOperator, "==" => Type::EqOperator, "!=" => Type::NeOperator,
       "<=" => Type::LeOperator, ">=" => Type::GeOperator,
       "+=" => Type::AddAssign, "-=" => Type::SubAssign, "*=" => Type::MulAssign, "%=" => Type::ModAssign,
+      "&&" => Type::AndOperator, "||" => Type::OrOperator,
       "+" => Type::AddOperator, "-" => Type::SubOperator, "*" => Type::MulOperator,
-      "/" => Type::DivOperator, "%" => Type::ModOperator, "=" => Type::Assign,
+      "/" => Type::DivOperator, "%" => Type::ModOperator, "=" => Type::Assign, "^" => Type::XorOperator,
       "<" => Type::LtOperator, ">" => Type::GtOperator,
       "(" => Type::OpenParen, ")" => Type::CloseParen, "," => Type::Comma,
     }
@@ -63,7 +64,7 @@ module CrystalRobots::Compiler
       {/\A(\n|;)+/, :newline},
       {/\A"[^"]*"/, :string},
       {/\A[0-9]+/, :number},
-      {/\A(\/\/|==|!=|<=|>=|\+=|-=|\*=|%=|[-+*\/%(),=<>])/, :operator},
+      {/\A(\/\/|==|!=|<=|>=|\+=|-=|\*=|%=|&&|\|\||[-+*\/%(),=<>^])/, :operator},
       {/\A[A-Za-z_][A-Za-z0-9_]*/, :word},
     ]
 
@@ -78,6 +79,8 @@ module CrystalRobots::Compiler
     ADDOPS = "⊕⊖"
     CMPOPS = "≺≻≼≽"
     EQOPS  = "≟≠"
+    ANDOPS = "∧"
+    OROPS  = "∨⊻"
 
     # An infix rule at level L reduces `V op V` only when the left operand
     # is not preceded by an operator of level <= L (that operand belongs to
@@ -108,6 +111,8 @@ module CrystalRobots::Compiler
       Rule.new(:add, infix(ADDOPS, MULOPS), Type::Expression),
       Rule.new(:cmp, infix(CMPOPS, MULOPS + ADDOPS), Type::Expression),
       Rule.new(:eq, infix(EQOPS, MULOPS + ADDOPS + CMPOPS), Type::Expression),
+      Rule.new(:and, infix(ANDOPS, MULOPS + ADDOPS + CMPOPS + EQOPS), Type::Expression),
+      Rule.new(:or, infix(OROPS, MULOPS + ADDOPS + CMPOPS + EQOPS + ANDOPS), Type::Expression),
       Rule.new(:command1, /∊#{V}(?=[⏎⟯])/, Type::Expression),
       Rule.new(:command2, /∋#{V}，#{V}(?=[⏎⟯])/, Type::Expression),
       # assignment is right associative: only once the value is complete

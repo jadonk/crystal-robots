@@ -67,6 +67,17 @@ describe W do
     run_puts("global(count, 0)\ncount = count + 1\ncount = count + 1\nputs count\n").should eq [2]
   end
 
+  wasmer_it "computes && || and ^, evaluating both sides" do
+    source = <<-ROBOT
+      a = 3 > 2
+      b = 2 > 3
+      puts a && b
+      puts a || b
+      puts 5 ^ 3
+      ROBOT
+    run_puts(source).should eq [0, 1, 6]
+  end
+
   wasmer_it "computes comparisons" do
     run_puts("puts 1 < 2\nputs 2 < 1\nputs 3 == 3\nputs 3 != 3\nputs 5 >= 5\n").should eq [1, 0, 1, 0, 1]
   end
@@ -112,8 +123,10 @@ describe W do
   end
 
   wasmer_it "calls one- and two-argument builtins with parens the same as bare" do
-    run_puts("puts sqrt(16)\n").should eq run_puts("puts sqrt 16\n")
-    run_puts("puts scan(3, 4)\n").should eq run_puts("puts scan 3, 4\n")
+    run_puts("puts sqrt(16)\n").should eq [4]
+    run_puts("puts sqrt 16\n").should eq [4]
+    run_puts("puts scan(3, 4)\n").should eq [7]
+    run_puts("puts scan 3, 4\n").should eq [7]
   end
 
   it "only imports the builtins the program actually calls" do

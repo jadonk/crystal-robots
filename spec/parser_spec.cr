@@ -79,6 +79,12 @@ describe Parser do
     Parser.new("def go\n1\nend\nputs go\n").program.parsed?.should be_true
   end
 
+  it "parses && || and ^ at a lower precedence than comparisons" do
+    Parser.new("puts 1 < 2 && 3 < 4\n").program.parsed?.should be_true
+    Parser.new("puts 1 < 2 || 3 < 4\n").program.parsed?.should be_true
+    Parser.new("puts 1 ^ 2\n").program.parsed?.should be_true
+  end
+
   it "parses compound assignment" do
     Parser.new("global(i, 0)\ni += 1\ni -= 1\ni *= 2\ni %= 3\n").program.parsed?.should be_true
   end
