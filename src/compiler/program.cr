@@ -47,6 +47,8 @@ module CrystalRobots::Compiler
     IfKeyword     = 0x0001F51C # 🔜
     ElsifKeyword  = 0x0001F518 # 🔘
     ElseKeyword   = 0x0001F517 # 🔗
+    CaseKeyword   = 0x0001F514 # 🔔
+    WhenKeyword   = 0x0001F536 # 🔶
     DefKeyword    = 0x0001F515 # 🔕
     ReturnKeyword = 0x000021A9 # ↩
     MainKeyword   = 0x0001F3C1 # 🏁
@@ -60,6 +62,8 @@ module CrystalRobots::Compiler
     ElsifHead = 0x0001F174 # 🅴
     DefHead   = 0x0001F173 # 🅳
     MainHead  = 0x0001F17C # 🅼
+    CaseHead  = 0x0001F172 # 🅲
+    WhenHead  = 0x0001F182 # 🆂
 
     Expression = 0x0001F611 # 😑  any reduced value
     Statement  = 0x00002762 # ❢

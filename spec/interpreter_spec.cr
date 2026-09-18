@@ -7,6 +7,25 @@ describe Interpreter do
     interpret_puts("global(count, 5)\nputs count + 1\n").should eq [6]
   end
 
+  it "matches the right case/when branch, and falls back to else" do
+    source = <<-ROBOT
+      def label(n)
+      case n
+      when 1
+      10
+      when 2
+      20
+      else
+      99
+      end
+      end
+      puts label(1)
+      puts label(2)
+      puts label(3)
+      ROBOT
+    interpret_puts(source).should eq [10, 20, 99]
+  end
+
   it "runs while, until, if/elsif/else and break" do
     source = <<-ROBOT
       global(i, 0)
