@@ -241,6 +241,18 @@ module CrystalRobots::Compiler
       end
     end
 
+    # Store into a variable and return the value: a global that already
+    # exists goes there unless shadowed by a local of the same name,
+    # otherwise it is a local, first assignment introducing it.
+    private def set_variable(name : String, value : Int32, scope : Scope) : Int32
+      if @globals.has_key?(name) && !scope.locals.has_key?(name)
+        @globals[name] = value
+      else
+        scope.locals[name] = value
+      end
+      value
+    end
+
     private def call_function(name : String, args : Array(Int32)) : Int32
       stmt = @functions[name]? || raise "undefined function #{name}"
       head = @program.arg(stmt, 0)
@@ -266,13 +278,17 @@ module CrystalRobots::Compiler
         @program.type(@program.arg(i, 0)) == Type::TrueKeyword ? 1 : 0
       when :assign
         name = @program.value(@program.arg(i, 0))
-        value = eval(@program.arg(i, 2), scope)
-        if @globals.has_key?(name) && !scope.locals.has_key?(name)
-          @globals[name] = value
-        else
-          scope.locals[name] = value
-        end
-        value
+        set_variable(name, eval(@program.arg(i, 2), scope), scope)
+      when :opassign
+        name = @program.value(@program.arg(i, 0))
+        opt = case @program.type(@program.arg(i, 1))
+              when Type::AddAssign then Type::AddOperator
+              when Type::SubAssign then Type::SubOperator
+              when Type::MulAssign then Type::MulOperator
+              else                      Type::ModOperator
+              end
+        old = scope.locals[name]? || @globals[name]? || raise "undefined variable #{name}"
+        set_variable(name, binary(opt, old, eval(@program.arg(i, 2), scope)), scope)
       when :paren
         eval(@program.arg(i, 1), scope)
       when :neg

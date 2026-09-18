@@ -33,6 +33,10 @@ describe Interpreter do
     interpret_puts(source).should eq [1, 1]
   end
 
+  it "compound-assigns += -= *= %=" do
+    interpret_puts("global(i, 10)\ni += 5\ni -= 2\ni *= 3\ni %= 10\nputs i\n").should eq [((10 + 5 - 2) * 3) % 10]
+  end
+
   it "calls builtins through the host, bare and parenthesized" do
     interpret_puts("puts damage\nputs scan 3, 4\n").should eq [11, 7]
     interpret_puts("puts sqrt(16)\nputs scan(3, 4)\n").should eq [4, 7]

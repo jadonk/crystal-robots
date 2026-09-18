@@ -79,6 +79,10 @@ describe Parser do
     Parser.new("def go\n1\nend\nputs go\n").program.parsed?.should be_true
   end
 
+  it "parses compound assignment" do
+    Parser.new("global(i, 0)\ni += 1\ni -= 1\ni *= 2\ni %= 3\n").program.parsed?.should be_true
+  end
+
   it "parses comments and true/false literals" do
     Parser.new("# a whole-line comment\nputs true # trailing too\nputs false\n").program.parsed?.should be_true
   end

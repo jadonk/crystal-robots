@@ -35,6 +35,18 @@ describe W do
     run_puts("puts -5 + 2\n").should eq [-3]
   end
 
+  wasmer_it "compound-assigns += -= *= %=" do
+    source = <<-ROBOT
+      global(i, 10)
+      i += 5
+      i -= 2
+      i *= 3
+      i %= 10
+      puts i
+      ROBOT
+    run_puts(source).should eq [((10 + 5 - 2) * 3) % 10]
+  end
+
   wasmer_it "computes / // and %" do
     run_puts("puts 7 / 2\nputs 7 // 2\nputs 7 % 2\n").should eq [3, 3, 1]
   end

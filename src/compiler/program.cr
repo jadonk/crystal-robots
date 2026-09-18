@@ -19,6 +19,10 @@ module CrystalRobots::Compiler
     OpenParen  = 0x000027EE # ⟮
     CloseParen = 0x000027EF # ⟯
     Assign     = 0x0000FF1D # ＝
+    AddAssign  = 0x00002795 # ➕
+    SubAssign  = 0x00002796 # ➖
+    MulAssign  = 0x00002716 # ✖
+    ModAssign  = 0x00002052 # ⁒
 
     AddOperator      = 0x00002295 # ⊕
     SubOperator      = 0x00002296 # ⊖
