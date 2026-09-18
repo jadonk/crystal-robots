@@ -251,10 +251,12 @@ module CrystalRobots::Compiler
         binary(@program.type(@program.arg(i, 1)), eval(@program.arg(i, 0), scope), eval(@program.arg(i, 2), scope))
       when :call0
         builtin0(@program.lexeme(i))
-      when :command1
-        builtin1(@program.lexeme(@program.arg(i, 0)), eval(@program.arg(i, 1), scope))
-      when :command2
-        builtin2(@program.lexeme(@program.arg(i, 0)), eval(@program.arg(i, 1), scope), eval(@program.arg(i, 3), scope))
+      when :command1, :call1
+        arg_index = n.rule == :call1 ? 2 : 1
+        builtin1(@program.lexeme(@program.arg(i, 0)), eval(@program.arg(i, arg_index), scope))
+      when :command2, :call2
+        a, b = n.rule == :call2 ? {2, 4} : {1, 3}
+        builtin2(@program.lexeme(@program.arg(i, 0)), eval(@program.arg(i, a), scope), eval(@program.arg(i, b), scope))
       when :call
         kids = @program.children(i)
         args = kids[2..].reject { |k| {Type::CloseParen, Type::Comma}.includes?(@program.type(k)) }

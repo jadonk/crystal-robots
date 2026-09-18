@@ -46,10 +46,12 @@ describe Parser do
     Parser.new("puts 1 < 2 == 3 < 4\n").program.parsed?.should be_true
   end
 
-  it "parses builtins of every arity" do
+  it "parses builtins of every arity, bare and parenthesized" do
     Parser.new("puts damage\n").program.parsed?.should be_true
     Parser.new("puts scan 3, 4\n").program.parsed?.should be_true
     Parser.new("puts sqrt 16\n").program.parsed?.should be_true
+    Parser.new("puts sqrt(16)\n").program.parsed?.should be_true
+    Parser.new("puts scan(3, 4)\n").program.parsed?.should be_true
   end
 
   it "parses def, calls with arguments, and return" do

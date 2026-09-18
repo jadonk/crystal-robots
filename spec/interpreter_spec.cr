@@ -33,8 +33,9 @@ describe Interpreter do
     interpret_puts(source).should eq [1, 1]
   end
 
-  it "calls builtins through the host" do
+  it "calls builtins through the host, bare and parenthesized" do
     interpret_puts("puts damage\nputs scan 3, 4\n").should eq [11, 7]
+    interpret_puts("puts sqrt(16)\nputs scan(3, 4)\n").should eq [4, 7]
   end
 
   it "calls user functions, including recursively, with implicit and explicit return" do

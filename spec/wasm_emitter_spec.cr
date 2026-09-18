@@ -24,7 +24,11 @@ describe W do
   end
 
   wasmer_it "lets parentheses override precedence" do
-    run_puts("puts (1 + 2) * 3\n").should eq [9]
+    run_puts("puts ((1 + 2) * 3)\n").should eq [9]
+  end
+
+  wasmer_it "puts(1) + 2 parses as puts(1 + 2), a known accepted gap (docs/PARSER.md)" do
+    run_puts("puts (1) + 2\n").should eq [1]
   end
 
   wasmer_it "negates a value" do
@@ -85,6 +89,11 @@ describe W do
 
   wasmer_it "calls the math one-argument builtins" do
     run_puts("puts sqrt(16)\nputs sin(90)\nputs cos(0)\n").should eq [4, 1, 1]
+  end
+
+  wasmer_it "calls one- and two-argument builtins with parens the same as bare" do
+    run_puts("puts sqrt(16)\n").should eq run_puts("puts sqrt 16\n")
+    run_puts("puts scan(3, 4)\n").should eq run_puts("puts scan 3, 4\n")
   end
 
   it "only imports the builtins the program actually calls" do

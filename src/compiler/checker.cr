@@ -149,11 +149,12 @@ module CrystalRobots::Compiler
       when :mul, :add, :cmp, :eq
         check_expression(@program.arg(i, 0), scope)
         check_expression(@program.arg(i, 2), scope)
-      when :command1
-        check_expression(@program.arg(i, 1), scope)
-      when :command2
-        check_expression(@program.arg(i, 1), scope)
-        check_expression(@program.arg(i, 3), scope)
+      when :command1, :call1
+        check_expression(@program.arg(i, n.rule == :call1 ? 2 : 1), scope)
+      when :command2, :call2
+        a, b = n.rule == :call2 ? {2, 4} : {1, 3}
+        check_expression(@program.arg(i, a), scope)
+        check_expression(@program.arg(i, b), scope)
       when :call
         kids = @program.children(i)
         name = @program.lexeme(kids[0])
