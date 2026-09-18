@@ -119,6 +119,25 @@ describe W do
     run_puts("global(i, 0)\nwhile i < 100\ni = i + 1\nbreak\nend\nputs i\n").should eq [1]
   end
 
+  wasmer_it "matches the right case/when branch, and falls back to else" do
+    source = <<-ROBOT
+      def label(n)
+      case n
+      when 1
+      10
+      when 2
+      20
+      else
+      99
+      end
+      end
+      puts label(1)
+      puts label(2)
+      puts label(3)
+      ROBOT
+    run_puts(source).should eq [10, 20, 99]
+  end
+
   wasmer_it "takes the if branch" do
     run_puts("if 1 == 1\nputs 10\nend\n").should eq [10]
   end

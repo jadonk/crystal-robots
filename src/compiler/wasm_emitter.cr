@@ -83,6 +83,7 @@ module CrystalRobots::Compiler
       getter loops = [] of Int32
       getter in_def : Bool
       property ret : Int32 = -1
+      property temps = 0
 
       def initialize(@in_def : Bool = false)
       end
@@ -427,6 +428,8 @@ module CrystalRobots::Compiler
         value + op(Opcodes::Return)
       when :if
         if_statement(stmt, ctx)
+      when :case
+        case_statement(stmt, ctx)
       when :exprstmt
         value = expression(@program.arg(stmt, 0), ctx)
         ctx.in_def ? value + local_set(ctx.ret) : value + op(Opcodes::Drop)
@@ -491,6 +494,45 @@ module CrystalRobots::Compiler
       rest = branches[1..]
       unless rest.empty?
         code += op(Opcodes::Else) + emit_branches(rest, ctx)
+      end
+      ctx.depth -= 1
+      code + op(Opcodes::End)
+    end
+
+    # `case`: the subject goes into a temporary local once; each `when`
+    # compares to it with `i32.eq`. Structurally the same nested
+    # `if`/`else` chain as `if`/`elsif`/`else`, just with a synthesized
+    # condition instead of one already in the AST.
+    private def case_statement(stmt : Int32, ctx : Ctx) : Bytes
+      kids = @program.children(stmt)
+      subject = new_local(ctx, "$case#{ctx.temps += 1}")
+      code = expression(@program.arg(kids[0], 1), ctx) + local_set(subject)
+      branches = [] of {Int32?, Array(Int32)}
+      @program.children(stmt).each do |k|
+        case @program.type(k)
+        when Type::WhenHead
+          branches << {@program.arg(k, 1), [] of Int32}
+        when Type::ElseKeyword
+          branches << {nil, [] of Int32}
+        when Type::Statement
+          branches.last[1] << k
+        end
+      end
+      code + emit_case_branches(branches, subject, ctx)
+    end
+
+    private def emit_case_branches(branches : Array({Int32?, Array(Int32)}), subject : Int32, ctx : Ctx) : Bytes
+      return Bytes[] if branches.empty?
+      cond, stmts = branches[0]
+      if cond.nil?
+        return stmts.reduce(Bytes[]) { |code, s| code + statement(s, ctx) }
+      end
+      code = local_get(subject) + expression(cond, ctx) + op(Opcodes::I32_eq) + op(Opcodes::If) + Bytes[BlockVoid]
+      ctx.depth += 1
+      code = stmts.reduce(code) { |c, s| c + statement(s, ctx) }
+      rest = branches[1..]
+      unless rest.empty?
+        code += op(Opcodes::Else) + emit_case_branches(rest, subject, ctx)
       end
       ctx.depth -= 1
       code + op(Opcodes::End)

@@ -191,6 +191,8 @@ module CrystalRobots::Compiler
         raise ReturnSignal.new(kids.size > 2 ? eval(kids[1], scope) : 0)
       when :if
         return if_exec(stmt, scope)
+      when :case
+        return case_exec(stmt, scope)
       end
       0
     end
@@ -223,6 +225,29 @@ module CrystalRobots::Compiler
       end
       branches.each do |(cond, stmts)|
         next unless cond.nil? || eval(cond, scope) != 0
+        result = 0
+        stmts.each { |s| result = exec_statement(s, scope) }
+        return result
+      end
+      0
+    end
+
+    private def case_exec(stmt : Int32, scope : Scope) : Int32
+      kids = @program.children(stmt)
+      subject = eval(@program.arg(kids[0], 1), scope)
+      branches = [] of {Int32?, Array(Int32)}
+      kids.each do |k|
+        case @program.type(k)
+        when Type::WhenHead
+          branches << {@program.arg(k, 1), [] of Int32}
+        when Type::ElseKeyword
+          branches << {nil, [] of Int32}
+        when Type::Statement
+          branches.last[1] << k
+        end
+      end
+      branches.each do |(cond, stmts)|
+        next unless cond.nil? || eval(cond, scope) == subject
         result = 0
         stmts.each { |s| result = exec_statement(s, scope) }
         return result

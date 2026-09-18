@@ -10,12 +10,8 @@ require "./program"
 # higher-precedence rules always win. Parsing ends when no rule matches;
 # success is the single Program glyph `⏹`.
 #
-# See docs/PARSER.md for the reasoning; this commit generalizes assign,
-# opassign, command1 and command2's lookahead from "only before a
-# newline" to "before a newline, a closing paren, or a comma" -- the full
-# set from docs/PARSER.md section 2.2 -- so assignment and a bare builtin
-# call can appear inside a parenthesized condition or as a call argument,
-# not only as a whole statement.
+# See docs/PARSER.md for the reasoning; this commit adds case/when/else,
+# the last statement shape docs/PARSER.md's rule list names.
 module CrystalRobots::Compiler
   class Parser
     class Error < Exception
@@ -34,6 +30,7 @@ module CrystalRobots::Compiler
       "while" => Type::WhileKeyword, "until" => Type::UntilKeyword,
       "end" => Type::EndKeyword, "break" => Type::BreakKeyword,
       "if" => Type::IfKeyword, "elsif" => Type::ElsifKeyword, "else" => Type::ElseKeyword,
+      "case" => Type::CaseKeyword, "when" => Type::WhenKeyword,
       "def" => Type::DefKeyword, "return" => Type::ReturnKeyword,
       "main" => Type::MainKeyword, "do" => Type::DoKeyword,
       "true" => Type::TrueKeyword, "false" => Type::FalseKeyword,
@@ -125,6 +122,8 @@ module CrystalRobots::Compiler
       Rule.new(:elsif_head, /🔘#{V}⏎/, Type::ElsifHead),
       Rule.new(:while_head, /🔣#{V}⏎/, Type::WhileHead),
       Rule.new(:until_head, /🔂#{V}⏎/, Type::UntilHead),
+      Rule.new(:case_head, /🔔#{V}⏎/, Type::CaseHead),
+      Rule.new(:when_head, /🔶#{V}⏎/, Type::WhenHead),
       # simple statements
       Rule.new(:return, /↩#{V}?⏎/, Type::Statement),
       Rule.new(:break, /🔓⏎/, Type::Statement),
@@ -133,6 +132,7 @@ module CrystalRobots::Compiler
       Rule.new(:if, /🅸❢*(🅴❢*)*(🔗⏎❢*)?🔙⏎/, Type::Statement),
       Rule.new(:while, /🆆❢*🔙⏎/, Type::Statement),
       Rule.new(:until, /🆄❢*🔙⏎/, Type::Statement),
+      Rule.new(:case, /🅲(🆂❢*)+(🔗⏎❢*)?🔙⏎/, Type::Statement),
       Rule.new(:def, /🅳❢*🔙⏎/, Type::Statement),
       Rule.new(:main, /🅼❢*🔙⏎/, Type::Statement),
       Rule.new(:program, /\A❢+\z/, Type::Program),

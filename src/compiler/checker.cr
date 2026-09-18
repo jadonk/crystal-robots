@@ -104,7 +104,7 @@ module CrystalRobots::Compiler
         names << @program.value(@program.arg(expr, 0)) if {:assign, :opassign}.includes?(@program[expr].rule)
       when :while, :until
         body_of(stmt).each { |s| names.concat(assigned_names(s)) }
-      when :if
+      when :if, :case
         @program.children(stmt).each { |k| names.concat(assigned_names(k)) if @program.type(k) == Type::Statement }
       end
       names
@@ -131,6 +131,17 @@ module CrystalRobots::Compiler
         @program.children(stmt).each do |k|
           case @program.type(k)
           when Type::IfHead, Type::ElsifHead
+            check_expression(@program.arg(k, 1), scope)
+          when Type::Statement
+            check_statement(k, scope)
+          end
+        end
+      when :case
+        kids = @program.children(stmt)
+        check_expression(@program.arg(kids[0], 1), scope)
+        kids.each do |k|
+          case @program.type(k)
+          when Type::WhenHead
             check_expression(@program.arg(k, 1), scope)
           when Type::Statement
             check_statement(k, scope)

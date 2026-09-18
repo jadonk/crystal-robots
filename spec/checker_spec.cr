@@ -57,6 +57,11 @@ describe Checker do
     issues("def go\n1\nend\nputs go\n").should be_empty
   end
 
+  it "checks a case/when's subject and branches, including a name assigned in one" do
+    issues("case 1\nwhen 1\nputs mystery\nend\n").should eq ["undefined variable mystery"]
+    issues("def go(n)\ncase n\nwhen 1\nx = 1\nelse\nx = 2\nend\nx\nend\nputs go(1)\n").should be_empty
+  end
+
   it "allows an assignment inside a condition, at the top level and inside main" do
     issues("i = 3\nwhile (n = i) > 0\ni -= 1\nend\nputs n\n").should be_empty
     issues(%(main("Test") do\nwhile (n = 1) > 0\nbreak\nend\nputs n\nend\n)).should be_empty
