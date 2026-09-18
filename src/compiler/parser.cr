@@ -10,9 +10,10 @@ require "./program"
 # higher-precedence rules always win. Parsing ends when no rule matches;
 # success is the single Program glyph `⏹`.
 #
-# See docs/PARSER.md for the reasoning; this commit adds `main("Name") do
-# ... end`, the program's entry point, to the def/calls/return, builtins,
-# if/elsif/else, comparisons, loops and globals of the previous ones.
+# See docs/PARSER.md for the reasoning; this commit brings the grammar
+# from "everything the chasm-style walkthrough needed" toward parity with
+# the shipped example robots: `#` comments and the `true`/`false`
+# literals they lean on (`while true`) are the first two gaps.
 module CrystalRobots::Compiler
   class Parser
     class Error < Exception
@@ -33,6 +34,7 @@ module CrystalRobots::Compiler
       "if" => Type::IfKeyword, "elsif" => Type::ElsifKeyword, "else" => Type::ElseKeyword,
       "def" => Type::DefKeyword, "return" => Type::ReturnKeyword,
       "main" => Type::MainKeyword, "do" => Type::DoKeyword,
+      "true" => Type::TrueKeyword, "false" => Type::FalseKeyword,
       "damage" => Type::ZeroArgMethod, "speed" => Type::ZeroArgMethod, "loc_x" => Type::ZeroArgMethod,
       "loc_y" => Type::ZeroArgMethod, "sleep" => Type::ZeroArgMethod,
       "puts" => Type::OneArgMethod, "rand" => Type::OneArgMethod, "sqrt" => Type::OneArgMethod,
@@ -55,6 +57,7 @@ module CrystalRobots::Compiler
     # `KEYWORDS`, falling back to an identifier; `:operator` looks it up in
     # `OPERATORS`.
     LEXICAL = [
+      {/\A#[^\n]*/, :skip},
       {/\A[ \t\r]+/, :skip},
       {/\A(\n|;)+/, :newline},
       {/\A"[^"]*"/, :string},
@@ -93,6 +96,7 @@ module CrystalRobots::Compiler
       Rule.new(:main_head, /🏁⟮🐍⟯🔖⏎/, Type::MainHead),
       Rule.new(:global, /🌐⟮𝑥，#{V}⟯⏎/, Type::Statement),
       Rule.new(:def_head, /🔕𝑥(⟮(𝑥(，𝑥)*)?⟯)?⏎/, Type::DefHead),
+      Rule.new(:literal, /[🔢🔚]/, Type::Expression),
       Rule.new(:call0, /∉/, Type::Expression),
       Rule.new(:call, /𝑥⟮(#{V}(，#{V})*)?⟯/, Type::Expression),
       Rule.new(:paren, /⟮#{V}⟯/, Type::Expression),

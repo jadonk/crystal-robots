@@ -44,6 +44,8 @@ module CrystalRobots::Compiler
     ReturnKeyword = 0x000021A9 # ↩
     MainKeyword   = 0x0001F3C1 # 🏁
     DoKeyword     = 0x0001F516 # 🔖
+    TrueKeyword   = 0x0001F522 # 🔢
+    FalseKeyword  = 0x0001F51A # 🔚
 
     WhileHead = 0x0001F186 # 🆆
     UntilHead = 0x0001F184 # 🆄
