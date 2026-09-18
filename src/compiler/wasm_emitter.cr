@@ -62,6 +62,9 @@ module CrystalRobots::Compiler
       I32_mul    = 0x6c
       I32_div_s  = 0x6d
       I32_rem_s  = 0x6f
+      I32_and    = 0x71
+      I32_or     = 0x72
+      I32_xor    = 0x73
     end
 
     BlockVoid = 0x40_u8
@@ -349,7 +352,7 @@ module CrystalRobots::Compiler
         expression(@program.arg(i, 1), ctx)
       when :neg
         const(0) + expression(@program.arg(i, 1), ctx) + op(Opcodes::I32_sub)
-      when :mul, :add, :cmp, :eq
+      when :mul, :add, :cmp, :eq, :and, :or
         binary(@program.type(@program.arg(i, 1)), expression(@program.arg(i, 0), ctx), expression(@program.arg(i, 2), ctx))
       when :call0
         call(import_index(@program.lexeme(i)))
@@ -389,6 +392,11 @@ module CrystalRobots::Compiler
       when Type::GtOperator  then left + right + op(Opcodes::I32_gt_s)
       when Type::LeOperator  then left + right + op(Opcodes::I32_le_s)
       when Type::GeOperator  then left + right + op(Opcodes::I32_ge_s)
+      when Type::AndOperator
+        left + const(0) + op(Opcodes::I32_ne) + right + const(0) + op(Opcodes::I32_ne) + op(Opcodes::I32_and)
+      when Type::OrOperator
+        left + const(0) + op(Opcodes::I32_ne) + right + const(0) + op(Opcodes::I32_ne) + op(Opcodes::I32_or)
+      when Type::XorOperator then left + right + op(Opcodes::I32_xor)
       else
         raise Unsupported.new("operator #{opt} is not supported in WASM")
       end

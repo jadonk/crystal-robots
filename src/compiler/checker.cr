@@ -152,7 +152,7 @@ module CrystalRobots::Compiler
         check_expression(@program.arg(i, 2), scope)
       when :paren, :neg
         check_expression(@program.arg(i, 1), scope)
-      when :mul, :add, :cmp, :eq
+      when :mul, :add, :cmp, :eq, :and, :or
         check_expression(@program.arg(i, 0), scope)
         check_expression(@program.arg(i, 2), scope)
       when :command1, :call1

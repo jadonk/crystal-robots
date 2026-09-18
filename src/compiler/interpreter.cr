@@ -293,7 +293,7 @@ module CrystalRobots::Compiler
         eval(@program.arg(i, 1), scope)
       when :neg
         -eval(@program.arg(i, 1), scope)
-      when :mul, :add, :cmp, :eq
+      when :mul, :add, :cmp, :eq, :and, :or
         binary(@program.type(@program.arg(i, 1)), eval(@program.arg(i, 0), scope), eval(@program.arg(i, 2), scope))
       when :call0
         builtin0(@program.lexeme(i))
@@ -326,6 +326,9 @@ module CrystalRobots::Compiler
       when Type::GtOperator  then left > right ? 1 : 0
       when Type::LeOperator  then left <= right ? 1 : 0
       when Type::GeOperator  then left >= right ? 1 : 0
+      when Type::AndOperator then left != 0 && right != 0 ? 1 : 0
+      when Type::OrOperator  then left != 0 || right != 0 ? 1 : 0
+      when Type::XorOperator then left ^ right
       else
         raise "operator #{opt} is not supported by the interpreter"
       end

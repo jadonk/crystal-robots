@@ -21,6 +21,16 @@ end
 # signal on a machine without libwasmer. Wasmer 4.4.0 is the last release
 # with a linux-musl build; install it and `export WASMER_DIR=$HOME/.wasmer`
 # before running with `-Dwasmer`.
+#
+# Also `export GC_DONT_GC=1` for that run: past roughly a hundred examples
+# that each create their own `Wasmer::Engine`/`Store`/`Function` closures,
+# Boehm GC's finalizer thread occasionally races the wasmer-crystal shard's
+# native cleanup (`fatal runtime error: Rust cannot catch foreign
+# exceptions`, or a bare segfault) -- reproducible with the grammar
+# entirely unrelated to which spec happens to trip it. Disabling
+# collection for the run's short lifetime (a spec process exits in
+# seconds) sidesteps the race instead of chasing it in a shard this
+# project does not own.
 {% if flag?(:wasmer) %}
   require "wasmer"
 

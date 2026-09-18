@@ -36,6 +36,9 @@ module CrystalRobots::Compiler
     LtOperator       = 0x0000227A # ≺
     GeOperator       = 0x0000227D # ≽
     LeOperator       = 0x0000227C # ≼
+    AndOperator      = 0x00002227 # ∧
+    OrOperator       = 0x00002228 # ∨
+    XorOperator      = 0x000022BB # ⊻
 
     WhileKeyword  = 0x0001F523 # 🔣
     UntilKeyword  = 0x0001F502 # 🔂
