@@ -73,6 +73,11 @@ module CrystalRobots::Compiler
           name = @program.lexeme(idents[0])
           issue(idents[0], "#{name} is already defined") if @arity.has_key?(name)
           @arity[name] = idents.size - 1
+        when :exprstmt
+          # A plain top-level assignment (`C1X = 10`) is an implicit
+          # global too, the shape the example robots use for constants.
+          expr = @program.arg(stmt, 0)
+          @globals << @program.value(@program.arg(expr, 0)) if @program[expr].rule == :assign
         end
       end
     end
@@ -140,7 +145,8 @@ module CrystalRobots::Compiler
       when :lex
         if n.type == Type::Identifier
           name = @program.value(n)
-          issue(i, "undefined variable #{name}") unless scope.locals.includes?(name) || @globals.includes?(name)
+          known = scope.locals.includes?(name) || @globals.includes?(name) || @arity[name]? == 0
+          issue(i, "undefined variable #{name}") unless known
         end
       when :assign
         check_expression(@program.arg(i, 2), scope)

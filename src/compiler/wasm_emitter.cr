@@ -167,6 +167,15 @@ module CrystalRobots::Compiler
           name = @program.lexeme(idents[0])
           @functions << name
           @arity[name] = idents.size - 1
+        when :exprstmt
+          # A plain top-level assignment (`C1X = 10`) is an implicit
+          # global too -- the shape the example robots use for constants,
+          # never wrapped in `global(...)`.
+          expr = @program.arg(stmt, 0)
+          if @program[expr].rule == :assign
+            name = @program.value(@program.arg(expr, 0))
+            @globals << name unless @globals.includes?(name)
+          end
         end
       end
       used = Set(String).new
@@ -282,6 +291,17 @@ module CrystalRobots::Compiler
       end
     end
 
+    # An identifier in value position: a variable fetch, or -- if it is
+    # not a variable at all -- a call to a zero-parameter function, the
+    # `run`/`change`/`new_corner` style bare calls the example robots use.
+    private def identifier_get(name : String, ctx : Ctx) : Bytes
+      if !ctx.locals.has_key?(name) && !@globals.includes?(name) && @arity[name]? == 0
+        call(function_index(name))
+      else
+        variable_get(name, ctx)
+      end
+    end
+
     private def new_local(ctx : Ctx, name : String) : Int32
       ctx.locals[name] = ctx.locals.size
     end
@@ -310,7 +330,7 @@ module CrystalRobots::Compiler
       n = @program[i]
       case n.rule
       when :lex
-        n.type == Type::Identifier ? variable_get(@program.value(n), ctx) : const(@program.value(n).to_i32)
+        n.type == Type::Identifier ? identifier_get(@program.value(n), ctx) : const(@program.value(n).to_i32)
       when :literal
         const(@program.type(@program.arg(i, 0)) == Type::TrueKeyword ? 1 : 0)
       when :assign

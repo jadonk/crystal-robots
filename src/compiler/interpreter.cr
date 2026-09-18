@@ -127,6 +127,29 @@ module CrystalRobots::Compiler
     def initialize(@program : Program, @host : Host)
       @globals = {} of String => Int32
       @functions = {} of String => Int32
+      @arity = {} of String => Int32
+      # A static pass, matching `WASM_Emitter`'s: every `global(...)` and
+      # every plain top-level assignment (the shape the example robots use
+      # for constants, `C1X = 10`) declares a global up front, at 0, so a
+      # function reads the same set of globals no matter what has run yet.
+      body_of(@program.root).each do |stmt|
+        case @program[stmt].rule
+        when :global
+          @globals[@program.value(@program.arg(stmt, 2))] = 0
+        when :def
+          head = @program.children(stmt)[0]
+          idents = @program.children(head).select { |i| @program.type(i) == Type::Identifier }
+          name = @program.lexeme(idents[0])
+          @functions[name] = stmt
+          @arity[name] = idents.size - 1
+        when :exprstmt
+          expr = @program.arg(stmt, 0)
+          if @program[expr].rule == :assign
+            name = @program.value(@program.arg(expr, 0))
+            @globals[name] = 0 unless @globals.has_key?(name)
+          end
+        end
+      end
     end
 
     def run : Nil
@@ -135,9 +158,6 @@ module CrystalRobots::Compiler
       body_of(@program.root).each do |stmt|
         case @program[stmt].rule
         when :def
-          head = @program.children(stmt)[0]
-          idents = @program.children(head).select { |i| @program.type(i) == Type::Identifier }
-          @functions[@program.lexeme(idents[0])] = stmt
         when :main
           main_stmts = body_of(stmt)
         else
@@ -210,6 +230,17 @@ module CrystalRobots::Compiler
       0
     end
 
+    # An identifier in value position: a variable fetch, or -- if it is
+    # not a variable at all -- a call to a zero-parameter function, the
+    # `run`/`change`/`new_corner` style bare calls the example robots use.
+    private def identifier_get(name : String, scope : Scope) : Int32
+      if !scope.locals.has_key?(name) && !@globals.has_key?(name) && @arity[name]? == 0
+        call_function(name, [] of Int32)
+      else
+        scope.locals[name]? || @globals[name]? || raise "undefined variable #{name}"
+      end
+    end
+
     private def call_function(name : String, args : Array(Int32)) : Int32
       stmt = @functions[name]? || raise "undefined function #{name}"
       head = @program.arg(stmt, 0)
@@ -230,8 +261,7 @@ module CrystalRobots::Compiler
       case n.rule
       when :lex
         return @program.value(n).to_i32 unless n.type == Type::Identifier
-        name = @program.value(n)
-        scope.locals[name]? || @globals[name]? || raise "undefined variable #{name}"
+        identifier_get(@program.value(n), scope)
       when :literal
         @program.type(@program.arg(i, 0)) == Type::TrueKeyword ? 1 : 0
       when :assign

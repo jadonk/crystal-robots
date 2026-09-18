@@ -49,6 +49,14 @@ describe Checker do
     issues("def first\nsecond()\nend\ndef second\n1\nend\nputs first()\n").should be_empty
   end
 
+  it "allows a plain top-level assignment as an implicit global constant" do
+    issues("C1X = 10\nputs C1X\n").should be_empty
+  end
+
+  it "allows a bare call to a zero-argument function" do
+    issues("def go\n1\nend\nputs go\n").should be_empty
+  end
+
   it "reports every issue, not just the first" do
     issues("puts mystery\nputs go(1)\n").should eq ["undefined variable mystery", "undefined function go"]
   end
