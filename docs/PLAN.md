@@ -54,6 +54,8 @@ compiler work is fixed alongside the migration, not after it.
 
 | **[tried 2026-09-14]** 2026-09-11 | Gate regression fix (trunk-ops on `4f6581bb`): the single-query listing split each SQL row at the FIRST space, so any `robot/*` page name with a space — live or a deleted one's leftover tag — crashed the overview, battle and wiki routes for everyone; rows now split at the LAST space (the hex payload never contains one), covered by a spec with a space-named robot and a deleted space-named tag asserting `/`, `/battle` and `/wiki/<name>` stay 200. Also from the same review: a failed `fossil sql` now raises instead of rendering an empty 200 listing; the docs sanitizer strips script tags case-insensitively plus event attributes and `javascript:` links as defense in depth; `search-index.js`/`index.json` are no longer embedded (the search UI they back is already stripped); `scripts/ci.sh` refuses the release `shards build` when `manifest.uuid` is missing or empty (a plain `crystal build` outside ci.sh still falls back to "unknown" for local dev) |
 
+| 2026-09-17 | Maintainer correction and expansion of Phase 6: the AST-once-built diagram is a third view, distinct from the existing parse-in-progress derivation and the planned interpreter-walk diagram; `crystal_emitter` must round-trip (source → AST → `crystal_emitter` → recompile → identical behavior), a bar that must keep holding once GPCR (a future Crystal-subset DSL, additive to crystal-robots's own syntax) exists; battlefield-visual, execution-stepping and browser-editor backlog items opened (see "Phase 6 correction and expansion" below and the [Backlog](/wiki?name=Backlog) wiki page) |
+
 Spec suite: 101 examples green with `-Dwasmer`; `scripts/ci.sh --with-wasmer` green end to end.
 
 **WASM robots on the battlefield, decided.** Cycle ticks are injected at
@@ -343,6 +345,92 @@ byes, and the later link-length and refight-budget fixes born from real
 play are all recorded there in the order they were decided. That page,
 not this plan, is the design record for any future change to the
 tournament format.
+
+### Phase 6 correction and expansion (2026-09-17)
+
+MAINTAINER 2026-09-17: three corrections to the Phase 6 read above, plus
+new backlog scope for the battlefield-visuals and editor goals. Two
+standing invariants bound all of it, restated here because every item
+below has to be checked against them: (1) a battle stays reproducible
+without saving anything beyond what already reproduces it today — robot
+source, seed and cycle count, the same trick the tournament's `mv=`
+outcome string already applies at a coarser grain (previous section); no
+feature here may require persisting full frame logs to replay a match.
+(2) the compiler, interpreter and battlefield rules do not change for any
+visualization or editor work; a diagram or an editor is a new *view* onto
+the existing engine, never a second implementation of it.
+
+1. **Three distinct views, not one.** "The AST tree-walk... rendered as
+   Pikchr diagrams," above, reads as a single feature; it is really three,
+   and only the third was previously written down:
+   - **Parsing as it is done** — the parse page's existing pass-by-pass
+     derivation (Phase 1, shipped). Unchanged.
+   - **The AST once built** — a new, static structural diagram of the
+     parsed tree, what `dot_emitter` was going to draw with Graphviz
+     (`examples/test.dot`), now rendered as Pikchr/Markdown instead of
+     `dot`, matching the drop-`dot` decision already made 2026-09-14.
+     This is new work; nothing renders it today.
+   - **The interpreter's walk** — the tree-walk trace (walk order, scope
+     chain, cycle charge) already planned above. Execution, not
+     structure; keep it a separate diagram from the AST-once-built view
+     even though both are Pikchr-over-Markdown and both read the same
+     AST.
+   `examples/test.dot` and its `.svg.png` sample stay only as reference
+   for the shape of a diagram, not as an output format to reproduce.
+2. **`crystal_emitter` round-trips.** Compiling a crystal-robots source to
+   its AST and back out through `crystal_emitter` must reproduce source
+   that itself parses, checks and battles identically to the original —
+   a golden per-example spec (source → AST → `crystal_emitter` →
+   recompile → same checker result and same battle trace under a fixed
+   seed), not just "the file exists." This bar carries forward unchanged
+   once GPCR (next item) exists: whichever front end produced the AST,
+   `crystal_emitter`'s round-trip guarantee must still hold.
+3. **GPCR, forward-looking.** A future Crystal-language subset/library/
+   annotation DSL that can be graphically rendered (name and scope as
+   given by the maintainer; confirm with the coordinator whether it is
+   the same codebase as the "GP-Crystal" reference deployment already
+   cited in Phase 5, or a new one, before assuming either). crystal-robots
+   keeps its own syntax; GPCR is additive, not a replacement. Aspirational
+   direction, not scheduled: crystal-robots's grammar becomes a subset of
+   GPCR's Crystal subset, so one parser/checker/interpreter/emitter
+   pipeline serves both as interchangeable front ends on this same
+   server — the strongest demonstration available here of what a shared
+   compiler backend buys. Until that work starts, the only obligation on
+   Phase 6 work is to not paint the AST/emitter interfaces into a
+   crystal-robots-syntax-specific corner where the cost of a second front
+   end would otherwise be avoidable.
+
+New backlog scope opened by the same instruction, aimed at the stated
+goal: get a young robot-builder like the bash wiki user from "interested"
+to "able to ship a robot" with less friction.
+
+4. **Battlefield visual upgrades**, built on the already-prioritized
+   Phase 5b browser-hosted compiler: runtime-configurable cycle count and
+   playback speed with no server round-trip; a dynamically selectable
+   number of rendered cycles at a much higher rate than today's one
+   SMIL-replay-per-page-load path; frames chosen so that recorded events
+   (cannon fire, missile impact — the Phase 3 frame trace already carries
+   them) are never skipped by a fixed-interval downsampling choice;
+   optionally, a robot's wiki page carries a Pikchr fragment the renderer
+   substitutes for the default glyph, for a custom look.
+5. **Execution stepping**, source-level and WASM-level side by side —
+   CROBOTS's own single-step debugger is the inspiration, kept usable
+   from both the browser and the CLI (`-t`/`-i` already give a coarse
+   form of this; extend rather than replace).
+6. **A browser robot editor** that forks any example or saved wiki robot
+   into an editable buffer, checks it live against Phase 5b's
+   browser-hosted checker instead of round-tripping to the server, and
+   shows one consolidated cheat-sheet next to the editor rather than the
+   full `crystal docs` API dump — evolving `src/web/robot_api.cr`'s
+   existing kid-worded, grouped panel (Sense/Move/Shoot/Math/Output) in
+   place rather than building a second reference surface.
+
+A new wiki page, ["Robot Builder ideas"](/wiki?name=Robot+Builder+ideas),
+opens the same live-design loop with the bash user for items 4-6 that
+"Tournament ideas" ran for the tournament: ask concrete either/or
+questions with a Pikchr sketch, build exactly what comes back. Wait for
+answers there before committing to specifics beyond what is written
+above.
 
 ### Phase 7: GitLab to Fossil migration and housekeeping
 
