@@ -60,6 +60,22 @@ describe Interpreter do
     interpret_puts(source).should eq [1, 0]
   end
 
+  it "treats a plain top-level assignment as an implicit global, and calls a zero-arg function bare" do
+    source = <<-ROBOT
+      C1X = 10
+      C1Y = 20
+      global(count, 0)
+      def bump
+      count = count + 1
+      end
+      bump
+      bump
+      puts C1X + C1Y
+      puts count
+      ROBOT
+    interpret_puts(source).should eq [30, 2]
+  end
+
   it "runs main last" do
     interpret_puts("puts 1\nmain(\"Test\") do\nputs 2\nend\n").should eq [1, 2]
   end

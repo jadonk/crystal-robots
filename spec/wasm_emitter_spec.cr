@@ -39,6 +39,14 @@ describe W do
     run_puts("puts 7 / 2\nputs 7 // 2\nputs 7 % 2\n").should eq [3, 3, 1]
   end
 
+  wasmer_it "treats a plain top-level assignment as an implicit global constant" do
+    run_puts("C1X = 10\nC1Y = 20\ndef total\nC1X + C1Y\nend\nputs total\n").should eq [30]
+  end
+
+  wasmer_it "calls a zero-argument user function without parens" do
+    run_puts("global(count, 0)\ndef bump\ncount = count + 1\nend\nbump\nbump\nputs count\n").should eq [2]
+  end
+
   wasmer_it "declares a global and reads it back" do
     run_puts("global(count, 5)\nputs count\n").should eq [5]
   end
