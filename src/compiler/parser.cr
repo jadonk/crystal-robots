@@ -99,6 +99,8 @@ module CrystalRobots::Compiler
       Rule.new(:literal, /[🔢🔚]/, Type::Expression),
       Rule.new(:call0, /∉/, Type::Expression),
       Rule.new(:call, /𝑥⟮(#{V}(，#{V})*)?⟯/, Type::Expression),
+      Rule.new(:call1, /∊⟮#{V}⟯/, Type::Expression),
+      Rule.new(:call2, /∋⟮#{V}，#{V}⟯/, Type::Expression),
       Rule.new(:paren, /⟮#{V}⟯/, Type::Expression),
       Rule.new(:neg, /(?<![№𝑥😑⟯])⊖#{V}/, Type::Expression),
       Rule.new(:mul, infix(MULOPS, ""), Type::Expression),

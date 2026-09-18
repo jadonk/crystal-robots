@@ -324,10 +324,12 @@ module CrystalRobots::Compiler
         binary(@program.type(@program.arg(i, 1)), expression(@program.arg(i, 0), ctx), expression(@program.arg(i, 2), ctx))
       when :call0
         call(import_index(@program.lexeme(i)))
-      when :command1
-        expression(@program.arg(i, 1), ctx) + call(import_index(@program.lexeme(@program.arg(i, 0))))
-      when :command2
-        expression(@program.arg(i, 1), ctx) + expression(@program.arg(i, 3), ctx) +
+      when :command1, :call1
+        arg_index = n.rule == :call1 ? 2 : 1
+        expression(@program.arg(i, arg_index), ctx) + call(import_index(@program.lexeme(@program.arg(i, 0))))
+      when :command2, :call2
+        a, b = n.rule == :call2 ? {2, 4} : {1, 3}
+        expression(@program.arg(i, a), ctx) + expression(@program.arg(i, b), ctx) +
           call(import_index(@program.lexeme(@program.arg(i, 0))))
       when :call
         kids = @program.children(i)
