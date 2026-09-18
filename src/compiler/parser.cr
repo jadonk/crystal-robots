@@ -10,10 +10,12 @@ require "./program"
 # higher-precedence rules always win. Parsing ends when no rule matches;
 # success is the single Program glyph `⏹`.
 #
-# See docs/PARSER.md for the reasoning; this commit brings the grammar
-# from "everything the chasm-style walkthrough needed" toward parity with
-# the shipped example robots: `#` comments and the `true`/`false`
-# literals they lean on (`while true`) are the first two gaps.
+# See docs/PARSER.md for the reasoning; this commit generalizes assign,
+# opassign, command1 and command2's lookahead from "only before a
+# newline" to "before a newline, a closing paren, or a comma" -- the full
+# set from docs/PARSER.md section 2.2 -- so assignment and a bare builtin
+# call can appear inside a parenthesized condition or as a call argument,
+# not only as a whole statement.
 module CrystalRobots::Compiler
   class Parser
     class Error < Exception
@@ -113,11 +115,11 @@ module CrystalRobots::Compiler
       Rule.new(:eq, infix(EQOPS, MULOPS + ADDOPS + CMPOPS), Type::Expression),
       Rule.new(:and, infix(ANDOPS, MULOPS + ADDOPS + CMPOPS + EQOPS), Type::Expression),
       Rule.new(:or, infix(OROPS, MULOPS + ADDOPS + CMPOPS + EQOPS + ANDOPS), Type::Expression),
-      Rule.new(:command1, /∊#{V}(?=[⏎⟯])/, Type::Expression),
-      Rule.new(:command2, /∋#{V}，#{V}(?=[⏎⟯])/, Type::Expression),
+      Rule.new(:command1, /∊#{V}(?=[⏎⟯，])/, Type::Expression),
+      Rule.new(:command2, /∋#{V}，#{V}(?=[⏎⟯，])/, Type::Expression),
       # assignment is right associative: only once the value is complete
-      Rule.new(:assign, /𝑥＝#{V}(?=⏎)/, Type::Expression),
-      Rule.new(:opassign, /𝑥[➕➖✖⁒]#{V}(?=⏎)/, Type::Expression),
+      Rule.new(:assign, /𝑥＝#{V}(?=[⏎⟯，])/, Type::Expression),
+      Rule.new(:opassign, /𝑥[➕➖✖⁒]#{V}(?=[⏎⟯，])/, Type::Expression),
       # block headers
       Rule.new(:if_head, /🔜#{V}⏎/, Type::IfHead),
       Rule.new(:elsif_head, /🔘#{V}⏎/, Type::ElsifHead),

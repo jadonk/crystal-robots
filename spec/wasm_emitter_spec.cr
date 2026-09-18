@@ -59,6 +59,31 @@ describe W do
     run_puts("global(count, 0)\ndef bump\ncount = count + 1\nend\nbump\nbump\nputs count\n").should eq [2]
   end
 
+  wasmer_it "allows an assignment inside a condition" do
+    source = <<-ROBOT
+      global(range, 0)
+      global(shots, 0)
+      i = 5
+      while (range = i) > 0
+      shots += 1
+      i -= 1
+      end
+      puts range
+      puts shots
+      ROBOT
+    run_puts(source).should eq [0, 5]
+  end
+
+  wasmer_it "allows a bare builtin call as a call argument, ended by the comma" do
+    source = <<-ROBOT
+      def sum(a, b)
+      a + b
+      end
+      puts sum(sqrt 16, sqrt 9)
+      ROBOT
+    run_puts(source).should eq [7]
+  end
+
   wasmer_it "declares a global and reads it back" do
     run_puts("global(count, 5)\nputs count\n").should eq [5]
   end
