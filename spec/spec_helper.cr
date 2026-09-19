@@ -7,6 +7,7 @@ require "../src/compiler/wasm_emitter"
 require "../src/battle/field"
 require "../src/battle/robot_host"
 require "../src/battle/match"
+require "../src/tournament/tournament"
 require "../src/web/app"
 
 alias BattleField = CrystalRobots::Battle::Field
