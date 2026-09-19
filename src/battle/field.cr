@@ -1,10 +1,10 @@
 # The CROBOTS battlefield, ported from the original C source
 # (tpoindex/crobots, `motion.c`/`intrins.c`/`main.c`), not from memory --
-# see the README for where that source lives. This commit is robot
-# motion only: speed moderated by acceleration, heading changes allowed
-# only below `TURN_SPEED`, position updated from heading and distance
-# traveled, and collisions with another robot or a wall. Missiles and the
-# scanner (`move_miss`, `c_scan`) are later commits.
+# see the README for where that source lives. This commit adds missiles:
+# firing (`c_cannon`), flight and explosion (`move_miss`), and the
+# explosion-radius damage table. The scanner (`c_scan`) is a later
+# commit; nothing here is wired to a running robot program yet -- `Field`
+# is exercised directly.
 module CrystalRobots::Battle
   MAX_X = 1000 # meters
   MAX_Y = 1000 # meters
@@ -15,6 +15,21 @@ module CrystalRobots::Battle
   ACCEL       = 10 # acceleration per motion cycle
 
   COLLISION = 2 # damage percent for hitting a robot or a wall
+
+  MIS_SPEED = 500 # how far a missile flies in one motion cycle, in clicks
+  MIS_RANGE = 700 # maximum cannon range, meters
+  MIS_ROBOT =   2 # missiles a robot may have in the air at once
+  RELOAD    =  15 # motion cycles between shots
+  EXP_COUNT =   5 # motion cycles an exploded missile lingers before reload
+
+  # Explosion damage by distance from the blast, closest first; a robot
+  # beyond FAR_RANGE takes no damage. (exp_dam in motion.c.)
+  DIRECT_RANGE =  5
+  DIRECT_HIT   = 10
+  NEAR_RANGE   = 20
+  NEAR_HIT     =  5
+  FAR_RANGE    = 40
+  FAR_HIT      =  3
 
   # Fixed-point sin/cos, scaled by 100000 like CROBOTS's own lookup
   # table (`trig_tbl` in motion.c) and its `sin`/`cos` builtins, so a
@@ -54,16 +69,34 @@ module CrystalRobots::Battle
     end
   end
 
+  enum MissileStatus
+    Avail
+    Flying
+    Exploding
+  end
+
+  class Missile
+    property status : MissileStatus = MissileStatus::Avail
+    property beg_x = 0, beg_y = 0 # firing position, clicks
+    property cur_x = 0, cur_y = 0 # current position, clicks
+    property heading = 0          # 0..359
+    property count = 0            # motion cycles left showing EXPLODING
+    property range = 0            # target range, clicks
+    property curr_dist = 0        # distance flown so far, clicks
+  end
+
   # 1000x1000 meter field; robots given at construction start in
   # separate quadrants (`rand_pos` in main.c). A seed makes a match
   # reproducible.
   class Field
     getter robots : Array(Robot)
+    getter missiles : Array(Array(Missile))
 
     def initialize(names : Array(String), seed : Int32? = nil)
       raise ArgumentError.new("at most 4 robots") if names.size > 4
       @rng = seed ? Random.new(seed) : Random.new
       @robots = names.map { |n| Robot.new(n) }
+      @missiles = @robots.map { Array.new(MIS_ROBOT) { Missile.new } }
       place_robots
     end
 
@@ -134,6 +167,107 @@ module CrystalRobots::Battle
 
         check_collisions(i)
         check_walls(r)
+      end
+    end
+
+    # c_cannon (intrins.c): fire from robot `i` if its cannon is not
+    # reloading and it has a missile available. Faithfully reproduces one
+    # CROBOTS quirk: a negative distance reports success (returns `true`)
+    # without actually firing anything.
+    def fire_missile(i : Int32, degree : Int32, distance : Int32) : Bool
+      distance = MIS_RANGE if distance > MIS_RANGE
+      return true if distance < 0
+      degree = degree.abs
+      degree %= 360 if degree >= 360
+
+      r = @robots[i]
+      return false if r.reload > 0
+      slot = @missiles[i].find(&.status.avail?)
+      return false unless slot
+
+      r.reload = RELOAD
+      slot.status = MissileStatus::Flying
+      slot.beg_x = slot.cur_x = r.x
+      slot.beg_y = slot.cur_y = r.y
+      slot.heading = degree
+      slot.range = distance * CLICK
+      slot.curr_dist = 0
+      slot.count = EXP_COUNT
+      true
+    end
+
+    # move_miss (motion.c), plus count_miss (display.c) folded in: every
+    # flying missile advances toward its target range or a wall, exploding
+    # (and damaging nearby robots, once) when it reaches either; an
+    # exploded missile becomes available again after EXP_COUNT cycles.
+    def move_missiles : Nil
+      @missiles.each do |robot_missiles|
+        robot_missiles.each do |m|
+          case m.status
+          when .flying?
+            advance_missile(m)
+          when .exploding?
+            if m.count <= 0
+              m.status = MissileStatus::Avail
+            else
+              m.count -= 1
+            end
+          else
+            # available: nothing to do
+          end
+        end
+      end
+    end
+
+    private def advance_missile(m : Missile) : Nil
+      m.curr_dist += MIS_SPEED
+      m.curr_dist = m.range if m.curr_dist > m.range
+
+      x = (m.beg_x + (lcos(m.heading) * (m.curr_dist // CLICK)).tdiv(SCALE)).to_i32
+      y = (m.beg_y + (lsin(m.heading) * (m.curr_dist // CLICK)).tdiv(SCALE)).to_i32
+
+      if x < 0
+        m.status = MissileStatus::Exploding
+        x = 1
+      elsif x >= MAX_X * CLICK
+        m.status = MissileStatus::Exploding
+        x = (MAX_X * CLICK) - 1
+      end
+      if y < 0
+        m.status = MissileStatus::Exploding
+        y = 1
+      elsif y > MAX_Y * CLICK
+        m.status = MissileStatus::Exploding
+        y = (MAX_Y * CLICK) - 1
+      end
+
+      m.cur_x = x
+      m.cur_y = y
+      m.status = MissileStatus::Exploding if m.curr_dist == m.range
+
+      apply_explosion_damage(m) if m.status.exploding?
+    end
+
+    private def apply_explosion_damage(m : Missile) : Nil
+      @robots.each do |target|
+        next unless target.alive?
+        dx = (target.x - m.cur_x) // CLICK
+        dy = (target.y - m.cur_y) // CLICK
+        d = Math.sqrt((dx*dx + dy*dy).to_f64).to_i32
+
+        dmg = if d < DIRECT_RANGE
+                DIRECT_HIT
+              elsif d < NEAR_RANGE
+                NEAR_HIT
+              elsif d < FAR_RANGE
+                FAR_HIT
+              end
+        next unless dmg
+        target.damage += dmg
+        if target.damage >= 100
+          target.damage = 100
+          target.status = :dead
+        end
       end
     end
 
