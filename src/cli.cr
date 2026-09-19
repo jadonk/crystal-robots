@@ -6,6 +6,8 @@ require "./compiler/checker"
 require "./compiler/interpreter"
 require "./compiler/wasm_emitter"
 require "./compiler/disassembler"
+require "./battle/field"
+require "./battle/match"
 
 module CrystalRobots::CLI
   private def self.parsed_program(file : String) : Compiler::Program
@@ -31,8 +33,11 @@ module CrystalRobots::CLI
   def self.run(argv : Array(String)) : Nil
     mode = :help
     output = nil
+    matches = 1
+    cycle_limit = 500_000
+    seed = nil
     parser = OptionParser.new do |p|
-      p.banner = "Usage: crystal-robots [options] FILE"
+      p.banner = "Usage: crystal-robots [options] FILE..."
       p.on("-v", "--version", "Print the version") { puts "crystal-robots #{VERSION}"; exit }
       p.on("-t", "--trace", "Print the parser's derivation, one line per pass") { mode = :trace }
       p.on("-k", "--check", "Run the checker and print any issues found") { mode = :check }
@@ -40,6 +45,9 @@ module CrystalRobots::CLI
       p.on("-d", "--disassemble", "Compile and print a readable instruction dump") { mode = :disassemble }
       p.on("-i", "--interpret", "Run in the reference interpreter") { mode = :interpret }
       p.on("-o FILE", "--output=FILE", "Where -c writes the WebAssembly module") { |f| output = f }
+      p.on("-m NUM", "--matches=NUM", "Run NUM seeded matches among two or more robots") { |n| matches = n.to_i; mode = :battle }
+      p.on("-l NUM", "--limit=NUM", "Cycle limit per match (default 500000)") { |n| cycle_limit = n.to_i }
+      p.on("--seed=NUM", "Seed the first match's RNG, for reproducible results") { |n| seed = n.to_i }
       p.on("-h", "--help", "Show this help") { puts p; exit }
     end
     parser.parse(argv)
@@ -63,8 +71,40 @@ module CrystalRobots::CLI
     when :interpret
       program = checked_program(file || abort "usage: crystal-robots -i FILE")
       Compiler::Interpreter.execute(program, Compiler::ConsoleHost.new)
+    when :battle
+      run_matches(argv, matches, cycle_limit, seed)
     else
       puts "crystal-robots #{VERSION}: nothing to do yet, see --help"
+    end
+  end
+
+  # Runs `count` seeded matches among the robots in `files` (at least
+  # two, each checked first) and prints each match's outcome, then a
+  # score table when there is more than one match.
+  private def self.run_matches(files : Array(String), count : Int32, cycle_limit : Int32, seed : Int32?) : Nil
+    abort "usage: crystal-robots -m NUM FILE FILE..." if files.size < 2
+    names = files.map { |f| File.basename(f, ".cr") }
+    programs = files.map { |f| checked_program(f) }
+    wins = Hash(String, Int32).new(0)
+
+    count.times do |i|
+      match_seed = seed ? seed + i : nil
+      field = Battle::Field.new(names, match_seed)
+      match = Battle::Match.new(field, programs, cycle_limit: cycle_limit)
+      match.run
+      survivors = field.robots.select(&.alive?)
+      report = "match #{i + 1}: #{match.rounds} rounds, " + field.robots.map { |r| "#{r.name} #{r.damage}%#{" (dead)" unless r.alive?}" }.join(", ")
+      if survivors.size == 1
+        wins[survivors[0].name] += 1
+        puts "#{report} -- #{survivors[0].name} wins"
+      else
+        puts "#{report} -- no winner"
+      end
+    end
+
+    if count > 1
+      puts "\nscore:"
+      names.each { |n| puts "  #{n}: #{wins[n]}" }
     end
   end
 end

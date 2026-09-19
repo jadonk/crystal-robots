@@ -40,4 +40,13 @@ describe "crystal-robots CLI" do
     output.should contain "i32_const 42"
     output.should contain "call 0"
   end
+
+  it "-m runs a seeded match between two robots and reports the outcome" do
+    output = `crystal run src/cli.cr -- -m 2 -l 500 --seed 3 examples/target.cr examples/rabbit.cr`
+    output.should contain "match 1:"
+    output.should contain "match 2:"
+    output.should contain "score:"
+    output.should contain "target:"
+    output.should contain "rabbit:"
+  end
 end
