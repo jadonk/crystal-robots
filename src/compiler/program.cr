@@ -123,6 +123,14 @@ module CrystalRobots::Compiler
       String.build { |io| layer.each { |i| io << @ast[i].type.glyph } }
     end
 
+    # Total glyphs emitted by every pass so far: the parser's work so
+    # far, distinct from the input's length -- a long operator chain
+    # re-emits one fewer glyph each pass, so its cost is the square of
+    # its length, not its length.
+    def emitted : Int32
+      @source.size - @text.size
+    end
+
     # Node indexes of the latest pass.
     def current : Array(Int32)
       @layers.last? || [] of Int32

@@ -140,8 +140,17 @@ module CrystalRobots::Compiler
 
     property program : Program
 
+    # Work budgets, for source from a web request rather than a file: a
+    # long operator chain reduces one glyph per pass, so its total cost
+    # (glyphs emitted) is the square of its length, not its length. Two
+    # million glyphs is a few hundred passes over a robot several times
+    # the size of the largest example, well under a second of work.
+    class_property max_passes = 20_000
+    class_property max_glyphs = 2_000_000
+
     # Parse `src` completely. Raises `Parser::Error` when the text cannot
-    # be reduced to a program.
+    # be reduced to a program, or when it cannot be reduced within the
+    # pass/glyph budgets above.
     def initialize(src : String = "")
       @program = Program.new(src)
       Parser.parse(@program)
@@ -150,6 +159,10 @@ module CrystalRobots::Compiler
     def self.parse(p : Program) : Program
       lex(p)
       while reduce_once(p)
+        raise Error.new("Program needs more than #{max_passes} passes") if p.passes > max_passes
+        if p.emitted > max_glyphs
+          raise Error.new("Program is too large to parse (more than #{max_glyphs} glyphs of work)")
+        end
       end
       unless p.parsed?
         raise Error.new("Cannot reduce #{p.glyphs(p.current)}")

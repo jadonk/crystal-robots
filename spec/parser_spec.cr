@@ -109,4 +109,17 @@ describe Parser do
     Parser.new("puts (1 + 2) * 3\n").program.parsed?.should be_true
     Parser.new("puts -5 + 2\n").program.parsed?.should be_true
   end
+
+  it "raises instead of doing unbounded work on a pathological chain" do
+    old_passes, old_glyphs = Parser.max_passes, Parser.max_glyphs
+    begin
+      Parser.max_passes = 5
+      Parser.max_glyphs = 1_000_000
+      long_chain = "puts " + (["1"] * 50).join(" + ") + "\n"
+      expect_raises(Parser::Error, /more than 5 passes/) { Parser.new(long_chain) }
+    ensure
+      Parser.max_passes = old_passes
+      Parser.max_glyphs = old_glyphs
+    end
+  end
 end

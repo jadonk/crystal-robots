@@ -3,8 +3,12 @@ require "../spec_helper"
 alias App = CrystalRobots::Web::App
 alias Request = CrystalRobots::Web::Request
 
-private def request(path : String, caps : String = "oi", params = {} of String => String) : Request
-  Request.new("GET", path, params, "/ext/crystal-robots", "someone", caps)
+private def request(path : String, caps : String = "oi", params = {} of String => String, method = "GET") : Request
+  Request.new(method, path, params, "/ext/crystal-robots", "someone", caps)
+end
+
+private def post(path : String, params : Hash(String, String), caps : String = "oi") : Request
+  request(path, caps: caps, params: params, method: "POST")
 end
 
 describe App do
@@ -54,5 +58,48 @@ describe App do
     ensure
       File.delete("examples/_spec_broken.cr")
     end
+  end
+
+  it "GET /parse shows an empty form" do
+    response = App.handle(request("/parse"))
+    response.status.should eq 200
+    response.body.should contain %(<textarea name="source")
+    response.body.should_not contain "Result"
+  end
+
+  it "refuses /parse without run capability, even to read" do
+    App.handle(request("/parse", caps: "oh")).status.should eq 403
+  end
+
+  it "POST /parse shows the derivation and reports no issues for a clean robot" do
+    response = App.handle(post("/parse", {"source" => "puts 1 + 2\n"}))
+    response.status.should eq 200
+    response.body.should contain "∊№⊕№⏎"
+    response.body.should contain "No issues found"
+  end
+
+  it "POST /parse shows checker issues for a robot that parses but does not check" do
+    response = App.handle(post("/parse", {"source" => "puts mystery\n"}))
+    response.body.should contain "undefined variable mystery"
+  end
+
+  it "POST /parse shows a parse error instead of crashing" do
+    response = App.handle(post("/parse", {"source" => ")\n"}))
+    response.status.should eq 200
+    response.body.should contain "Could not parse"
+  end
+
+  it "POST /parse refuses oversized source without running the parser" do
+    huge = "puts 1\n" * 5_000
+    huge.bytesize.should be > CrystalRobots::Web::App::MAX_SOURCE_BYTES
+    response = App.handle(post("/parse", {"source" => huge}))
+    response.body.should contain "too large"
+    response.body.should_not contain "Result"
+  end
+
+  it "escapes a pasted robot's source in the textarea, not just inside the fence" do
+    response = App.handle(post("/parse", {"source" => "puts \"</textarea><script>\"\n"}))
+    response.body.should_not contain "<script>"
+    response.body.should contain "&lt;script&gt;"
   end
 end

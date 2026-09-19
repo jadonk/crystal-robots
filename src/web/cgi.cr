@@ -8,8 +8,16 @@ require "./app"
 # header followed by the body to stdout. Fossil sets `FOSSIL_USER` and
 # `FOSSIL_CAPABILITIES` itself, so this app never handles credentials.
 module CrystalRobots::Web::CGI
+  # Checked against Content-Length before allocating anything, so a
+  # request simply claiming to be huge cannot make this process allocate
+  # a buffer to match: refused with a plain-text 400, no App involved.
+  MAX_BODY_BYTES = 64_000
+
   def self.run : Nil
     method = ENV["REQUEST_METHOD"]? || "GET"
+    if method == "POST" && (ENV["CONTENT_LENGTH"]?.try(&.to_i?) || 0) > MAX_BODY_BYTES
+      return write(Response.new("Request body too large\n", "text/plain", 400))
+    end
     body = method == "POST" ? read_body : ""
     params = parse_form(ENV["QUERY_STRING"]? || "")
     params.merge!(parse_form(body)) if method == "POST"

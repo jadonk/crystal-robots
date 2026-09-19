@@ -19,6 +19,21 @@ private def cgi_get(path : String, script_name = "/ext/crystal-robots", caps = "
   io.to_s
 end
 
+private def cgi_post(path : String, body : String, script_name = "/ext/crystal-robots", caps = "oi") : String
+  env = {
+    "GATEWAY_INTERFACE"   => "CGI/1.1",
+    "REQUEST_METHOD"      => "POST",
+    "PATH_INFO"           => path,
+    "SCRIPT_NAME"         => script_name,
+    "CONTENT_LENGTH"      => body.bytesize.to_s,
+    "FOSSIL_USER"         => "someone",
+    "FOSSIL_CAPABILITIES" => caps,
+  }
+  out_io = IO::Memory.new
+  Process.run("crystal", ["run", "src/cli.cr"], env: env, input: IO::Memory.new(body), output: out_io, error: STDERR)
+  out_io.to_s
+end
+
 describe "the CGI entry point" do
   it "serves the overview with a Content-Type header and the examples list" do
     output = cgi_get("/")
@@ -41,5 +56,21 @@ describe "the CGI entry point" do
     output = cgi_get("/examples/hello")
     output.should contain "puts 42"
     output.should contain "Parse derivation"
+  end
+
+  it "POST /parse parses a pasted robot's body and reports no issues" do
+    output = cgi_post("/parse", "source=puts+1")
+    output.should contain "No issues found"
+  end
+
+  it "refuses an oversized request body before allocating anything" do
+    env = {
+      "GATEWAY_INTERFACE" => "CGI/1.1", "REQUEST_METHOD" => "POST", "PATH_INFO" => "/parse",
+      "SCRIPT_NAME" => "/ext/crystal-robots", "CONTENT_LENGTH" => "999999999",
+      "FOSSIL_USER" => "someone", "FOSSIL_CAPABILITIES" => "oi",
+    }
+    out_io = IO::Memory.new
+    Process.run("crystal", ["run", "src/cli.cr"], env: env, input: IO::Memory.new(""), output: out_io, error: STDERR)
+    out_io.to_s.should start_with "Status: 400\r\n"
   end
 end
