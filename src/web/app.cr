@@ -4,6 +4,7 @@ require "./response"
 require "./markdown"
 require "./pikchr"
 require "./wiki_robots"
+require "./robot_api"
 require "../compiler/parser"
 require "../compiler/checker"
 require "../battle/field"
@@ -162,7 +163,8 @@ module CrystalRobots::Web::App
       io << %(<form method="post" action="#{req.link("/parse")}">\n)
       io << %(<textarea name="source" rows="20" cols="80">) << html_escape(source || "") << "</textarea><br>\n"
       io << %(<input type="submit" value="Parse">\n)
-      io << "</form>\n"
+      io << "</form>\n\n"
+      io << RobotAPI.panel(req.link("/docs"))
 
       if source && source.bytesize > MAX_SOURCE_BYTES
         io << "\nThat source is too large (over #{MAX_SOURCE_BYTES} bytes); trim it and try again.\n"
@@ -222,7 +224,8 @@ module CrystalRobots::Web::App
       end
       io << %(Seed (optional): <input type="text" name="seed" value="#{html_escape(seed_text)}"><br>\n)
       io << %(<input type="submit" value="Fight">\n)
-      io << "</form>\n"
+      io << "</form>\n\n"
+      io << RobotAPI.panel(req.link("/docs"))
 
       if req.method == "POST"
         io << "\n## Result\n\n"
