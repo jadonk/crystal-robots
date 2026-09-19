@@ -1,7 +1,6 @@
 require "../spec_helper"
 
 alias RobotHost = CrystalRobots::Battle::RobotHost
-alias BattleField = CrystalRobots::Battle::Field
 
 describe RobotHost do
   it "reads position, speed and damage from the field's own robot" do
