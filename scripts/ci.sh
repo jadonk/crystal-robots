@@ -14,6 +14,10 @@
 # Without --with-wasmer the wasmer specs are reported as pending with their
 # reason, and without --with-wasm32 the wasm32 specs are too; neither is
 # ever a tolerated failure.
+#
+# The root ci.cr is the daemon's automatic-gate entry point: it just
+# forwards its arguments to this script and exits with its status, so this
+# stays the one CI command.
 set -e
 cd "$(dirname "$0")/.."
 with_wasmer=0
