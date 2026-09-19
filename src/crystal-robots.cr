@@ -11,8 +11,10 @@ module CrystalRobots
 
   # The Fossil check-in this binary was built from. Fossil's versioned
   # `manifest` setting (see .fossil-settings/manifest) keeps `manifest.uuid`
-  # in every checkout and tarball; it is read at compile time. "unknown"
-  # when built from a plain source tree.
+  # in every checkout and tarball; it is read at compile time. On the
+  # GitHub mirror, `scripts/ci.sh` writes the equivalent git commit hash
+  # there instead (see its "check manifest.uuid" step). "unknown" when
+  # built from a plain source tree with neither.
   CHECKIN = {{ (read_file?("#{__DIR__}/../manifest.uuid") || "unknown").strip }}
 
   # Short check-in for display, like Fossil's own timeline.
