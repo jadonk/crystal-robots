@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>crystal-robots: in-browser compiler</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 60rem; margin: 2rem auto; padding: 0 1rem; color: #222; }
+  h1 { font-size: 1.4rem; }
+  p.lede { color: #555; }
+  textarea { width: 100%; height: 12rem; font-family: ui-monospace, monospace; font-size: 0.9rem; box-sizing: border-box; }
+  pre { background: #f4f4f4; padding: 0.75rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+  section { margin-top: 1.5rem; }
+  #status { font-weight: bold; }
+  button { font-size: 1rem; padding: 0.4rem 1rem; margin-top: 0.5rem; }
+</style>
+</head>
+<body>
+<h1>crystal-robots: in-browser compiler</h1>
+<p class="lede">
+  The <a href="https://github.com/jadonk/crystal-robots">crystal-robots</a> tokenizer, checker,
+  interpreter and WebAssembly emitter, compiled with Crystal's <code>wasm32-unknown-wasi</code>
+  target and running entirely in this page &mdash; nothing is sent to a server. Paste a robot
+  below (or edit the example) and press Run.
+</p>
+
+<textarea id="source" spellcheck="false"># puts 38 + 2*2
+puts 19
+</textarea>
+<div>
+  <button id="run" disabled>Run</button>
+  <span id="status">Loading&hellip;</span>
+</div>
+
+<section>
+  <h2>Tokens / derivation</h2>
+  <pre id="derivation"></pre>
+</section>
+
+<section>
+  <h2>Checker report</h2>
+  <pre id="problems"></pre>
+</section>
+
+<section>
+  <h2>Interpreter trace</h2>
+  <pre id="interpreter"></pre>
+</section>
+
+<section>
+  <h2>Emitted .wasm</h2>
+  <pre id="wasm"></pre>
+</section>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

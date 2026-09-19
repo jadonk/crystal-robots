@@ -1,6 +1,7 @@
 require "spec"
 require "../src/crystal-robots"
 require "semantic_version"
+require "json"
 
 alias C = CrystalRobots::Compiler
 
@@ -86,5 +87,55 @@ macro wasmer_it(description, &block)
     it({{description}}) {{block}}
   {% else %}
     pending({{description}} + " (run with -Dwasmer)")
+  {% end %}
+end
+
+# The browser build (`crystal build --target wasm32-unknown-wasi
+# src/browser.cr`, Phase 5b-1) is optional the same way wasmer is: specs
+# that load it compile only under `-Dcrd_wasm32` (`crystal spec
+# -Dcrd_wasm32`) and need `scripts/ci.sh --with-wasm32` to have built
+# `site/crystal-robots.wasm` first; otherwise they are pending, not a
+# link failure or a tolerated skip.
+#
+# Driving the module is delegated to `node spec/support/wasm32_check.mjs`,
+# which runs it through the real `site/wasi-shim.js` -- the exact code the
+# browser page loads, not a second WASI implementation that could drift
+# out of sync. The wasmer Crystal shard (0.2.3) was tried first: its
+# `Wasmer::Wasi` layer segfaults inside `wasi_env_new` after a handful of
+# calls, and the lower-level `Function`/`ImportObject` API it also
+# exposes crashes wasmer 4.4.0 itself (`fatal runtime error: Rust cannot
+# catch foreign exceptions`) on any host import with zero results --
+# which `proc_exit` (WASI's `(param i32) -> ()`) must be. Both reproduce
+# outside this project's code, so wasm32_spec.cr does not depend on
+# wasmer at all.
+{% if flag?(:crd_wasm32) %}
+  module Browser32
+    MODULE_PATH  = "site/crystal-robots.wasm"
+    CHECK_SCRIPT = "spec/support/wasm32_check.mjs"
+
+    # Runs `source` through every pass in a temp file and returns the
+    # parsed JSON report `crd_run` builds (see `src/browser.cr`), via
+    # `spec/support/wasm32_check.mjs`.
+    def self.run(source : String) : JSON::Any
+      file = File.tempfile("crd-wasm32", ".cr")
+      begin
+        file.print(source)
+        file.flush
+        output = IO::Memory.new
+        status = Process.run("node", [CHECK_SCRIPT, MODULE_PATH, file.path], output: output, error: STDERR)
+        raise "node #{CHECK_SCRIPT} exited #{status.exit_code}" unless status.success?
+        JSON.parse(output.to_s)
+      ensure
+        file.delete
+      end
+    end
+  end
+{% end %}
+
+macro wasm32_it(description, &block)
+  {% if flag?(:crd_wasm32) %}
+    it({{description}}) {{block}}
+  {% else %}
+    pending({{description}} + " (run with -Dcrd_wasm32 after scripts/ci.sh --with-wasm32)")
   {% end %}
 end

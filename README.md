@@ -138,6 +138,7 @@ One command runs everything the review pipeline runs:
 ```
 scripts/ci.sh                 # shards, build-docs, build, spec, format check, example builds, CLI smoke
 scripts/ci.sh --with-wasmer   # also runs the WebAssembly specs under wasmer 4.4.0 (installed under ./.wasmer if absent)
+scripts/ci.sh --with-wasm32   # also builds site/crystal-robots.wasm, the browser compiler (installed libs under ./.wasm32-wasi-libs if absent)
 ```
 
 The pieces, if you want them separately:
@@ -156,6 +157,18 @@ The wasmer runtime is optional. Wasmer 4.4.0 is the last release with a
 ```
 scripts/install_wasmer.sh v4.4.0
 export WASMER_DIR=$HOME/.wasmer
+```
+
+The browser compiler (`site/`, published at
+[jadonk.github.io/crystal-robots](https://jadonk.github.io/crystal-robots/)
+by `.github/workflows/pages.yml`) needs the wasm32-wasi-libs sysroot to
+link, pinned the same way:
+
+```
+scripts/install_wasm32_wasi_libs.sh 0.0.3
+export WASM32_WASI_LIBS=$PWD/.wasm32-wasi-libs
+crystal build --target wasm32-unknown-wasi src/browser.cr -o site/crystal-robots.wasm \
+  --link-flags="-L$WASM32_WASI_LIBS/lib/wasm32-wasi" --release --no-debug
 ```
 
 The parser design is described in [docs/PARSER.md](docs/PARSER.md); the

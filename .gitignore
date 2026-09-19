@@ -5,6 +5,8 @@
 /docs-api/
 /.shards/
 /.wasmer/
+/.wasm32-wasi-libs/
+/site/crystal-robots.wasm
 *.dwarf
 /examples/test.wasm
 /manifest.uuid
