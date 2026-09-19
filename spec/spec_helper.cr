@@ -15,6 +15,12 @@ def interpret_puts(source : String) : Array(Int32)
   host.puts_out
 end
 
+# Interprets `source` with cycle accounting on, returning the total charged.
+def interpret_cycles(source : String, costs = CrystalRobots::Compiler::Interpreter::Costs.new) : Int64
+  program = CrystalRobots::Compiler::Parser.new(source).program
+  CrystalRobots::Compiler::Interpreter.execute(program, CrystalRobots::Compiler::NullHost.new, costs)
+end
+
 # The wasmer runtime is optional. Specs that execute emitted WebAssembly
 # compile only when the `wasmer` flag is set (`crystal spec -Dwasmer`) and
 # are reported as pending otherwise, so plain `crystal spec` still gives a
@@ -84,6 +90,43 @@ end
     instance = Wasmer::Instance.new(module_, imports)
     instance.function("run").not_nil!.call
     puts_out
+  end
+
+  # Like `run_puts`, but also binds `env.tick` (present only when `costs`
+  # is given to `WASM_Emitter.new`) to an accumulator, so a spec can
+  # check the module's total charged cycles against the interpreter's.
+  def run_with_ticks(source : String, costs : CrystalRobots::Compiler::Interpreter::Costs) : {Array(Int32), Int64}
+    program = CrystalRobots::Compiler::Parser.new(source).program
+    wasm = CrystalRobots::Compiler::WASM_Emitter.new(program, costs).to_wasm
+    engine = Wasmer::Engine.new
+    store = Wasmer::Store.new(engine)
+    module_ = Wasmer::Module.new(store, wasm)
+    puts_out = [] of Int32
+    ticks = 0_i64
+    t0 = Wasmer::FunctionType.new(Wasmer.value_types, Wasmer.value_types(Wasmer::I32))
+    t1 = Wasmer::FunctionType.new(Wasmer.value_types(Wasmer::I32), Wasmer.value_types(Wasmer::I32))
+    t2 = Wasmer::FunctionType.new(Wasmer.value_types(Wasmer::I32, Wasmer::I32), Wasmer.value_types(Wasmer::I32))
+    fn1 = ->(block : Int32 -> Int32) {
+      Wasmer::Function.new(store, type: t1) { |a| [Wasmer::Value.new(block.call(a[0].as_i))] }.as(Wasmer::WithExtern)
+    }
+    env = {} of String => Wasmer::WithExtern
+    env["tick"] = fn1.call(->(n : Int32) { ticks += n; n })
+    env["puts"] = fn1.call(->(n : Int32) { puts_out << n; n })
+    STUB_SENSORS.each { |name, value| env[name] = Wasmer::Function.new(store, type: t0) { [Wasmer::Value.new(value)] }.as(Wasmer::WithExtern) }
+    {"scan", "cannon", "drive"}.each do |name|
+      env[name] = Wasmer::Function.new(store, type: t2) { |a| [Wasmer::Value.new(a[0].as_i + a[1].as_i)] }.as(Wasmer::WithExtern)
+    end
+    env["rand"] = fn1.call(->(n : Int32) { n })
+    env["sqrt"] = fn1.call(->(n : Int32) { Math.sqrt(n).to_i32 })
+    env["sin"] = fn1.call(->(n : Int32) { Math.sin(n.to_f * Math::PI / 180).round.to_i32 })
+    env["cos"] = fn1.call(->(n : Int32) { Math.cos(n.to_f * Math::PI / 180).round.to_i32 })
+    env["tan"] = fn1.call(->(n : Int32) { Math.tan(n.to_f * Math::PI / 180).round.to_i32 })
+    env["atan"] = fn1.call(->(n : Int32) { (Math.atan(n.to_f) * 180 / Math::PI).round.to_i32 })
+    imports = Wasmer::ImportObject.new
+    imports.register("env", env)
+    instance = Wasmer::Instance.new(module_, imports)
+    instance.function("run").not_nil!.call
+    {puts_out, ticks}
   end
 {% end %}
 

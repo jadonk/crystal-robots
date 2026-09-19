@@ -63,4 +63,13 @@ describe "the interpreter and the WASM emitter" do
       interpret_puts(source).should eq run_puts(source)
     end
   end
+
+  ROBOTS.each do |name, source|
+    wasmer_it "charge identical cycle totals on #{name}" do
+      costs = CrystalRobots::Compiler::Interpreter::Costs.new
+      cycles = interpret_cycles(source, costs)
+      _puts_out, ticks = run_with_ticks(source, costs)
+      ticks.should eq cycles
+    end
+  end
 end
