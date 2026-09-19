@@ -56,6 +56,16 @@ describe Match do
     match.rounds.should eq 50
   end
 
+  it "marks a robot dead on a runtime crash, rather than hanging the match" do
+    crasher = program("puts 1 / 0\nwhile true\nend\n") # divide by zero: a known interpreter gap, raises
+    survives = program("global(i, 0)\nwhile true\ni += 1\nend\n")
+    field = BattleField.new(["crasher", "survives"], seed: 1)
+    match = Match.new(field, [crasher, survives], cycle_limit: 1000)
+    match.run
+    field.robots[0].alive?.should be_false
+    match.rounds.should be > 0
+  end
+
   it "drives a robot to actually move via the field" do
     mover = program(<<-ROBOT)
       main("Mover") do

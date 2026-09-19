@@ -35,15 +35,23 @@ module CrystalRobots::Battle
       @dones = @field.robots.map { Channel(Nil).new }
       @hosts = Array(RobotHost).new(@field.robots.size) { |i| RobotHost.new(@field, i) }
       programs.each_with_index do |program, i|
-        step_ch, done_ch, host = @steps[i], @dones[i], @hosts[i]
-        spawn(name: @field.robots[i].name) do
+        step_ch, done_ch, host, robot = @steps[i], @dones[i], @hosts[i], @field.robots[i]
+        spawn(name: robot.name) do
           interp = Compiler::Interpreter.new(program, host, costs)
           interp.step_channel = step_ch
           interp.done_channel = done_ch
           begin
             interp.run
           rescue
-            # a robot's own runtime error just stops it, not the match
+            # A robot's own runtime error stops it, not the match -- but
+            # `run` never reached its next sync_step to report that, so
+            # `#run` below is (or will be) blocked on this round's
+            # `done_ch.receive` with nobody left to answer it. Marking
+            # the robot dead first means the *next* round's `alive?`
+            # check skips it either way; sending here unblocks the
+            # *current* one if that is where the crash landed.
+            robot.status = :dead
+            done_ch.send(nil)
           end
         end
       end
