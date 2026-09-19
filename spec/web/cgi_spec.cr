@@ -36,4 +36,10 @@ describe "the CGI entry point" do
     output = cgi_get("/nope")
     output.should start_with "Status: 404\r\n"
   end
+
+  it "serves an example's source and derivation" do
+    output = cgi_get("/examples/hello")
+    output.should contain "puts 42"
+    output.should contain "Parse derivation"
+  end
 end
