@@ -113,4 +113,97 @@ describe CrystalRobots::Tournament do
       T.advancers(pools).should eq ["E0", "E3", "E6", "E1", "E4", "E7"]
     end
   end
+
+  describe ".run (pools then the bracket)" do
+    it "builds the 3-entrant bracket: 2nd vs 3rd, winner meets 1st in the final" do
+      names = ["X", "Y", "Z"]
+      pools, rounds, champion = T.run(names, 1, 100, default_fight)
+      rounds.size.should eq 2
+      rounds[0].label.should eq "Semifinal"
+      rounds[1].label.should eq "Final"
+
+      bye, second = rounds[0].matches
+      bye.entrants.should eq ["X", nil] # X vs an empty slot (a bye)
+      bye.games.should be_empty
+      bye.winner.should eq "X"
+      second.entrants.should eq ["Y", "Z"]
+      second.games.size.should eq 2 # Y wins the first two games 2-0, no third game needed
+      second.winner.should eq "Y"
+
+      final = rounds[1].matches[0]
+      final.entrants.should eq ["X", "Y"]
+      final.winner.should eq "X"
+      champion.should eq "X"
+      pools[0].fights.size.should eq 3
+    end
+
+    it "gives the highest seeds byes in a quarter round for 6 advancers" do
+      names = (0..8).map { |i| "E#{i}" } # 9 entrants -> 3 pools of 3
+      _, rounds, champion = T.run(names, 1, 100, default_fight)
+      rounds.size.should eq 3
+      rounds[0].label.should eq "Quarterfinal"
+      rounds[1].label.should eq "Semifinal"
+      rounds[2].label.should eq "Final"
+
+      qf = rounds[0].matches
+      qf.size.should eq 4
+      # each pool of [Ei, Ei+1, Ei+2] under "entries[0] always wins" ranks
+      # Ei 1st, Ei+1 2nd; the two pool winners from the earliest pools are
+      # the highest seeds and get the byes.
+      qf[0].games.should be_empty
+      qf[0].winner.should eq "E0"
+      qf[2].games.should be_empty
+      qf[2].winner.should eq "E3"
+      qf[1].games.size.should eq 2 # 2-0, no third game needed
+      qf[3].games.size.should eq 2
+
+      champion.should eq "E0"
+    end
+
+    it "caps a match's total refights at RETRY_LIMIT, like a pool pairing, instead of retrying each game independently" do
+      overrides = {3 => nil, 4 => nil, 5 => nil} of Int32 => String? # every attempt in the Y vs Z semifinal is a no-winner
+      _, rounds, _ = T.run(["X", "Y", "Z"], 1, 100, scripted_fight(overrides))
+      match = rounds[0].matches[1]
+      match.entrants.should eq ["Y", "Z"]
+      match.games.map(&.winner).should eq [nil, nil, nil]
+      match.games.size.should eq 3 # RETRY_LIMIT total attempts, not up to 3 games x 3 retries each
+      match.winner.should eq "Y"   # tied 0-0 after the shared budget: the higher (first-listed) seed advances
+    end
+
+    it "settles a match early once an entrant reaches 2 wins, without spending the full retry budget" do
+      overrides = {3 => "Z", 4 => "Z"} of Int32 => String? # Z wins the Y vs Z match's first two attempts
+      _, rounds, _ = T.run(["X", "Y", "Z"], 1, 100, scripted_fight(overrides))
+      match = rounds[0].matches[1]
+      match.entrants.should eq ["Y", "Z"]
+      match.games.map(&.winner).should eq ["Z", "Z"]
+      match.winner.should eq "Z"
+    end
+  end
+
+  describe "staged execution" do
+    it "plays pools then each bracket round to the same result as .run, one stage at a time" do
+      names = (0..8).map { |i| "E#{i}" } # 9 entrants -> 3 pools of 3
+      whole_pools, whole_rounds, whole_champion = T.run(names, 1, 100, default_fight)
+
+      pools = T.play_pools(names, 1, 100, default_fight)
+      pools.should eq whole_pools
+      advancers = T.advancers(pools)
+
+      slots, total_rounds = T.bracket_plan(advancers)
+      total_rounds.should eq whole_rounds.size
+
+      rounds = [] of T::Round
+      seed = 1 + pools.sum(&.fights.size)
+      current = slots
+      total_rounds.times do |i|
+        stage = T.play_bracket_round(current, seed, 100, default_fight, total_rounds, i)
+        rounds << stage.round
+        seed = stage.resume_seed
+        current = stage.next_slots
+        stage.final.should eq(i == total_rounds - 1)
+      end
+      rounds.should eq whole_rounds
+      rounds.last.matches.first.winner.should eq whole_champion
+    end
+  end
 end
