@@ -6,18 +6,24 @@
 #   scripts/ci.sh                # build docs, build, spec, format
 #   scripts/ci.sh --with-wasmer  # also run the WebAssembly specs under wasmer 4.4.0,
 #                                # installing it under ./.wasmer when absent
+#   scripts/ci.sh --with-wasm32  # also build site/crystal-robots.wasm (the browser
+#                                # compiler) and run its specs; installs
+#                                # wasm32-wasi-libs under ./.wasm32-wasi-libs; needs
+#                                # `node` on PATH (its specs drive the module through
+#                                # site/wasi-shim.js, the same code the browser loads)
 #
 # Without --with-wasmer the wasmer specs are reported as pending with
-# their own reason; that is never a tolerated failure, only a signal
-# this machine has no libwasmer. There is no --with-wasm32 yet: the
-# browser-hosted compiler has not been replayed onto this history (it
-# waits for its own directive).
+# their own reason, and without --with-wasm32 the wasm32 specs are
+# too; neither is ever a tolerated failure, only a signal this machine
+# has no libwasmer, or hasn't built the browser compiler.
 set -e
 cd "$(dirname "$0")/.."
 with_wasmer=0
+with_wasm32=0
 for arg in "$@"; do
   case "$arg" in
     --with-wasmer) with_wasmer=1 ;;
+    --with-wasm32) with_wasm32=1 ;;
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -75,6 +81,30 @@ if [ "$with_wasmer" = 1 ]; then
   spec_flags="-Dwasmer"
 fi
 
+if [ "$with_wasm32" = 1 ]; then
+  step "check for node (drives the wasm32 specs through site/wasi-shim.js)"
+  command -v node >/dev/null 2>&1 || { echo "node is required on PATH for --with-wasm32" >&2; exit 1; }
+  node --version
+
+  step "check for wasm-ld (the lld package; Crystal needs it to link the wasm32 target)"
+  command -v wasm-ld >/dev/null 2>&1 || { echo "wasm-ld is required on PATH for --with-wasm32; install the lld package" >&2; exit 1; }
+
+  step "wasm32-wasi-libs 0.0.3"
+  export WASM32_WASI_LIBS="$PWD/.wasm32-wasi-libs"
+  if [ ! -f "$WASM32_WASI_LIBS/lib/wasm32-wasi/libc.a" ]; then
+    rm -rf ./.wasm32-wasi-libs
+    sh scripts/install_wasm32_wasi_libs.sh 0.0.3
+  fi
+
+  step "build site/crystal-robots.wasm (the browser compiler)"
+  mkdir -p site
+  crystal build --target wasm32-unknown-wasi src/browser.cr -o site/crystal-robots.wasm \
+    --link-flags="-L$WASM32_WASI_LIBS/lib/wasm32-wasi" --release --no-debug
+  ls -la site/crystal-robots.wasm
+
+  spec_flags="$spec_flags -Dcrd_wasm32"
+fi
+
 step "crystal spec $spec_flags"
 crystal spec $spec_flags
 
@@ -87,4 +117,4 @@ bin/crystal-robots -t examples/hello.cr >/dev/null
 bin/crystal-robots -c examples/hello.cr -o bin/smoke.wasm
 bin/crystal-robots -m 1 -l 3000 examples/counter.cr examples/target.cr >/dev/null
 
-printf '\n== ci.sh: all green%s\n' "$([ "$with_wasmer" = 1 ] && echo ' (with wasmer)')"
+printf '\n== ci.sh: all green%s%s\n' "$([ "$with_wasmer" = 1 ] && echo ' (with wasmer)')" "$([ "$with_wasm32" = 1 ] && echo ' (with wasm32)')"
