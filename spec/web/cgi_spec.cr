@@ -63,6 +63,12 @@ describe "the CGI entry point" do
     output.should contain "No issues found"
   end
 
+  it "POST /battle runs a real seeded match end to end" do
+    output = cgi_post("/battle", "pick_target=on&pick_rabbit=on&seed=3")
+    output.should contain "rounds."
+    output.should contain "```pikchr"
+  end
+
   it "refuses an oversized request body before allocating anything" do
     env = {
       "GATEWAY_INTERFACE" => "CGI/1.1", "REQUEST_METHOD" => "POST", "PATH_INFO" => "/parse",

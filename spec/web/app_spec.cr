@@ -102,4 +102,41 @@ describe App do
     response.body.should_not contain "<script>"
     response.body.should contain "&lt;script&gt;"
   end
+
+  it "GET /battle shows a checkbox per example and no result" do
+    response = App.handle(request("/battle"))
+    response.status.should eq 200
+    response.body.should contain %(name="pick_target")
+    response.body.should_not contain "Result"
+  end
+
+  it "refuses /battle without run capability" do
+    App.handle(request("/battle", caps: "oh")).status.should eq 403
+  end
+
+  it "POST /battle with fewer than two robots asks for more" do
+    response = App.handle(post("/battle", {"pick_target" => "on"}))
+    response.body.should contain "Pick two to four robots"
+  end
+
+  it "POST /battle runs a seeded match and shows a result table and a Pikchr frame" do
+    response = App.handle(post("/battle", {"pick_target" => "on", "pick_rabbit" => "on", "seed" => "7"}))
+    response.status.should eq 200
+    response.body.should contain "rounds."
+    response.body.should contain "| target |"
+    response.body.should contain "| rabbit |"
+    response.body.should contain "```pikchr"
+  end
+
+  it "the same seed reproduces the same battle outcome" do
+    params = {"pick_target" => "on", "pick_rabbit" => "on", "seed" => "42"}
+    first = App.handle(post("/battle", params)).body
+    second = App.handle(post("/battle", params)).body
+    first.should eq second
+  end
+
+  it "rejects a non-numeric seed instead of crashing" do
+    response = App.handle(post("/battle", {"pick_target" => "on", "pick_rabbit" => "on", "seed" => "not-a-number"}))
+    response.body.should contain "Seed must be a whole number"
+  end
 end

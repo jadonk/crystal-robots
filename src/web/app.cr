@@ -2,12 +2,15 @@ require "./capabilities"
 require "./request"
 require "./response"
 require "./markdown"
+require "./pikchr"
 require "../compiler/parser"
 require "../compiler/checker"
+require "../battle/field"
+require "../battle/match"
 
 # The router: one method per route, each returning a `Response` Fossil
-# wraps in Markdown chrome. This commit adds `/parse`; battling and saved
-# robots are later commits.
+# wraps in Markdown chrome. This commit adds `/battle`; saved robots are
+# a later commit.
 module CrystalRobots::Web::App
   EXAMPLE_NAME = /\A[A-Za-z0-9_-]+\z/
 
@@ -17,6 +20,10 @@ module CrystalRobots::Web::App
   # at all.
   MAX_SOURCE_BYTES = 20_000
 
+  # A battle runs inside one HTTP request/response, so it needs its own,
+  # much smaller limit than the CLI's -l default (500000).
+  WEB_CYCLE_LIMIT = 60_000
+
   def self.handle(req : Request) : Response
     path = req.path
     if path == "" || path == "/"
@@ -25,6 +32,8 @@ module CrystalRobots::Web::App
       example(req, name)
     elsif path == "/parse"
       parse_page(req)
+    elsif path == "/battle"
+      battle_page(req)
     else
       Response.new("# Not found\n\n#{req.path} is not a page here.\n", status: 404)
     end
@@ -122,5 +131,64 @@ module CrystalRobots::Web::App
 
   private def self.html_escape(text : String) : String
     text.gsub(/[&<>"]/) { |c| {"&" => "&amp;", "<" => "&lt;", ">" => "&gt;", "\"" => "&quot;"}[c] }
+  end
+
+  # GET shows a checkbox per example robot and a seed field; POST runs
+  # one seeded match among the checked robots (two to four) up to
+  # WEB_CYCLE_LIMIT and shows the outcome as a table plus a Pikchr frame
+  # of the final field. Needs run capability (i), the same as parsing.
+  private def self.battle_page(req : Request) : Response
+    unless Capabilities.can_run?(req.capabilities)
+      return Response.new("# Battle\n\nLog in to run a battle.\n", status: 403)
+    end
+
+    names = example_names
+    picked = req.method == "POST" ? names.select { |n| req.params.has_key?("pick_#{n}") } : [] of String
+    seed_text = req.params["seed"]? || ""
+
+    md = String.build do |io|
+      io << "# Battle\n\n"
+      io << "[back to the overview](" << req.link("/") << ")\n\n"
+      io << %(<form method="post" action="#{req.link("/battle")}">\n)
+      names.each do |n|
+        checked = picked.includes?(n) ? " checked" : ""
+        io << %(<label><input type="checkbox" name="pick_#{n}"#{checked}> #{n}</label><br>\n)
+      end
+      io << %(Seed (optional): <input type="text" name="seed" value="#{html_escape(seed_text)}"><br>\n)
+      io << %(<input type="submit" value="Fight">\n)
+      io << "</form>\n"
+
+      if req.method == "POST"
+        io << "\n## Result\n\n"
+        run_battle(io, picked, seed_text)
+      end
+    end
+    Response.new(md)
+  end
+
+  private def self.run_battle(io : IO, picked : Array(String), seed_text : String) : Nil
+    if picked.size < 2 || picked.size > 4
+      io << "Pick two to four robots.\n"
+      return
+    end
+    seed = seed_text.empty? ? nil : seed_text.to_i?
+    if !seed_text.empty? && seed.nil?
+      io << "Seed must be a whole number.\n"
+      return
+    end
+
+    programs = picked.map { |n| Compiler::Parser.new(File.read("examples/#{n}.cr")).program }
+    field = Battle::Field.new(picked, seed)
+    match = Battle::Match.new(field, programs, cycle_limit: WEB_CYCLE_LIMIT)
+    match.run
+
+    io << match.rounds << " rounds.\n\n"
+    io << "| Robot | Damage | Status |\n|---|---|---|\n"
+    field.robots.each { |r| io << "| #{r.name} | #{r.damage}% | #{r.alive? ? "alive" : "dead"} |\n" }
+
+    survivors = field.robots.select(&.alive?)
+    io << "\n"
+    io << (survivors.size == 1 ? "**#{survivors[0].name} wins!**\n\n" : "No winner.\n\n")
+    io << Markdown.fence(Pikchr.field(field), "pikchr")
   end
 end
