@@ -187,11 +187,16 @@ module CrystalRobots::Compiler
     # a robot's own `main` block is written `while true`, meant to be
     # bounded by a battlefield's cycle limit (many fibers, one per robot,
     # cooperating through those channels); running one robot alone with
-    # `limit` set instead stops it after that many cycles have been
+    # `limit` set instead raises once that many cycles have been
     # charged, wherever it happens to be, rather than looping forever
     # with no scheduler to bound it. `nil` by default: every existing
     # caller is unaffected.
-    private class StepLimitSignal < Exception
+    #
+    # Deliberately left for a caller to rescue (or not): on wasm32 (see
+    # `src/browser.cr`) a `rescue` cannot catch this or anything else
+    # `run` might raise, so `StepLimit` reaching a caller uncaught is
+    # correct there, not a gap to close here.
+    class StepLimit < Exception
     end
 
     def initialize(@program : Program, @host : Host, @costs : Costs = Costs.new, @limit : Int64? = nil)
@@ -235,7 +240,6 @@ module CrystalRobots::Compiler
         end
       end
       main_stmts.each { |s| exec_statement(s, scope) }
-    rescue StepLimitSignal
     end
 
     private def body_of(block : Int32) : Array(Int32)
@@ -253,7 +257,7 @@ module CrystalRobots::Compiler
         d.send(nil)
         s.receive
       end
-      raise StepLimitSignal.new if (limit = @limit) && @cycles >= limit
+      raise StepLimit.new("step limit #{@limit} reached") if (limit = @limit) && @cycles >= limit
     end
 
     # The value of a statement is the value of its expression, or, for
