@@ -106,6 +106,31 @@ module CrystalRobots::Compiler
   end
 
   class Interpreter
+    # How many cycles each kind of work costs, the same units CROBOTS
+    # charged per bytecode instruction, mapped onto this tree-walker's
+    # coarser AST-node granularity: a fetch or a store is one instruction
+    # in either machine, an operator is one BINOP, a builtin call folds
+    # the intrinsic dispatch and its bogus-frame cleanup into one weight,
+    # and a user call folds pushing arguments and the FCALL into another.
+    # `Costs.statements` is the simplest possible model -- one per
+    # statement executed, everything else free -- kept for comparisons
+    # that only care about how many statements ran.
+    class Costs
+      property fetch = 1
+      property operator = 1
+      property store = 1
+      property builtin = 2
+      property call = 3
+      property branch = 1
+      property statement = 1
+
+      def self.statements : Costs
+        c = new
+        c.fetch = c.operator = c.store = c.builtin = c.call = c.branch = 0
+        c
+      end
+    end
+
     private class BreakSignal < Exception
     end
 
@@ -120,11 +145,15 @@ module CrystalRobots::Compiler
       property locals = {} of String => Int32
     end
 
-    def self.execute(program : Program, host : Host) : Nil
-      new(program, host).run
+    def self.execute(program : Program, host : Host, costs : Costs = Costs.new) : Int64
+      i = new(program, host, costs)
+      i.run
+      i.cycles
     end
 
-    def initialize(@program : Program, @host : Host)
+    getter cycles = 0_i64
+
+    def initialize(@program : Program, @host : Host, @costs : Costs = Costs.new)
       @globals = {} of String => Int32
       @functions = {} of String => Int32
       @arity = {} of String => Int32
@@ -171,10 +200,15 @@ module CrystalRobots::Compiler
       @program.children(block).select { |i| @program.type(i) == Type::Statement }
     end
 
+    private def charge(n : Int32) : Nil
+      @cycles += n
+    end
+
     # The value of a statement is the value of its expression, or, for
     # `if`, whichever branch's last statement ran; a loop is not a value
     # and yields 0, matching `WASM_Emitter`'s reset of `Ctx#ret`.
     private def exec_statement(stmt : Int32, scope : Scope) : Int32
+      charge(@costs.statement)
       case @program[stmt].rule
       when :global
         @globals[@program.value(@program.arg(stmt, 2))] = eval(@program.arg(stmt, 4), scope)
@@ -185,8 +219,10 @@ module CrystalRobots::Compiler
       when :until
         loop_exec(stmt, scope, while_true: false)
       when :break
+        charge(@costs.branch)
         raise BreakSignal.new
       when :return
+        charge(@costs.branch)
         kids = @program.children(stmt)
         raise ReturnSignal.new(kids.size > 2 ? eval(kids[1], scope) : 0)
       when :if
@@ -201,7 +237,9 @@ module CrystalRobots::Compiler
       head = @program.children(stmt)[0]
       cond = @program.arg(head, 1)
       loop do
-        keep_going = while_true ? eval(cond, scope) != 0 : eval(cond, scope) == 0
+        value = eval(cond, scope)
+        charge(@costs.branch)
+        keep_going = while_true ? value != 0 : value == 0
         break unless keep_going
         begin
           body_of(stmt).each { |s| exec_statement(s, scope) }
@@ -224,7 +262,11 @@ module CrystalRobots::Compiler
         end
       end
       branches.each do |(cond, stmts)|
-        next unless cond.nil? || eval(cond, scope) != 0
+        if cond
+          value = eval(cond, scope)
+          charge(@costs.branch)
+          next if value == 0
+        end
         result = 0
         stmts.each { |s| result = exec_statement(s, scope) }
         return result
@@ -247,7 +289,11 @@ module CrystalRobots::Compiler
         end
       end
       branches.each do |(cond, stmts)|
-        next unless cond.nil? || eval(cond, scope) == subject
+        if cond
+          value = eval(cond, scope)
+          charge(@costs.branch)
+          next if value != subject
+        end
         result = 0
         stmts.each { |s| result = exec_statement(s, scope) }
         return result
@@ -258,10 +304,15 @@ module CrystalRobots::Compiler
     # An identifier in value position: a variable fetch, or -- if it is
     # not a variable at all -- a call to a zero-parameter function, the
     # `run`/`change`/`new_corner` style bare calls the example robots use.
+    # Charges its own cost (call or fetch) rather than the fixed fetch
+    # `eval`'s :lex case charges a plain number literal with.
     private def identifier_get(name : String, scope : Scope) : Int32
       if !scope.locals.has_key?(name) && !@globals.has_key?(name) && @arity[name]? == 0
-        call_function(name, [] of Int32)
+        value = call_function(name, [] of Int32)
+        charge(@costs.call)
+        value
       else
+        charge(@costs.fetch)
         scope.locals[name]? || @globals[name]? || raise "undefined variable #{name}"
       end
     end
@@ -297,13 +348,20 @@ module CrystalRobots::Compiler
       n = @program[i]
       case n.rule
       when :lex
-        return @program.value(n).to_i32 unless n.type == Type::Identifier
-        identifier_get(@program.value(n), scope)
+        if n.type == Type::Identifier
+          identifier_get(@program.value(n), scope)
+        else
+          charge(@costs.fetch)
+          @program.value(n).to_i32
+        end
       when :literal
+        charge(@costs.fetch)
         @program.type(@program.arg(i, 0)) == Type::TrueKeyword ? 1 : 0
       when :assign
         name = @program.value(@program.arg(i, 0))
-        set_variable(name, eval(@program.arg(i, 2), scope), scope)
+        value = eval(@program.arg(i, 2), scope)
+        charge(@costs.store)
+        set_variable(name, value, scope)
       when :opassign
         name = @program.value(@program.arg(i, 0))
         opt = case @program.type(@program.arg(i, 1))
@@ -313,25 +371,39 @@ module CrystalRobots::Compiler
               else                      Type::ModOperator
               end
         old = scope.locals[name]? || @globals[name]? || raise "undefined variable #{name}"
-        set_variable(name, binary(opt, old, eval(@program.arg(i, 2), scope)), scope)
+        value = binary(opt, old, eval(@program.arg(i, 2), scope))
+        charge(@costs.fetch + @costs.operator + @costs.store)
+        set_variable(name, value, scope)
       when :paren
         eval(@program.arg(i, 1), scope)
       when :neg
-        -eval(@program.arg(i, 1), scope)
+        value = -eval(@program.arg(i, 1), scope)
+        charge(@costs.operator)
+        value
       when :mul, :add, :cmp, :eq, :and, :or
-        binary(@program.type(@program.arg(i, 1)), eval(@program.arg(i, 0), scope), eval(@program.arg(i, 2), scope))
+        value = binary(@program.type(@program.arg(i, 1)), eval(@program.arg(i, 0), scope), eval(@program.arg(i, 2), scope))
+        charge(@costs.operator)
+        value
       when :call0
-        builtin0(@program.lexeme(i))
+        value = builtin0(@program.lexeme(i))
+        charge(@costs.builtin)
+        value
       when :command1, :call1
         arg_index = n.rule == :call1 ? 2 : 1
-        builtin1(@program.lexeme(@program.arg(i, 0)), eval(@program.arg(i, arg_index), scope))
+        value = builtin1(@program.lexeme(@program.arg(i, 0)), eval(@program.arg(i, arg_index), scope))
+        charge(@costs.builtin)
+        value
       when :command2, :call2
         a, b = n.rule == :call2 ? {2, 4} : {1, 3}
-        builtin2(@program.lexeme(@program.arg(i, 0)), eval(@program.arg(i, a), scope), eval(@program.arg(i, b), scope))
+        value = builtin2(@program.lexeme(@program.arg(i, 0)), eval(@program.arg(i, a), scope), eval(@program.arg(i, b), scope))
+        charge(@costs.builtin)
+        value
       when :call
         kids = @program.children(i)
         args = kids[2..].reject { |k| {Type::CloseParen, Type::Comma}.includes?(@program.type(k)) }
-        call_function(@program.lexeme(kids[0]), args.map { |a| eval(a, scope) })
+        value = call_function(@program.lexeme(kids[0]), args.map { |a| eval(a, scope) })
+        charge(@costs.call)
+        value
       else
         raise "expression #{n.rule} is not supported by the interpreter"
       end

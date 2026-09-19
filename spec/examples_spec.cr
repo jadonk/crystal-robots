@@ -24,6 +24,12 @@ describe "the shipped example robots" do
       issues.map(&.to_s).should eq [] of String
 
       CrystalRobots::Compiler::WASM_Emitter.new(program).to_wasm.size.should be > 8
+
+      # Also compiles with cycle accounting on: every construct these
+      # five real robots use (nested loops, calls, case, main) must
+      # thread env.tick calls without WASM_Emitter raising Unsupported.
+      costs = CrystalRobots::Compiler::Interpreter::Costs.new
+      CrystalRobots::Compiler::WASM_Emitter.new(program, costs).to_wasm.size.should be > 8
     end
   end
 end

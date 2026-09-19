@@ -1,5 +1,6 @@
 require "./program"
 require "./parser"
+require "./interpreter"
 
 # The WebAssembly emitter. Every module starts with the same 8 bytes: a
 # 4-byte magic number spelling `\0asm` and a 4-byte version, followed by
@@ -155,7 +156,11 @@ module CrystalRobots::Compiler
     getter imports : Array(String)
     getter functions : Array(String)
 
-    def initialize(@program : Program)
+    # `costs` is `nil` by default: no `env.tick` calls, the module this
+    # emitter has always produced. Pass an `Interpreter::Costs` to charge
+    # cycles at the same points the interpreter does, so a differential
+    # spec can run the same robot through both and compare totals.
+    def initialize(@program : Program, @costs : Interpreter::Costs? = nil)
       @globals = [] of String
       @functions = [] of String
       @arity = {} of String => Int32
@@ -186,7 +191,8 @@ module CrystalRobots::Compiler
       @program.ast.each do |n|
         used << @program.value(n) if n.level == 0 && {Type::ZeroArgMethod, Type::OneArgMethod, Type::TwoArgMethod}.includes?(n.type)
       end
-      @imports = IMPORTS.keys.select { |name| used.includes?(name) }
+      imports = IMPORTS.keys.select { |name| used.includes?(name) }
+      @imports = @costs ? ["tick"] + imports : imports
       @functions.each { |name| type_for(@arity[name]) } # populate @extra_arities before type_section is built
     end
 
@@ -212,6 +218,18 @@ module CrystalRobots::Compiler
 
     private def call(i : Int32) : Bytes
       op(Opcodes::Call) + WASM_Emitter.unsignedLEB128(i)
+    end
+
+    private def cost : Interpreter::Costs
+      @costs || Interpreter::Costs.new
+    end
+
+    # `env.tick(n)` when cycle accounting is on and n > 0: a no-op,
+    # returning empty bytes, exactly reproducing every module this
+    # emitter produced before `costs` existed.
+    private def tick(n : Int32) : Bytes
+      return Bytes[] if @costs.nil? || n <= 0
+      const(n) + call(import_index("tick")) + op(Opcodes::Drop)
     end
 
     private def local_get(i : Int32) : Bytes
@@ -251,10 +269,18 @@ module CrystalRobots::Compiler
       WASM_Emitter.createSection(Section::Type, WASM_Emitter.encodeVector(fixed + extra))
     end
 
+    # `tick` isn't a CROBOTS builtin the program calls, so it isn't in
+    # `IMPORTS`; it takes one `i32` (the cycles charged) and, like every
+    # other import, returns one so it shares a type with the arity-1
+    # builtins.
+    private def import_arity(name : String) : Int32
+      name == "tick" ? 1 : IMPORTS[name]
+    end
+
     def import_section : Bytes
       WASM_Emitter.createSection(Section::Import,
         WASM_Emitter.encodeVector(@imports.map { |name|
-          WASM_Emitter.encodeString("env") + WASM_Emitter.encodeString(name) + Bytes[ExportType::Func.value, IMPORTS[name].to_u8]
+          WASM_Emitter.encodeString("env") + WASM_Emitter.encodeString(name) + Bytes[ExportType::Func.value, import_arity(name).to_u8]
         }))
     end
 
@@ -300,9 +326,9 @@ module CrystalRobots::Compiler
     # `run`/`change`/`new_corner` style bare calls the example robots use.
     private def identifier_get(name : String, ctx : Ctx) : Bytes
       if !ctx.locals.has_key?(name) && !@globals.includes?(name) && @arity[name]? == 0
-        call(function_index(name))
+        tick(cost.call) + call(function_index(name))
       else
-        variable_get(name, ctx)
+        tick(cost.fetch) + variable_get(name, ctx)
       end
     end
 
@@ -334,12 +360,12 @@ module CrystalRobots::Compiler
       n = @program[i]
       case n.rule
       when :lex
-        n.type == Type::Identifier ? identifier_get(@program.value(n), ctx) : const(@program.value(n).to_i32)
+        n.type == Type::Identifier ? identifier_get(@program.value(n), ctx) : tick(cost.fetch) + const(@program.value(n).to_i32)
       when :literal
-        const(@program.type(@program.arg(i, 0)) == Type::TrueKeyword ? 1 : 0)
+        tick(cost.fetch) + const(@program.type(@program.arg(i, 0)) == Type::TrueKeyword ? 1 : 0)
       when :assign
         name = @program.value(@program.arg(i, 0))
-        expression(@program.arg(i, 2), ctx) + variable_tee(name, ctx)
+        expression(@program.arg(i, 2), ctx) + tick(cost.store) + variable_tee(name, ctx)
       when :opassign
         name = @program.value(@program.arg(i, 0))
         opt = case @program.type(@program.arg(i, 1))
@@ -348,27 +374,28 @@ module CrystalRobots::Compiler
               when Type::MulAssign then Type::MulOperator
               else                      Type::ModOperator
               end
-        binary(opt, variable_get(name, ctx), expression(@program.arg(i, 2), ctx)) + variable_tee(name, ctx)
+        binary(opt, variable_get(name, ctx), expression(@program.arg(i, 2), ctx)) +
+          tick(cost.fetch + cost.operator + cost.store) + variable_tee(name, ctx)
       when :paren
         expression(@program.arg(i, 1), ctx)
       when :neg
-        const(0) + expression(@program.arg(i, 1), ctx) + op(Opcodes::I32_sub)
+        const(0) + expression(@program.arg(i, 1), ctx) + op(Opcodes::I32_sub) + tick(cost.operator)
       when :mul, :add, :cmp, :eq, :and, :or
-        binary(@program.type(@program.arg(i, 1)), expression(@program.arg(i, 0), ctx), expression(@program.arg(i, 2), ctx))
+        binary(@program.type(@program.arg(i, 1)), expression(@program.arg(i, 0), ctx), expression(@program.arg(i, 2), ctx)) + tick(cost.operator)
       when :call0
-        call(import_index(@program.lexeme(i)))
+        tick(cost.builtin) + call(import_index(@program.lexeme(i)))
       when :command1, :call1
         arg_index = n.rule == :call1 ? 2 : 1
-        expression(@program.arg(i, arg_index), ctx) + call(import_index(@program.lexeme(@program.arg(i, 0))))
+        expression(@program.arg(i, arg_index), ctx) + tick(cost.builtin) + call(import_index(@program.lexeme(@program.arg(i, 0))))
       when :command2, :call2
         a, b = n.rule == :call2 ? {2, 4} : {1, 3}
         expression(@program.arg(i, a), ctx) + expression(@program.arg(i, b), ctx) +
-          call(import_index(@program.lexeme(@program.arg(i, 0))))
+          tick(cost.builtin) + call(import_index(@program.lexeme(@program.arg(i, 0))))
       when :call
         kids = @program.children(i)
         name = @program.lexeme(kids[0])
         args = kids[2..].reject { |k| {Type::CloseParen, Type::Comma}.includes?(@program.type(k)) }
-        args.reduce(Bytes[]) { |code, a| code + expression(a, ctx) } + call(function_index(name))
+        args.reduce(Bytes[]) { |code, a| code + expression(a, ctx) } + tick(cost.call) + call(function_index(name))
       else
         raise Unsupported.new("expression #{n.rule} is not supported in WASM")
       end
@@ -409,9 +436,8 @@ module CrystalRobots::Compiler
     end
 
     def statement(stmt : Int32, ctx : Ctx) : Bytes
-      case @program[stmt].rule
-      when :def
-        Bytes[] # compiled separately into its own function, see function_body
+      return Bytes[] if @program[stmt].rule == :def # compiled separately, see function_body
+      tick(cost.statement) + case @program[stmt].rule
       when :global
         expression(@program.arg(stmt, 4), ctx) + global_set(@program.value(@program.arg(stmt, 2)))
       when :while
@@ -420,12 +446,12 @@ module CrystalRobots::Compiler
         loop_statement(stmt, ctx, while_true: false)
       when :break
         exit = ctx.loops.last? || raise Unsupported.new("break outside of a loop")
-        op(Opcodes::Br) + WASM_Emitter.unsignedLEB128(ctx.depth - exit)
+        tick(cost.branch) + op(Opcodes::Br) + WASM_Emitter.unsignedLEB128(ctx.depth - exit)
       when :return
         raise Unsupported.new("return outside of a function") unless ctx.in_def
         kids = @program.children(stmt)
         value = kids.size > 2 ? expression(kids[1], ctx) : const(0)
-        value + op(Opcodes::Return)
+        value + tick(cost.branch) + op(Opcodes::Return)
       when :if
         if_statement(stmt, ctx)
       when :case
@@ -453,6 +479,7 @@ module CrystalRobots::Compiler
       ctx.depth += 1
       code += expression(cond, ctx)
       code += op(Opcodes::I32_eqz) if while_true
+      code += tick(cost.branch)
       code += op(Opcodes::Br_if) + WASM_Emitter.unsignedLEB128(ctx.depth - exit)
       body_of(stmt).each { |s| code += statement(s, ctx) }
       code += op(Opcodes::Br) + WASM_Emitter.unsignedLEB128(0)
@@ -488,7 +515,7 @@ module CrystalRobots::Compiler
       if cond.nil?
         return stmts.reduce(Bytes[]) { |code, s| code + statement(s, ctx) }
       end
-      code = expression(cond, ctx) + op(Opcodes::If) + Bytes[BlockVoid]
+      code = expression(cond, ctx) + tick(cost.branch) + op(Opcodes::If) + Bytes[BlockVoid]
       ctx.depth += 1
       code = stmts.reduce(code) { |c, s| c + statement(s, ctx) }
       rest = branches[1..]
@@ -527,7 +554,7 @@ module CrystalRobots::Compiler
       if cond.nil?
         return stmts.reduce(Bytes[]) { |code, s| code + statement(s, ctx) }
       end
-      code = local_get(subject) + expression(cond, ctx) + op(Opcodes::I32_eq) + op(Opcodes::If) + Bytes[BlockVoid]
+      code = local_get(subject) + expression(cond, ctx) + op(Opcodes::I32_eq) + tick(cost.branch) + op(Opcodes::If) + Bytes[BlockVoid]
       ctx.depth += 1
       code = stmts.reduce(code) { |c, s| c + statement(s, ctx) }
       rest = branches[1..]

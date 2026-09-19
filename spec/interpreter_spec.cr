@@ -115,6 +115,34 @@ describe Interpreter do
     interpret_puts(source).should eq [30, 2]
   end
 
+  it "charges cycles: one fetch and one call for puts(42), plus one statement" do
+    program = CrystalRobots::Compiler::Parser.new("puts 42\n").program
+    cycles = CrystalRobots::Compiler::Interpreter.execute(program, CrystalRobots::Compiler::NullHost.new)
+    costs = CrystalRobots::Compiler::Interpreter::Costs.new
+    cycles.should eq (costs.statement + costs.fetch + costs.builtin).to_i64
+  end
+
+  it "charges call, not fetch, for a bare zero-argument function call" do
+    source = "def bump\n1\nend\nputs bump\n"
+    program = CrystalRobots::Compiler::Parser.new(source).program
+    cycles = CrystalRobots::Compiler::Interpreter.execute(program, CrystalRobots::Compiler::NullHost.new)
+    costs = CrystalRobots::Compiler::Interpreter::Costs.new
+    # "puts bump" (statement) evaluates bump: an identifier that resolves
+    # to a bare call (call), whose body is one statement, "1" (statement
+    # + fetch); then puts's own builtin call (builtin).
+    cycles.should eq (costs.statement*2 + costs.fetch + costs.call + costs.builtin).to_i64
+  end
+
+  it "Costs.statements charges only one per statement, nothing else" do
+    program = CrystalRobots::Compiler::Parser.new("global(i, 0)\nwhile i < 5\ni += 1\nend\nputs i\n").program
+    cycles = CrystalRobots::Compiler::Interpreter.execute(
+      program, CrystalRobots::Compiler::NullHost.new, CrystalRobots::Compiler::Interpreter::Costs.statements
+    )
+    # global(i, 0); the while statement itself; 5 loop bodies (i += 1);
+    # puts i: 8 statements total.
+    cycles.should eq 8_i64
+  end
+
   it "runs main last" do
     interpret_puts("puts 1\nmain(\"Test\") do\nputs 2\nend\n").should eq [1, 2]
   end
