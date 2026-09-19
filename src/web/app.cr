@@ -73,6 +73,12 @@ module CrystalRobots::Web::App
           saved.each { |name| io << "- [" << name << "](" << req.link("/wiki/#{name}") << ")\n" }
         end
       end
+
+      if Capabilities.can_run?(req.capabilities)
+        io << "\n## Tournament\n\n"
+        io << "[Pick robots and run a tournament](" << req.link("/tournament")
+        io << "): every example, and every saved robot, can enter -- pools then a bracket, one champion.\n"
+      end
     end
     Response.new(md)
   end

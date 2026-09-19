@@ -32,6 +32,14 @@ describe App do
     response.status.should eq 403
   end
 
+  it "links the tournament from the overview when the visitor can run one" do
+    App.handle(request("/", caps: "oi")).body.should contain "[Pick robots and run a tournament](/ext/crystal-robots/tournament)"
+  end
+
+  it "hides the tournament link from the overview without run capability" do
+    App.handle(request("/", caps: "o")).body.should_not contain "tournament"
+  end
+
   it "404s an unknown path" do
     response = App.handle(request("/nope"))
     response.status.should eq 404
