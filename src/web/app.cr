@@ -379,7 +379,7 @@ module CrystalRobots::Web::App
       current = stage.next_slots
       idx += 1
     end
-    return champion_page(req, picked, limit, pools, rounds) if current.size <= 1 && !rounds.empty?
+    return champion(req, picked, limit, pools, rounds, sources) if current.size <= 1 && !rounds.empty?
 
     unless round_fits_budget?(current, limit)
       return tournament_error(req, "That's too many robots for one round at this cycle limit; lower the cycle limit or pick fewer robots.")
@@ -388,10 +388,41 @@ module CrystalRobots::Web::App
     new_moves = moves.join + moves_for_rounds([stage.round])
     rounds = rounds + [stage.round]
     if stage.final
-      champion_page(req, picked, limit, pools, rounds)
+      champion(req, picked, limit, pools, rounds, sources)
     else
       round_page(req, picked, seed, limit, pools, rounds, new_moves)
     end
+  end
+
+  # The last line of defense against a hand-edited or truncated `mv=`:
+  # a tampered-but-internally-consistent moves string would otherwise
+  # replay to a different, attacker-chosen champion with no further
+  # checking, since `replay_fight` above trusts every letter it is
+  # handed. Before a champion is shown, every bracket fight recorded in
+  # `rounds` is run for real, from its own recorded seed, and checked
+  # against the outcome `mv=` claims; any mismatch refuses the
+  # champion instead of crowning one. Pools are trusted as recorded,
+  # not re-verified: round-robin play is many more fights than the
+  # bracket for the same entrant count, and a tampered pool can only
+  # change seeding going into the bracket, which this re-check still
+  # catches at the one outcome that matters -- who the link ultimately
+  # crowns.
+  private def self.champion(req : Request, picked : Array(PickedRobot), limit : Int32, pools : Array(Tournament::PoolResult),
+                            rounds : Array(Tournament::Round), sources : Hash(String, String)) : Response
+    bracket_outcomes_match?(rounds, limit, sources) ? champion_page(req, picked, limit, pools, rounds) : tampered_page(req)
+  end
+
+  private def self.bracket_outcomes_match?(rounds : Array(Tournament::Round), limit : Int32, sources : Hash(String, String)) : Bool
+    fight = tournament_fight(sources)
+    rounds.all? do |round|
+      round.matches.all? do |match|
+        match.games.all? { |game| fight.call(game.entrants, game.seed, limit) == game.winner }
+      end
+    end
+  end
+
+  private def self.tampered_page(req : Request) : Response
+    tournament_error(req, "This link was changed: its recorded outcomes don't match what replaying the bracket's own seeds actually produces, so no champion is shown.")
   end
 
   # A real fight: parses each entrant's source fresh (they are tiny, and

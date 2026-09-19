@@ -264,5 +264,24 @@ describe App do
       }
       play_to_champion.call.should eq play_to_champion.call
     end
+
+    it "refuses a tampered mv= instead of crowning an attacker-chosen champion" do
+      params = TOURNAMENT_PICKS.merge({"go" => "on"})
+      body = App.handle(request("/tournament", caps: "oij", params: params)).body
+      mv = body.match(/mv=(\w+)/).not_nil![1] # after the pools: "aaa" (rabbit won both, circler beat hunter)
+
+      body = App.handle(request("/tournament", caps: "oij", params: params.merge({"mv" => mv}))).body
+      mv = body.match(/mv=(\w+)/).not_nil![1] # after the semifinal: 2 more chars for circler vs hunter's games
+      mv.size.should be > 3
+
+      chars = mv.chars
+      chars[3] = chars[3] == 'a' ? 'b' : 'a' # flip the semifinal's first recorded game
+      tampered = chars.join
+      tampered.should_not eq mv
+
+      response = App.handle(request("/tournament", caps: "oij", params: params.merge({"mv" => tampered})))
+      response.body.should contain "This link was changed"
+      response.body.should_not contain "wins the Tournament"
+    end
   end
 end
