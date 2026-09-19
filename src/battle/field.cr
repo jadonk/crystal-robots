@@ -31,6 +31,8 @@ module CrystalRobots::Battle
   FAR_RANGE    = 40
   FAR_HIT      =  3
 
+  RES_LIMIT = 10 # scan resolution limit, degrees
+
   # Fixed-point sin/cos, scaled by 100000 like CROBOTS's own lookup
   # table (`trig_tbl` in motion.c) and its `sin`/`cos` builtins, so a
   # robot's own trig calls and the field's motion math agree on what a
@@ -98,6 +100,72 @@ module CrystalRobots::Battle
       @robots = names.map { |n| Robot.new(n) }
       @missiles = @robots.map { Array.new(MIS_ROBOT) { Missile.new } }
       place_robots
+    end
+
+    # c_rand (intrins.c): a random number in 0...limit, from this match's
+    # own seeded RNG so a match replays identically.
+    def rand(limit : Int32) : Int32
+      limit <= 0 ? 0 : @rng.rand(limit)
+    end
+
+    # c_drive (intrins.c): set the desired heading and speed; move_robots
+    # moderates the actual change by acceleration and the turn-speed limit.
+    def drive(i : Int32, degree : Int32, speed : Int32) : Nil
+      r = @robots[i]
+      r.d_speed = speed.clamp(0, 100)
+      degree = degree.abs
+      degree %= 360 if degree >= 360
+      r.d_heading = degree
+    end
+
+    # c_scan (intrins.c): the closest other robot within `resolution`
+    # degrees of `degree`, or 0 for nothing. Bearings are found with
+    # atan, not atan2, and the quadrant worked out by hand exactly as
+    # intrins.c does, since that is what a ratio-based `atan` call from a
+    # robot's own source (rabbit.cr, sniper.cr) already assumes.
+    def scan(i : Int32, degree : Int32, resolution : Int32) : Int32
+      me = @robots[i]
+      res = resolution.clamp(0, RES_LIMIT)
+      deg = degree.abs
+      deg %= 360 if deg >= 360
+      me.scan = deg
+
+      closest = nil
+      @robots.each_with_index do |other, n|
+        next if n == i || !other.alive?
+        x = (me.x // CLICK) - (other.x // CLICK) # meters, me - other
+        y = (me.y // CLICK) - (other.y // CLICK)
+
+        d = if (x + 0.5).to_i32 == 0
+              other.y > me.y ? 90 : 270
+            else
+              base = (Math.atan(y.to_f / x.to_f) * 180.0 / Math::PI)
+              if other.y < me.y
+                (other.x > me.x ? 360.0 + base : 180.0 + base).to_i32
+              else
+                (other.x > me.x ? base : 180.0 + base).to_i32
+              end
+            end
+
+        if deg > res && deg < 360 - res
+          dd, d1, d2 = deg, d - res, d + res
+        else
+          dd, d1, d2 = deg + 180, 180 + d - res, 180 + d + res
+        end
+        next unless dd >= d1 && dd <= d2
+
+        distance = Math.sqrt((x*x + y*y).to_f64)
+        closest = distance if closest.nil? || distance < closest
+      end
+      closest ? closest.to_i32 : 0
+    end
+
+    private def lsin(deg : Int32) : Int64
+      Battle.lsin(deg)
+    end
+
+    private def lcos(deg : Int32) : Int64
+      Battle.lcos(deg)
     end
 
     # rand_pos (main.c): each robot gets its own quadrant, then a random
@@ -269,14 +337,6 @@ module CrystalRobots::Battle
           target.status = :dead
         end
       end
-    end
-
-    private def lsin(deg : Int32) : Int64
-      Battle.lsin(deg)
-    end
-
-    private def lcos(deg : Int32) : Int64
-      Battle.lcos(deg)
     end
 
     # A moving robot within one click of another (in both x and y) hits
