@@ -11,6 +11,14 @@ private def post(path : String, params : Hash(String, String), caps : String = "
   request(path, caps: caps, params: params, method: "POST")
 end
 
+# rabbit, the wiki hunter and the wiki circler are picked deliberately:
+# unlike some example pairings (rabbit/sniper/target routinely run out
+# the cycle limit against each other with no winner), every pairing
+# among these three decides within a few tens of thousands of rounds,
+# so a tournament spec runs a handful of real fights, not a
+# maximum-depth tie-break cascade.
+private TOURNAMENT_PICKS = {"pick_rabbit" => "on", "pick_wiki_circler" => "on", "pick_wiki_hunter" => "on", "seed" => "100"}
+
 describe App do
   it "lists every example on the overview, linked under the script name" do
     response = App.handle(request("/"))
@@ -182,5 +190,79 @@ describe App do
     response.status.should eq 200
     response.body.should contain "| target |"
     response.body.should contain "| hunter |"
+  end
+
+  describe "/tournament" do
+    it "shows the designer form with a checkbox per example and saved robot, and a Check everyone link" do
+      response = App.handle(request("/tournament", caps: "oij"))
+      response.status.should eq 200
+      response.body.should contain %(name="pick_target")
+      response.body.should contain %(name="pick_wiki_hunter")
+      response.body.should contain "[Check everyone]"
+    end
+
+    it "hides saved robots from the form without wiki-read capability" do
+      response = App.handle(request("/tournament", caps: "oi"))
+      response.body.should_not contain "pick_wiki_"
+    end
+
+    it "refuses without run capability" do
+      App.handle(request("/tournament", caps: "oh")).status.should eq 403
+    end
+
+    it "asks for at least 3 robots when fewer are picked" do
+      response = App.handle(request("/tournament", caps: "oij", params: {"pick_target" => "on", "pick_rabbit" => "on"}))
+      response.body.should contain "Pick at least 3 robots"
+    end
+
+    it "shows a shareable link and a Start round 1 button before playing anything" do
+      response = App.handle(request("/tournament", caps: "oij", params: TOURNAMENT_PICKS))
+      response.status.should eq 200
+      response.body.should contain "Start round 1"
+      response.body.should_not contain "Pool A"
+    end
+
+    it "plays the pools once go is set, and links to the next round" do
+      params = TOURNAMENT_PICKS.merge({"go" => "on"})
+      response = App.handle(request("/tournament", caps: "oij", params: params))
+      response.body.should contain "The pools are done."
+      response.body.should contain "### Pool A: rabbit, circler, hunter"
+      response.body.should contain "```pikchr"
+      response.body.should contain "mv="
+    end
+
+    it "plays through every round to a champion, following each Run next round link" do
+      params = TOURNAMENT_PICKS.merge({"go" => "on"})
+      body = App.handle(request("/tournament", caps: "oij", params: params)).body
+
+      # Follow mv= links (in-process, decoding the query by hand) until
+      # a champion page appears, the same way a browser would by
+      # clicking "Run next round" -- capped well above the two rounds
+      # this 3-entrant bracket actually needs, so a real bug shows up
+      # as a spec failure rather than an infinite loop.
+      10.times do
+        break if body.includes?("wins the Tournament")
+        mv = body.match(/mv=(\w+)/).not_nil![1]
+        next_params = params.merge({"mv" => mv})
+        body = App.handle(request("/tournament", caps: "oij", params: next_params)).body
+      end
+      body.should contain "wins the Tournament"
+      body.should contain "```pikchr\nCUP:"
+      body.should contain "### Final"
+    end
+
+    it "the same seed reproduces the same champion" do
+      params = TOURNAMENT_PICKS.merge({"go" => "on"})
+      play_to_champion = -> {
+        body = App.handle(request("/tournament", caps: "oij", params: params)).body
+        10.times do
+          break if body.includes?("wins the Tournament")
+          mv = body.match(/mv=(\w+)/).not_nil![1]
+          body = App.handle(request("/tournament", caps: "oij", params: params.merge({"mv" => mv}))).body
+        end
+        body
+      }
+      play_to_champion.call.should eq play_to_champion.call
+    end
   end
 end
