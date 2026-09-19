@@ -8,6 +8,7 @@ require "./compiler/wasm_emitter"
 require "./compiler/disassembler"
 require "./battle/field"
 require "./battle/match"
+require "./web/cgi"
 
 module CrystalRobots::CLI
   private def self.parsed_program(file : String) : Compiler::Program
@@ -109,4 +110,10 @@ module CrystalRobots::CLI
   end
 end
 
-CrystalRobots::CLI.run(ARGV)
+# One binary: Fossil sets GATEWAY_INTERFACE for a CGI request; anything
+# else is the command-line tool.
+if ENV["GATEWAY_INTERFACE"]?
+  CrystalRobots::Web::CGI.run
+else
+  CrystalRobots::CLI.run(ARGV)
+end
