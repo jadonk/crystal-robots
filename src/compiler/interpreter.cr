@@ -106,6 +106,17 @@ module CrystalRobots::Compiler
   end
 
   class Interpreter
+    # Every builtin name `builtin0`/`builtin1`/`builtin2` below actually
+    # dispatch, in one place: spec-checked against those three `case`
+    # statements (spec/interpreter_spec.cr) and against
+    # Web::RobotAPI::ENTRIES's keys, so a builtin can never go
+    # undocumented and a documented name can never be make-believe.
+    BUILTIN_NAMES = %w(
+      damage speed loc_x loc_y sleep
+      puts rand sqrt sin cos tan atan
+      scan cannon drive
+    )
+
     # How many cycles each kind of work costs, the same units CROBOTS
     # charged per bytecode instruction, mapped onto this tree-walker's
     # coarser AST-node granularity: a fetch or a store is one instruction
