@@ -5,6 +5,7 @@ require "./markdown"
 require "./pikchr"
 require "./wiki_robots"
 require "./robot_api"
+require "./docs"
 require "../compiler/parser"
 require "../compiler/checker"
 require "../battle/field"
@@ -43,6 +44,10 @@ module CrystalRobots::Web::App
       tournament_page(req)
     elsif path == "/version"
       version_page(req)
+    elsif path == "/docs"
+      docs_file(req, "")
+    elsif (name = path.lchop?("/docs/"))
+      docs_file(req, name)
     else
       Response.new("# Not found\n\n#{req.path} is not a page here.\n", status: 404)
     end
@@ -56,6 +61,35 @@ module CrystalRobots::Web::App
       return Response.new("# crystal-robots\n\nLog in to see the version.\n", status: 403)
     end
     Response.new("#{CrystalRobots.version_line}\n")
+  end
+
+  # The generated API reference (`Docs.build`, run by the `build-docs`
+  # CLI subcommand before the binary is built): served raw, not
+  # wrapped in Fossil's Markdown chrome, since a built page carries its
+  # own styling already. `name` empty or ending in `/` means the index.
+  private def self.docs_file(req : Request, name : String) : Response
+    unless Capabilities.can_read?(req.capabilities)
+      return Response.new("# crystal-robots\n\nLog in to see the API reference.\n", status: 403)
+    end
+    unless Docs.built?
+      return Response.new(<<-MD, status: 404)
+        # API docs not built
+
+        This binary was built without `crystal-robots build-docs`; run it and rebuild.
+
+        [back to the overview](#{req.link("/")})
+        MD
+    end
+
+    path = name.empty? || name.ends_with?('/') ? "index.html" : name
+    if (page = Docs.page(path))
+      title, fragment = page
+      Response.new(%(<div class="fossil-doc" data-title="#{html_escape(title)}">\n#{fragment}\n</div>\n), "text/html; charset=utf-8")
+    elsif (content = Docs.asset(path))
+      Response.new(content, Docs.mime(path))
+    else
+      Response.new("# Not found\n\nNo such API doc page.\n", status: 404)
+    end
   end
 
   private def self.example_names : Array(String)
@@ -74,7 +108,8 @@ module CrystalRobots::Web::App
     md = String.build do |io|
       io << "# crystal-robots\n\n"
       io << "A small Ruby-like language, compiled to WebAssembly, for CROBOTS-style "
-      io << "battle robots.\n\n"
+      io << "battle robots"
+      io << (Docs.built? ? ", with an [API reference](#{req.link("/docs")}) for the robot builtins and the compiler.\n\n" : ".\n\n")
       io << "## Examples\n\n"
       example_names.each do |name|
         io << "- [" << name << "](" << req.link("/examples/#{name}") << ")\n"

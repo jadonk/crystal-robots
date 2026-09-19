@@ -9,6 +9,7 @@ require "./compiler/disassembler"
 require "./battle/field"
 require "./battle/match"
 require "./web/cgi"
+require "./web/docs"
 
 module CrystalRobots::CLI
   private def self.parsed_program(file : String) : Compiler::Program
@@ -114,6 +115,14 @@ end
 # else is the command-line tool.
 if ENV["GATEWAY_INTERFACE"]?
   CrystalRobots::Web::CGI.run
+elsif ARGV[0]? == "build-docs"
+  # Generates the API docs into docs-api/ so the *next* `shards build`
+  # embeds them (see src/web/docs.cr) -- this run cannot embed its own
+  # output, since CrystalRobots::Web::Docs::FILES is read once, at the
+  # compile time of the binary already running.
+  ok = CrystalRobots::Web::Docs.build("#{CrystalRobots::VERSION} #{CrystalRobots.checkin_short}")
+  puts(ok ? "docs written to #{CrystalRobots::Web::Docs::DIR}; run `shards build` to embed them" : "crystal docs failed")
+  exit(ok ? 0 : 1)
 else
   CrystalRobots::CLI.run(ARGV)
 end

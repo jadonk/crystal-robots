@@ -55,6 +55,21 @@ describe App do
     App.handle(request("/version", caps: "")).status.should eq 403
   end
 
+  it "refuses /docs without read capability" do
+    App.handle(request("/docs", caps: "")).status.should eq 403
+  end
+
+  it "/docs explains how to build the reference when it was not built, or serves it when it was" do
+    response = App.handle(request("/docs"))
+    if CrystalRobots::Web::Docs.built?
+      response.status.should eq 200
+      response.body.should contain "fossil-doc"
+    else
+      response.status.should eq 404
+      response.body.should contain "build-docs"
+    end
+  end
+
   it "shows an example's source and parse derivation" do
     response = App.handle(request("/examples/hello"))
     response.status.should eq 200
