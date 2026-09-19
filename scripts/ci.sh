@@ -86,6 +86,9 @@ if [ "$with_wasm32" = 1 ]; then
   command -v node >/dev/null 2>&1 || { echo "node is required on PATH for --with-wasm32" >&2; exit 1; }
   node --version
 
+  step "check for wasm-ld (the lld package; Crystal needs it to link the wasm32 target)"
+  command -v wasm-ld >/dev/null 2>&1 || { echo "wasm-ld is required on PATH for --with-wasm32; install the lld package" >&2; exit 1; }
+
   step "wasm32-wasi-libs 0.0.3"
   export WASM32_WASI_LIBS="$PWD/.wasm32-wasi-libs"
   if [ ! -f "$WASM32_WASI_LIBS/lib/wasm32-wasi/libc.a" ]; then
