@@ -138,6 +138,26 @@ describe Field do
     missile.status.avail?.should be_true
   end
 
+  it "scans and finds a robot dead ahead" do
+    field = Field.new(["a", "b"], seed: 1)
+    a, b = field.robots
+    a.x = a.org_x = 500
+    a.y = a.org_y = 500
+    b.x = b.org_x = 500 + CrystalRobots::Battle::CLICK * 100 # 100m east
+    b.y = b.org_y = 500
+    field.scan(0, 0, 5).should eq 100
+  end
+
+  it "scans and finds nothing outside the resolution cone" do
+    field = Field.new(["a", "b"], seed: 1)
+    a, b = field.robots
+    a.x = a.org_x = 500
+    a.y = a.org_y = 500
+    b.x = b.org_x = 500
+    b.y = b.org_y = 500 + CrystalRobots::Battle::CLICK * 100 # 100m north, not east
+    field.scan(0, 0, 5).should eq 0
+  end
+
   it "does not damage a robot far outside the blast radius" do
     field = Field.new(["shooter", "target"], seed: 1)
     shooter, target = field.robots
