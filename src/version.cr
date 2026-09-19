@@ -1,0 +1,3 @@
+module CrystalRobots
+  VERSION = "0.0.1"
+end

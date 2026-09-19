@@ -1,0 +1,17 @@
+name: crystal-robots
+version: 0.0.1
+description: |
+  Learn programming by writing robots that battle on a virtual field, then
+  learn how a programming language turns that source into machine
+  instructions by building the compiler yourself, one commit at a time.
+
+authors:
+  - Jason Kridner <jkridner@beagleboard.org>
+
+targets:
+  crystal-robots:
+    main: src/cli.cr
+
+crystal: ">= 1.14.0"
+
+license: GPLv2
