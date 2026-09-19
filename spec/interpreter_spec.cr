@@ -146,4 +146,21 @@ describe Interpreter do
   it "runs main last" do
     interpret_puts("puts 1\nmain(\"Test\") do\nputs 2\nend\n").should eq [1, 2]
   end
+
+  it "a standalone cycle limit stops a bare while true instead of looping forever" do
+    program = CrystalRobots::Compiler::Parser.new("global(i, 0)\nmain(\"Loop\") do\nwhile true\ni += 1\nend\nend\n").program
+    host = CrystalRobots::Compiler::NullHost.new
+    interpreter = Interpreter.new(program, host, limit: 500_i64)
+    interpreter.run
+    interpreter.cycles.should be >= 500
+    interpreter.cycles.should be < 1000 # stops soon after crossing the limit, not thousands of cycles later
+  end
+
+  it "a run that finishes on its own, under the limit, is unaffected" do
+    program = CrystalRobots::Compiler::Parser.new("puts 1 + 2\n").program
+    host = CrystalRobots::Compiler::NullHost.new
+    interpreter = Interpreter.new(program, host, limit: 500_000_i64)
+    interpreter.run
+    host.puts_out.should eq [3]
+  end
 end
