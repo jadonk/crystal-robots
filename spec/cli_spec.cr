@@ -2,9 +2,10 @@ require "./spec_helper"
 require "../src/version"
 
 describe "crystal-robots CLI" do
-  it "builds and reports its version" do
+  it "builds and reports its version and check-in" do
     output = `crystal run src/cli.cr -- --version`
-    output.chomp.should eq "crystal-robots #{CrystalRobots::VERSION}"
+    output.chomp.should eq CrystalRobots.version_line
+    output.should contain CrystalRobots::VERSION
   end
 
   it "-t prints the parse derivation for an example robot" do

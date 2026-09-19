@@ -45,6 +45,16 @@ describe App do
     response.status.should eq 404
   end
 
+  it "reports the version and check-in at /version" do
+    response = App.handle(request("/version"))
+    response.status.should eq 200
+    response.body.chomp.should eq CrystalRobots.version_line
+  end
+
+  it "refuses /version without read capability" do
+    App.handle(request("/version", caps: "")).status.should eq 403
+  end
+
   it "shows an example's source and parse derivation" do
     response = App.handle(request("/examples/hello"))
     response.status.should eq 200

@@ -9,6 +9,7 @@ require "../compiler/checker"
 require "../battle/field"
 require "../battle/match"
 require "../tournament/tournament"
+require "../version"
 
 # The router: one method per route, each returning a `Response` Fossil
 # wraps in Markdown chrome.
@@ -39,9 +40,21 @@ module CrystalRobots::Web::App
       wiki_robot(req, name)
     elsif path == "/tournament"
       tournament_page(req)
+    elsif path == "/version"
+      version_page(req)
     else
       Response.new("# Not found\n\n#{req.path} is not a page here.\n", status: 404)
     end
+  end
+
+  # Matches every other route's own read-capability gate (trunk gates
+  # its whole router at "oh" up front; this app checks per route
+  # instead, so /version needs the same explicit check the rest have).
+  private def self.version_page(req : Request) : Response
+    unless Capabilities.can_read?(req.capabilities)
+      return Response.new("# crystal-robots\n\nLog in to see the version.\n", status: 403)
+    end
+    Response.new("#{CrystalRobots.version_line}\n")
   end
 
   private def self.example_names : Array(String)

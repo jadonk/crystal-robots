@@ -39,7 +39,7 @@ module CrystalRobots::CLI
     seed = nil
     parser = OptionParser.new do |p|
       p.banner = "Usage: crystal-robots [options] FILE..."
-      p.on("-v", "--version", "Print the version") { puts "crystal-robots #{VERSION}"; exit }
+      p.on("-v", "--version", "Print the version and check-in") { puts CrystalRobots.version_line; exit }
       p.on("-t", "--trace", "Print the parser's derivation, one line per pass") { mode = :trace }
       p.on("-k", "--check", "Run the checker and print any issues found") { mode = :check }
       p.on("-c", "--compile", "Compile to a WebAssembly module (needs -o)") { mode = :compile }
@@ -75,7 +75,7 @@ module CrystalRobots::CLI
     when :battle
       run_matches(argv, matches, cycle_limit, seed)
     else
-      puts "crystal-robots #{VERSION}: nothing to do yet, see --help"
+      puts "#{CrystalRobots.version_line}: nothing to do yet, see --help"
     end
   end
 
