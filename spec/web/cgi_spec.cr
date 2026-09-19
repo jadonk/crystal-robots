@@ -69,6 +69,18 @@ describe "the CGI entry point" do
     output.should contain "```pikchr"
   end
 
+  it "serves a saved robot's source from the repository's wiki pages" do
+    output = cgi_get("/wiki/hunter", caps: "oj")
+    output.should contain "hunter (saved robot)"
+    output.should contain "Parse derivation"
+  end
+
+  it "POST /battle runs a match between an example and a saved robot" do
+    output = cgi_post("/battle", "pick_target=on&pick_wiki_hunter=on&seed=5", caps: "oij")
+    output.should contain "| target |"
+    output.should contain "| hunter |"
+  end
+
   it "refuses an oversized request body before allocating anything" do
     env = {
       "GATEWAY_INTERFACE" => "CGI/1.1", "REQUEST_METHOD" => "POST", "PATH_INFO" => "/parse",

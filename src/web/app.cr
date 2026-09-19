@@ -3,14 +3,14 @@ require "./request"
 require "./response"
 require "./markdown"
 require "./pikchr"
+require "./wiki_robots"
 require "../compiler/parser"
 require "../compiler/checker"
 require "../battle/field"
 require "../battle/match"
 
 # The router: one method per route, each returning a `Response` Fossil
-# wraps in Markdown chrome. This commit adds `/battle`; saved robots are
-# a later commit.
+# wraps in Markdown chrome.
 module CrystalRobots::Web::App
   EXAMPLE_NAME = /\A[A-Za-z0-9_-]+\z/
 
@@ -34,6 +34,8 @@ module CrystalRobots::Web::App
       parse_page(req)
     elsif path == "/battle"
       battle_page(req)
+    elsif (name = path.lchop?("/wiki/"))
+      wiki_robot(req, name)
     else
       Response.new("# Not found\n\n#{req.path} is not a page here.\n", status: 404)
     end
@@ -59,6 +61,39 @@ module CrystalRobots::Web::App
       io << "## Examples\n\n"
       example_names.each do |name|
         io << "- [" << name << "](" << req.link("/examples/#{name}") << ")\n"
+      end
+
+      if Capabilities.can_read_wiki?(req.capabilities)
+        saved = WikiRobots.names
+        unless saved.empty?
+          io << "\n## Saved robots\n\n"
+          saved.each { |name| io << "- [" << name << "](" << req.link("/wiki/#{name}") << ")\n" }
+        end
+      end
+    end
+    Response.new(md)
+  end
+
+  private def self.wiki_robot(req : Request, name : String) : Response
+    unless Capabilities.can_read_wiki?(req.capabilities)
+      return Response.new("# crystal-robots\n\nLog in to see saved robots.\n", status: 403)
+    end
+    source = EXAMPLE_NAME.matches?(name) ? WikiRobots.source(name) : nil
+    unless source
+      return Response.new("# Not found\n\nNo saved robot named #{Markdown.escape(name)}.\n", status: 404)
+    end
+
+    md = String.build do |io|
+      io << "# " << name << " (saved robot)\n\n"
+      io << "[back to the overview](" << req.link("/") << ")\n\n"
+      io << "## Source\n\n"
+      io << Markdown.fence(source, "crystal")
+      io << "\n## Parse derivation\n\n"
+      begin
+        program = Compiler::Parser.new(source).program
+        io << Markdown.fence(program.derivation)
+      rescue e : Compiler::Parser::Error
+        io << "Could not parse: " << Markdown.escape(e.message || "unknown error") << "\n"
       end
     end
     Response.new(md)
@@ -133,8 +168,9 @@ module CrystalRobots::Web::App
     text.gsub(/[&<>"]/) { |c| {"&" => "&amp;", "<" => "&lt;", ">" => "&gt;", "\"" => "&quot;"}[c] }
   end
 
-  # GET shows a checkbox per example robot and a seed field; POST runs
-  # one seeded match among the checked robots (two to four) up to
+  # GET shows a checkbox per example robot, one per saved (wiki) robot
+  # if the visitor can read wiki pages, and a seed field; POST runs one
+  # seeded match among the checked robots (two to four) up to
   # WEB_CYCLE_LIMIT and shows the outcome as a table plus a Pikchr frame
   # of the final field. Needs run capability (i), the same as parsing.
   private def self.battle_page(req : Request) : Response
@@ -142,17 +178,25 @@ module CrystalRobots::Web::App
       return Response.new("# Battle\n\nLog in to run a battle.\n", status: 403)
     end
 
-    names = example_names
-    picked = req.method == "POST" ? names.select { |n| req.params.has_key?("pick_#{n}") } : [] of String
+    examples = example_names
+    saved = Capabilities.can_read_wiki?(req.capabilities) ? WikiRobots.names : [] of String
     seed_text = req.params["seed"]? || ""
 
     md = String.build do |io|
       io << "# Battle\n\n"
       io << "[back to the overview](" << req.link("/") << ")\n\n"
       io << %(<form method="post" action="#{req.link("/battle")}">\n)
-      names.each do |n|
-        checked = picked.includes?(n) ? " checked" : ""
+      io << "Examples:<br>\n"
+      examples.each do |n|
+        checked = req.params.has_key?("pick_#{n}") ? " checked" : ""
         io << %(<label><input type="checkbox" name="pick_#{n}"#{checked}> #{n}</label><br>\n)
+      end
+      unless saved.empty?
+        io << "Saved robots:<br>\n"
+        saved.each do |n|
+          checked = req.params.has_key?("pick_wiki_#{n}") ? " checked" : ""
+          io << %(<label><input type="checkbox" name="pick_wiki_#{n}"#{checked}> #{n}</label><br>\n)
+        end
       end
       io << %(Seed (optional): <input type="text" name="seed" value="#{html_escape(seed_text)}"><br>\n)
       io << %(<input type="submit" value="Fight">\n)
@@ -160,13 +204,28 @@ module CrystalRobots::Web::App
 
       if req.method == "POST"
         io << "\n## Result\n\n"
-        run_battle(io, picked, seed_text)
+        run_battle(io, picked_robots(req, examples, saved), seed_text)
       end
     end
     Response.new(md)
   end
 
-  private def self.run_battle(io : IO, picked : Array(String), seed_text : String) : Nil
+  private record PickedRobot, name : String, source : String
+
+  private def self.picked_robots(req : Request, examples : Array(String), saved : Array(String)) : Array(PickedRobot)
+    picked = [] of PickedRobot
+    examples.each do |n|
+      picked << PickedRobot.new(n, File.read("examples/#{n}.cr")) if req.params.has_key?("pick_#{n}")
+    end
+    saved.each do |n|
+      next unless req.params.has_key?("pick_wiki_#{n}")
+      source = WikiRobots.source(n)
+      picked << PickedRobot.new(n, source) if source
+    end
+    picked
+  end
+
+  private def self.run_battle(io : IO, picked : Array(PickedRobot), seed_text : String) : Nil
     if picked.size < 2 || picked.size > 4
       io << "Pick two to four robots.\n"
       return
@@ -177,8 +236,14 @@ module CrystalRobots::Web::App
       return
     end
 
-    programs = picked.map { |n| Compiler::Parser.new(File.read("examples/#{n}.cr")).program }
-    field = Battle::Field.new(picked, seed)
+    begin
+      programs = picked.map { |p| Compiler::Parser.new(p.source).program }
+    rescue e : Compiler::Parser::Error
+      io << "Could not run: " << Markdown.escape(e.message || "a robot did not parse") << "\n"
+      return
+    end
+
+    field = Battle::Field.new(picked.map(&.name), seed)
     match = Battle::Match.new(field, programs, cycle_limit: WEB_CYCLE_LIMIT)
     match.run
 

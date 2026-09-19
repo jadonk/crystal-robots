@@ -139,4 +139,48 @@ describe App do
     response = App.handle(post("/battle", {"pick_target" => "on", "pick_rabbit" => "on", "seed" => "not-a-number"}))
     response.body.should contain "Seed must be a whole number"
   end
+
+  it "lists saved robots on the overview when the visitor can read wiki pages" do
+    response = App.handle(request("/", caps: "oj"))
+    response.body.should contain "## Saved robots"
+    response.body.should contain "[hunter](/ext/crystal-robots/wiki/hunter)"
+  end
+
+  it "hides the saved robots section without wiki-read capability" do
+    response = App.handle(request("/", caps: "o"))
+    response.body.should_not contain "Saved robots"
+  end
+
+  it "shows a saved robot's source and parse derivation" do
+    response = App.handle(request("/wiki/hunter", caps: "oj"))
+    response.status.should eq 200
+    response.body.should contain "hunter (saved robot)"
+    response.body.should contain "Parse derivation"
+  end
+
+  it "refuses a saved robot without wiki-read capability" do
+    App.handle(request("/wiki/hunter", caps: "o")).status.should eq 403
+  end
+
+  it "404s an unknown saved robot" do
+    App.handle(request("/wiki/nope", caps: "oj")).status.should eq 404
+  end
+
+  it "GET /battle lists saved robots as checkboxes when the visitor can read wiki pages" do
+    response = App.handle(request("/battle", caps: "oij"))
+    response.body.should contain %(name="pick_wiki_hunter")
+  end
+
+  it "GET /battle hides saved robots without wiki-read capability" do
+    response = App.handle(request("/battle", caps: "oi"))
+    response.body.should_not contain "pick_wiki_"
+  end
+
+  it "POST /battle runs a match between an example and a saved robot" do
+    params = {"pick_target" => "on", "pick_wiki_hunter" => "on", "seed" => "5"}
+    response = App.handle(post("/battle", params, caps: "oij"))
+    response.status.should eq 200
+    response.body.should contain "| target |"
+    response.body.should contain "| hunter |"
+  end
 end
