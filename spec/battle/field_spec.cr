@@ -93,4 +93,60 @@ describe Field do
     field.move_robots
     robot.alive?.should be_false
   end
+
+  it "fires a missile, then refuses while reloading" do
+    field = Field.new(["a"], seed: 1)
+    field.fire_missile(0, 90, 100).should be_true
+    field.missiles[0].count(&.status.flying?).should eq 1
+    field.fire_missile(0, 90, 100).should be_false # still reloading
+  end
+
+  it "reloads after RELOAD motion cycles, filling the second slot" do
+    field = Field.new(["a"], seed: 1)
+    field.fire_missile(0, 90, 700) # long range: still flying when reload clears
+    CrystalRobots::Battle::RELOAD.times { field.move_robots }
+    field.fire_missile(0, 90, 100).should be_true
+    field.missiles[0].count(&.status.flying?).should eq 2
+  end
+
+  it "reports success without firing on a negative distance, a real CROBOTS quirk" do
+    field = Field.new(["a"], seed: 1)
+    field.fire_missile(0, 90, -1).should be_true
+    field.missiles[0].none?(&.status.flying?).should be_true
+  end
+
+  it "flies a missile toward its target range, then explodes it" do
+    field = Field.new(["a"], seed: 1)
+    field.fire_missile(0, 0, 50) # 50 meters east, well within one motion cycle
+    missile = field.missiles[0][0]
+    field.move_missiles
+    missile.status.exploding?.should be_true
+    missile.cur_x.should be > missile.beg_x
+  end
+
+  it "damages a robot caught in a direct hit, and ages the explosion back to available" do
+    field = Field.new(["shooter", "target"], seed: 1)
+    shooter, target = field.robots
+    target.x = shooter.x + (CrystalRobots::Battle::CLICK * 2) # 2 meters east, within DIRECT_RANGE
+    target.y = shooter.y
+    field.fire_missile(0, 0, 50)
+    field.move_missiles
+    target.damage.should eq CrystalRobots::Battle::DIRECT_HIT
+
+    missile = field.missiles[0][0]
+    (CrystalRobots::Battle::EXP_COUNT + 1).times { field.move_missiles }
+    missile.status.avail?.should be_true
+  end
+
+  it "does not damage a robot far outside the blast radius" do
+    field = Field.new(["shooter", "target"], seed: 1)
+    shooter, target = field.robots
+    shooter.x = shooter.org_x = 500
+    shooter.y = shooter.org_y = 500
+    target.x = 5
+    target.y = 5
+    field.fire_missile(0, 0, 50)
+    field.move_missiles
+    target.damage.should eq 0
+  end
 end
