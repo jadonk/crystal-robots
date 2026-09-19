@@ -183,7 +183,18 @@ module CrystalRobots::Compiler
     property step_channel : Channel(Nil)?
     property done_channel : Channel(Nil)?
 
-    def initialize(@program : Program, @host : Host, @costs : Costs = Costs.new)
+    # A standalone cycle cap, independent of `step_channel`/`done_channel`:
+    # a robot's own `main` block is written `while true`, meant to be
+    # bounded by a battlefield's cycle limit (many fibers, one per robot,
+    # cooperating through those channels); running one robot alone with
+    # `limit` set instead stops it after that many cycles have been
+    # charged, wherever it happens to be, rather than looping forever
+    # with no scheduler to bound it. `nil` by default: every existing
+    # caller is unaffected.
+    private class StepLimitSignal < Exception
+    end
+
+    def initialize(@program : Program, @host : Host, @costs : Costs = Costs.new, @limit : Int64? = nil)
       @globals = {} of String => Int32
       @functions = {} of String => Int32
       @arity = {} of String => Int32
@@ -224,6 +235,7 @@ module CrystalRobots::Compiler
         end
       end
       main_stmts.each { |s| exec_statement(s, scope) }
+    rescue StepLimitSignal
     end
 
     private def body_of(block : Int32) : Array(Int32)
@@ -237,9 +249,11 @@ module CrystalRobots::Compiler
     private def sync_step : Nil
       d = @done_channel
       s = @step_channel
-      return unless d && s
-      d.send(nil)
-      s.receive
+      if d && s
+        d.send(nil)
+        s.receive
+      end
+      raise StepLimitSignal.new if (limit = @limit) && @cycles >= limit
     end
 
     # The value of a statement is the value of its expression, or, for
