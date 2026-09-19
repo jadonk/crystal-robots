@@ -6,6 +6,9 @@ require "../src/compiler/interpreter"
 require "../src/compiler/wasm_emitter"
 require "../src/battle/field"
 require "../src/battle/robot_host"
+require "../src/battle/match"
+
+alias BattleField = CrystalRobots::Battle::Field
 
 # Parses and interprets `source` against a fresh `NullHost`, returning
 # what it printed -- the same shape `run_puts` returns for the WASM path,

@@ -153,6 +153,25 @@ module CrystalRobots::Compiler
 
     getter cycles = 0_i64
 
+    # When both are set, `sync_step` is called once per statement executed
+    # and once per loop-condition check -- covering an empty loop body
+    # too, so a bare `while true` still cooperates -- letting a scheduler
+    # interleave several robots' interpreters, each in its own Fiber, one
+    # step at a time: send on `done_channel` (blocks until the scheduler
+    # is ready to collect it), then receive from `step_channel` (blocks
+    # until the scheduler permits the next step). `nil` by default: every
+    # existing caller runs a robot to completion in one call, unaffected.
+    #
+    # This is deliberately not bare `Fiber.yield`: Crystal's own fiber
+    # scheduler does not guarantee a `Fiber.yield` call hands control
+    # back to whichever fiber called `resume` (confirmed by hand -- a
+    # tight `Fiber.new`/`resume`/`Fiber.yield` loop ran a fiber to
+    # completion in one `resume` instead of pausing at each `yield`); a
+    # `Channel` round-trip is the concurrency primitive Crystal actually
+    # guarantees ordering for.
+    property step_channel : Channel(Nil)?
+    property done_channel : Channel(Nil)?
+
     def initialize(@program : Program, @host : Host, @costs : Costs = Costs.new)
       @globals = {} of String => Int32
       @functions = {} of String => Int32
@@ -204,11 +223,20 @@ module CrystalRobots::Compiler
       @cycles += n
     end
 
+    private def sync_step : Nil
+      d = @done_channel
+      s = @step_channel
+      return unless d && s
+      d.send(nil)
+      s.receive
+    end
+
     # The value of a statement is the value of its expression, or, for
     # `if`, whichever branch's last statement ran; a loop is not a value
     # and yields 0, matching `WASM_Emitter`'s reset of `Ctx#ret`.
     private def exec_statement(stmt : Int32, scope : Scope) : Int32
       charge(@costs.statement)
+      sync_step
       case @program[stmt].rule
       when :global
         @globals[@program.value(@program.arg(stmt, 2))] = eval(@program.arg(stmt, 4), scope)
@@ -239,6 +267,7 @@ module CrystalRobots::Compiler
       loop do
         value = eval(cond, scope)
         charge(@costs.branch)
+        sync_step
         keep_going = while_true ? value != 0 : value == 0
         break unless keep_going
         begin
