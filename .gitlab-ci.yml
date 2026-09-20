@@ -5,6 +5,6 @@ image: $CI_REGISTRY/jkridner/crystal
 ci:
   stage: test
   before_script:
-    - sudo apk add curl shards
+    - sudo apk add curl shards yaml-dev
   script:
     - crystal run ci.cr -- --with-wasmer

@@ -25,7 +25,7 @@ describe ".github/workflows/pages.yml" do
     steps[1]["uses"].as_s.should eq("oprypin/install-crystal@v1")
     steps[1]["with"]["crystal"].as_s.should eq("1.18.2")
 
-    steps[2]["run"].as_s.should eq("sudo apt-get update && sudo apt-get install -y lld")
+    steps[2]["run"].as_s.should eq("sudo apt-get update && sudo apt-get install -y lld libyaml-dev")
 
     steps[3]["run"].as_s.should eq("crystal run ci.cr -- --with-wasm32")
 

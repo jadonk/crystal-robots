@@ -234,6 +234,23 @@ if with_wasm32
   spec_flags << "-Dcrd_wasm32"
 end
 
+announce("check that libyaml links (spec/workflow_spec.cr requires \"yaml\")")
+yaml_check_dir = File.tempname("yaml-check")
+FileUtils.mkdir_p(yaml_check_dir)
+begin
+  yaml_check_src = File.join(yaml_check_dir, "check.cr")
+  File.write(yaml_check_src, %(require "yaml"\n))
+  yaml_check_bin = File.join(yaml_check_dir, "check")
+  status = Process.run("crystal", ["build", yaml_check_src, "-o", yaml_check_bin],
+    chdir: CHECKOUT, output: Process::Redirect::Inherit, error: Process::Redirect::Inherit)
+  unless status.success?
+    STDERR.puts "libyaml is required to link \"yaml\" (crystal spec needs it); install the development package: yaml-dev on Alpine/apk, libyaml-dev on Debian/Ubuntu/apt"
+    exit 1
+  end
+ensure
+  FileUtils.rm_rf(yaml_check_dir)
+end
+
 step!("crystal spec #{spec_flags.join(" ")}", "crystal", ["spec"] + spec_flags)
 
 step!("crystal tool format --check", "crystal", ["tool", "format", "--check", "src", "spec", "scripts"])
