@@ -149,7 +149,7 @@ end
 # The browser build (`crystal build --target wasm32-unknown-wasi
 # src/browser.cr`) is optional the same way wasmer is: specs that load
 # it compile only under `-Dcrd_wasm32` (`crystal spec -Dcrd_wasm32`)
-# and need `scripts/ci.sh --with-wasm32` to have built
+# and need `crystal run ci.cr -- --with-wasm32` to have built
 # `site/crystal-robots.wasm` first; otherwise they are pending, not a
 # link failure or a tolerated skip.
 #
@@ -191,6 +191,6 @@ macro wasm32_it(description, &block)
   {% if flag?(:crd_wasm32) %}
     it({{description}}) {{block}}
   {% else %}
-    pending({{description}} + " (run with -Dcrd_wasm32 after scripts/ci.sh --with-wasm32)")
+    pending({{description}} + " (run with -Dcrd_wasm32 after crystal run ci.cr -- --with-wasm32)")
   {% end %}
 end

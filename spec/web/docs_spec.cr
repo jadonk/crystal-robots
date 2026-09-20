@@ -9,7 +9,7 @@ alias Docs = CrystalRobots::Web::Docs
 # path a plain `crystal spec` run actually exercises. The richer,
 # built-docs assertions only run when a prior `build-docs` step left
 # docs-api/ populated before this binary was compiled, mirroring how
-# scripts/ci.sh orders things (build-docs, then the final build).
+# ci.cr orders things (build-docs, then the final build).
 describe Docs do
   it "reports not built when docs-api/ was empty at compile time" do
     Docs.built?.should be_false unless Docs.built?

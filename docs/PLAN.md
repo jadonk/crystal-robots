@@ -81,7 +81,7 @@ All fourteen are done.
 
 ## Phase D — hardening and housekeeping
 
-Request and parser budgets, input size caps, `scripts/ci.sh` as the one
+Request and parser budgets, input size caps, `ci.cr` as the one
 gate command, wasmer pinned to a musl-compatible release,
 `.fossil-settings/ignore-glob` mirrored to `.gitignore`.
 
