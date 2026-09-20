@@ -1,4 +1,6 @@
 require "./compiler"
+require "./battle/step_robot"
+require "./battle/svg_replay"
 require "json"
 
 # Browser entry points for the `wasm32-unknown-wasi` build (Phase 5b-1):
@@ -42,6 +44,8 @@ module CrystalRobots::Browser
   @@result = Bytes.empty
   @@wasm = Bytes.empty
   @@interpret_result = Bytes.empty
+  @@battle_input = Bytes.empty
+  @@battle_result = Bytes.empty
 
   # Reserves `len` bytes for the next call's source; the shim writes the
   # UTF-8 source into the returned offset before calling `crd_run`.
@@ -116,6 +120,74 @@ module CrystalRobots::Browser
     @@interpret_result = json.to_slice
     @@interpret_result.size
   end
+
+  # Reserves `len` bytes for the next call's battle request: a JSON object
+  # `{"robots":[{"name":..,"source":..}, 2 to 4 of these], "seed":N,
+  # "limit":N, "cps":N}`, written by the shim before calling
+  # `crd_battle_run`.
+  def battle_alloc(len : Int32) : Pointer(UInt8)
+    @@battle_input = Bytes.new(len)
+    @@battle_input.to_unsafe
+  end
+
+  def battle_result_ptr : Pointer(UInt8)
+    @@battle_result.to_unsafe
+  end
+
+  def battle_result_len : Int32
+    @@battle_result.size
+  end
+
+  # Bounds a page-supplied cycle limit the same way `src/web/cgi.cr`'s
+  # served `/battle` page bounds its own `limit=` parameter: from one
+  # motion cycle up to CROBOTS's own default limit.
+  BATTLE_LIMIT_MIN = CrystalRobots::Battle::MOTION_CYCLES.to_i64
+  BATTLE_LIMIT_MAX = CrystalRobots::Battle::CYCLE_LIMIT
+
+  # Runs one match -- `CrystalRobots::Battle::Field#run_stepwise` (see
+  # `src/battle/step_robot.cr`): the same battlefield physics and the same
+  # tree-walking interpreter `bin/crystal-robots`'s own matches use, driven
+  # without fibers or `raise`, both unsafe on this target (see the module
+  # comment on `crd_run`/`crd_interpret`, and `step_robot.cr`'s own header)
+  # -- for the source most recently written via `battle_alloc`, and stores
+  # a JSON report (final standings plus the SVG SMIL replay
+  # `CrystalRobots::Battle.svg_animation` renders from the finished
+  # `Field`, `src/battle/svg_replay.cr`, the same renderer the served
+  # `/battle` page uses) in `@@battle_result`. The per-cycle frame log
+  # itself stays inside this call, not part of the report: the page has no
+  # use for it once the SVG is built. A robot whose source fails to parse
+  # or check is reported inactive with its `error`, same as the served
+  # `/battle` page; it does not stop the match or this call. Traps only on
+  # a malformed request (the page's own bug, not a robot's) -- see the
+  # module comment.
+  def battle_run : Int32
+    payload = JSON.parse(String.new(@@battle_input))
+    robots = payload["robots"].as_a
+    seed = (payload["seed"]?.try(&.as_i64?) || 1_i64).to_u64
+    limit = (payload["limit"]?.try(&.as_i64?) || BATTLE_LIMIT_MAX).clamp(BATTLE_LIMIT_MIN, BATTLE_LIMIT_MAX)
+    cps = (payload["cps"]?.try(&.as_i?) || CrystalRobots::Battle::ANIM_CPS).clamp(1, 20_000)
+
+    json = String.build do |io|
+      if robots.size < 2 || robots.size > 4
+        io << {error: "a battle needs 2 to 4 robots, got #{robots.size}"}.to_json
+      else
+        entries = robots.map { |r| {r["name"].as_s, r["source"].as_s} }
+        field = CrystalRobots::Battle::Field.new(entries, seed: seed, limit: limit).run_stepwise
+        io << '{'
+        io << "\"seed\":" << seed << ','
+        io << "\"limit\":" << limit << ','
+        io << "\"cycles\":" << field.cycles << ','
+        io << "\"winner\":" << field.winner.try(&.name).to_json << ','
+        io << "\"robots\":[" << field.robots.map { |r|
+          {name: r.name, active: r.active, damage: r.damage, error: r.error, restarts: r.restarts, cycles: r.cycles}.to_json
+        }.join(",") << "],"
+        io << "\"svg\":" << CrystalRobots::Battle.svg_animation(field, cps).to_json
+        io << '}'
+      end
+    end
+    @@battle_result = json.to_slice
+    @@battle_result.size
+  end
 end
 
 # Allocates `len` bytes and returns their address; the shim writes the
@@ -161,4 +233,26 @@ end
 
 fun crd_interpret_result_len : Int32
   CrystalRobots::Browser.interpret_result_len
+end
+
+# Allocates `len` bytes and returns their address; the shim writes the
+# battle request JSON there before calling `crd_battle_run`.
+fun crd_battle_alloc(len : Int32) : UInt8*
+  CrystalRobots::Browser.battle_alloc(len)
+end
+
+# Runs the match described by the request last written via
+# `crd_battle_alloc`; returns the JSON report's length, read with
+# `crd_battle_result_ptr`/`crd_battle_result_len`. May trap on a
+# malformed request (see the module comment above `Browser.battle_run`).
+fun crd_battle_run : Int32
+  CrystalRobots::Browser.battle_run
+end
+
+fun crd_battle_result_ptr : UInt8*
+  CrystalRobots::Browser.battle_result_ptr
+end
+
+fun crd_battle_result_len : Int32
+  CrystalRobots::Browser.battle_result_len
 end

@@ -1,9 +1,15 @@
 // A minimal hand-written WASI preview1 host for crystal-robots' browser
 // build (`site/crystal-robots.wasm`, from `src/browser.cr`). No framework,
-// no CDN: this implements only the 7 imports that module actually uses
-// (confirmed with `wasmer inspect site/crystal-robots.wasm`) -- args_get,
-// args_sizes_get, fd_fdstat_get, fd_fdstat_set_flags, fd_write, proc_exit,
-// random_get -- not a general-purpose WASI runtime.
+// no CDN: this implements only the imports that module actually uses
+// (confirmed with `WebAssembly.Module.imports`) -- args_get,
+// args_sizes_get, fd_close, fd_fdstat_get, fd_fdstat_set_flags, fd_pread,
+// fd_read, fd_write, proc_exit, random_get -- not a general-purpose WASI
+// runtime. `fd_close`/`fd_pread`/`fd_read` joined the set once
+// `crd_battle_run` (Phase 5b-2) was linked in: nothing in this module
+// reads a file, but Crystal's runtime init still references its own
+// stdio-handle bookkeeping, which the linker keeps reachable; every read
+// simply reports "nothing more to read" (0 bytes, no error) and close
+// reports success, since no fd this host hands out ever has data on it.
 //
 // Crystal 1.18.2 stubs out exception handling for the `wasm32` target: a
 // `raise` inside the module prints its message to stderr and then traps
@@ -68,6 +74,17 @@ export function makeWasiImports({ onStdout, onStderr } = {}) {
     fd_fdstat_set_flags(_fd, _flags) {
       return 0;
     },
+    fd_close(_fd) {
+      return 0;
+    },
+    fd_read(_fd, _iovsPtr, _iovsLen, nreadPtr) {
+      view().setUint32(nreadPtr, 0, true);
+      return 0;
+    },
+    fd_pread(_fd, _iovsPtr, _iovsLen, _offset, nreadPtr) {
+      view().setUint32(nreadPtr, 0, true);
+      return 0;
+    },
     fd_write(fd, iovsPtr, iovsLen, nwrittenPtr) {
       let total = 0;
       let text = "";
@@ -122,19 +139,20 @@ async function instantiate(compiledModule, onStderr) {
   return { instance, stderrBox };
 }
 
-// Writes `source` into a fresh instance and calls `entry` (`crd_run` or
-// `crd_interpret`), returning `{ trapped: true, stderr }` on a trap or
-// `{ instance, report }` (`report` parsed from `resultPtrFn`/`resultLenFn`)
-// otherwise -- the caller reads any further exports (e.g. the emitted
-// WASM bytes) from `instance` before it goes out of scope.
-async function callEntry(compiledModule, source, entry, resultPtrFn, resultLenFn, onStderr) {
+// Writes `payload` into a fresh instance via `allocFn` and calls `entry`
+// (`crd_run`, `crd_interpret` or `crd_battle_run`), returning
+// `{ trapped: true, stderr }` on a trap or `{ instance, report }` (`report`
+// parsed from `resultPtrFn`/`resultLenFn`) otherwise -- the caller reads
+// any further exports (e.g. the emitted WASM bytes) from `instance` before
+// it goes out of scope.
+async function callEntry(compiledModule, payload, allocFn, entry, resultPtrFn, resultLenFn, onStderr) {
   const started = await instantiate(compiledModule, onStderr);
   if (started.trapped) return { trapped: true, stderr: started.stderrBox.text };
   const { instance, stderrBox } = started;
   const { memory } = instance.exports;
   try {
-    const bytes = new TextEncoder().encode(source);
-    const ptr = instance.exports.crd_alloc(bytes.length);
+    const bytes = new TextEncoder().encode(payload);
+    const ptr = instance.exports[allocFn](bytes.length);
     new Uint8Array(memory.buffer, ptr, bytes.length).set(bytes);
     instance.exports[entry]();
     const rp = instance.exports[resultPtrFn]();
@@ -154,7 +172,7 @@ async function callEntry(compiledModule, source, entry, resultPtrFn, resultLenFn
 // Returns the merged report, or `{ trapped: true, stderr }` if `crd_run`
 // itself trapped.
 export async function run(compiledModule, source, { onStderr } = {}) {
-  const first = await callEntry(compiledModule, source, "crd_run", "crd_result_ptr", "crd_result_len", onStderr);
+  const first = await callEntry(compiledModule, source, "crd_alloc", "crd_run", "crd_result_ptr", "crd_result_len", onStderr);
   if (first.trapped) return first;
   const { instance, report } = first;
 
@@ -166,10 +184,30 @@ export async function run(compiledModule, source, { onStderr } = {}) {
 
   if (report.problems.length === 0) {
     const second = await callEntry(
-      compiledModule, source, "crd_interpret", "crd_interpret_result_ptr", "crd_interpret_result_len", onStderr,
+      compiledModule, source, "crd_alloc", "crd_interpret", "crd_interpret_result_ptr", "crd_interpret_result_len", onStderr,
     );
     report.interpreter = second.trapped ? null : second.report;
   }
 
   return report;
+}
+
+// Runs one match entirely in the module: `robots` is 2 to 4
+// `{ name, source }` pairs, `seed`/`limit` the same meaning as
+// `bin/crystal-robots`'s own `--seed`/`-l`, `cps` the replay's real-time
+// pace in CROBOTS cycles per second (see `Browser.battle_run` in
+// `src/browser.cr`). Returns `{ seed, limit, cycles, winner, robots, svg }`
+// -- `svg` the whole match as one SMIL-animated SVG string
+// (`CrystalRobots::Battle.svg_animation`, `src/battle/svg_replay.cr`), the
+// same renderer the served `/battle` page uses -- or
+// `{ trapped: true, stderr }` if the request itself was malformed (a page
+// bug, not a robot's: an individual robot's parse/check/runtime failure is
+// reported per-robot in `robots[].error` instead).
+export async function battle(compiledModule, robots, seed, limit, cps, { onStderr } = {}) {
+  const payload = JSON.stringify({ robots, seed, limit, cps });
+  const result = await callEntry(
+    compiledModule, payload, "crd_battle_alloc", "crd_battle_run", "crd_battle_result_ptr", "crd_battle_result_len", onStderr,
+  );
+  if (result.trapped) return result;
+  return result.report;
 }

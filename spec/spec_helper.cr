@@ -110,8 +110,9 @@ end
 # wasmer at all.
 {% if flag?(:crd_wasm32) %}
   module Browser32
-    MODULE_PATH  = "site/crystal-robots.wasm"
-    CHECK_SCRIPT = "spec/support/wasm32_check.mjs"
+    MODULE_PATH         = "site/crystal-robots.wasm"
+    CHECK_SCRIPT        = "spec/support/wasm32_check.mjs"
+    BATTLE_CHECK_SCRIPT = "spec/support/wasm32_battle_check.mjs"
 
     # Runs `source` through every pass in a temp file and returns the
     # parsed JSON report `crd_run` builds (see `src/browser.cr`), via
@@ -124,6 +125,30 @@ end
         output = IO::Memory.new
         status = Process.run("node", [CHECK_SCRIPT, MODULE_PATH, file.path], output: output, error: STDERR)
         raise "node #{CHECK_SCRIPT} exited #{status.exit_code}" unless status.success?
+        JSON.parse(output.to_s)
+      ensure
+        file.delete
+      end
+    end
+
+    # Runs one match through `crd_battle_run` (`Battle::Field#run_stepwise`,
+    # `src/battle/step_robot.cr`) and returns the parsed JSON report, via
+    # `spec/support/wasm32_battle_check.mjs`. `robots` is 2 to 4
+    # `{name, source}` pairs.
+    def self.battle(robots : Array({String, String}), seed : UInt64, limit : Int64, cps : Int32 = 300) : JSON::Any
+      request = {
+        robots: robots.map { |(name, source)| {name: name, source: source} },
+        seed:   seed,
+        limit:  limit,
+        cps:    cps,
+      }.to_json
+      file = File.tempfile("crd-wasm32-battle", ".json")
+      begin
+        file.print(request)
+        file.flush
+        output = IO::Memory.new
+        status = Process.run("node", [BATTLE_CHECK_SCRIPT, MODULE_PATH, file.path], output: output, error: STDERR)
+        raise "node #{BATTLE_CHECK_SCRIPT} exited #{status.exit_code}" unless status.success?
         JSON.parse(output.to_s)
       ensure
         file.delete

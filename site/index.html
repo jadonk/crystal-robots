@@ -11,8 +11,19 @@
   textarea { width: 100%; height: 12rem; font-family: ui-monospace, monospace; font-size: 0.9rem; box-sizing: border-box; }
   pre { background: #f4f4f4; padding: 0.75rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
   section { margin-top: 1.5rem; }
-  #status { font-weight: bold; }
+  #status, #battle-status { font-weight: bold; }
   button { font-size: 1rem; padding: 0.4rem 1rem; margin-top: 0.5rem; }
+  .robot-slot { border: 1px solid #ccc; border-radius: 4px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; }
+  .robot-slot label { display: block; font-weight: bold; margin-bottom: 0.25rem; }
+  .robot-slot select { font-size: 1rem; padding: 0.2rem; }
+  .robot-slot textarea { height: 8rem; margin-top: 0.5rem; }
+  .robot-slot input[type="text"] { font-family: ui-monospace, monospace; margin-top: 0.5rem; padding: 0.2rem; }
+  .battle-controls label { margin-right: 1rem; }
+  .battle-controls input[type="number"] { width: 6rem; }
+  #battle-replay svg { max-width: 100%; height: auto; margin-top: 0.75rem; }
+  #battle-standings { list-style: none; padding: 0; margin: 0.5rem 0 0; }
+  #battle-standings li { padding: 0.15rem 0; }
+  #battle-standings .dead { color: #888; text-decoration: line-through; }
 </style>
 </head>
 <body>
@@ -52,6 +63,33 @@ puts 19
   <pre id="wasm"></pre>
 </section>
 
+<section id="battle">
+  <h2>Battle</h2>
+  <p class="lede">
+    Two to four robots on the CROBOTS battlefield &mdash; the same physics and the same
+    tree-walking interpreter <code>bin/crystal-robots</code>'s own matches use, run entirely in
+    this page. Pick from the bundled examples or paste your own for each slot, then press
+    Run Battle. The replay is the same SVG animation the served <code>/battle</code> page
+    renders, built here instead of on a server.
+  </p>
+
+  <div id="battle-slots"></div>
+
+  <div class="battle-controls">
+    <label>Seed <input type="number" id="battle-seed" value="1" min="0" step="1"></label>
+    <label>Cycle limit <input type="number" id="battle-limit" value="60000" min="15" max="500000" step="1"></label>
+    <label>Replay speed, cycles/second <input type="number" id="battle-cps" value="300" min="1" max="20000" step="1"></label>
+  </div>
+  <div>
+    <button id="battle-run" disabled>Run Battle</button>
+    <span id="battle-status">Loading&hellip;</span>
+  </div>
+
+  <div id="battle-replay"></div>
+  <ul id="battle-standings"></ul>
+</section>
+
 <script type="module" src="./app.js"></script>
+<script type="module" src="./battle.js"></script>
 </body>
 </html>
