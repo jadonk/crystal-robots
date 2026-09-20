@@ -11,14 +11,13 @@ const problemsEl = document.getElementById("problems");
 const interpreterEl = document.getElementById("interpreter");
 const wasmEl = document.getElementById("wasm");
 
-let compiledModule;
-
 async function loadModule() {
   statusEl.textContent = "Loading crystal-robots.wasm…";
   const response = await fetch("./crystal-robots.wasm");
   if (!response.ok) {
     throw new Error(`fetch crystal-robots.wasm: ${response.status}`);
   }
+  let compiledModule;
   try {
     compiledModule = await WebAssembly.compileStreaming(response.clone());
   } catch {
@@ -27,7 +26,13 @@ async function loadModule() {
     compiledModule = await WebAssembly.compile(await response.arrayBuffer());
   }
   statusEl.textContent = "Ready.";
+  return compiledModule;
 }
+
+// One compile of `crystal-robots.wasm` for the whole page: `battle.js`
+// imports this same promise instead of fetching and compiling a second
+// copy for the battle section.
+export const moduleReady = loadModule();
 
 function toHex(bytes) {
   return Array.from(bytes.slice(0, 64))
@@ -44,6 +49,7 @@ async function runSource() {
   wasmEl.textContent = "";
 
   try {
+    const compiledModule = await moduleReady;
     const report = await run(compiledModule, source.value);
     if (report.trapped) {
       // A syntax error, a runtime error or an unsupported-for-WASM
@@ -83,7 +89,7 @@ runButton.addEventListener("click", () => {
   });
 });
 
-loadModule()
+moduleReady
   .then(runSource)
   .catch((e) => {
     statusEl.textContent = `Error: ${e.message}`;

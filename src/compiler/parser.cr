@@ -157,35 +157,60 @@ module CrystalRobots::Compiler
     class_property max_passes = 20_000
     class_property max_glyphs = 2_000_000
 
+    # Raises `Error` on a bad source; `try_parse` is the same logic without
+    # the raise, for callers -- `wasm32-unknown-wasi` battles among them,
+    # see `src/battle/step_robot.cr` -- that cannot let one bad robot's
+    # `raise` take the whole call down with it (Crystal has no working
+    # exception handling on that target at all: a `raise`, even rescued in
+    # the very same function, traps the module instead of unwinding).
     def self.parse(p : Program) : Program
-      lex(p)
+      if (err = try_parse(p))
+        raise err
+      end
+      p
+    end
+
+    # `parse`'s logic, returning the `Error` instead of raising it (or
+    # `nil` on success) so a caller can report it as data.
+    def self.try_parse(p : Program) : Error?
+      if (err = try_lex(p))
+        return err
+      end
       if p.current.empty?
         # an empty source is an empty program
         idx = p.push(Type::Program, p.source.size, 0, 1, :program)
         p.add_pass([idx], :program)
-        return p
+        return nil
       end
       while reduce_once(p)
         # a budget error points at the parser's most recent reduction
         if p.passes > max_passes
           line, col = p.location(p.size - 1)
-          raise Error.new("Program needs more than #{max_passes} passes", line, col)
+          return Error.new("Program needs more than #{max_passes} passes", line, col)
         end
         if p.emitted > max_glyphs
           line, col = p.location(p.size - 1)
-          raise Error.new("Program is too large to parse (more than #{max_glyphs} glyphs of work)", line, col)
+          return Error.new("Program is too large to parse (more than #{max_glyphs} glyphs of work)", line, col)
         end
       end
       unless p.parsed?
         bad = p.current.find { |i| p.type(i) != Type::Statement } || p.current[0]
         line, col = p.location(bad)
-        raise Error.new("Cannot reduce #{p.type(bad).glyph} (#{p.type(bad)}) in #{p}", line, col)
+        return Error.new("Cannot reduce #{p.type(bad).glyph} (#{p.type(bad)}) in #{p}", line, col)
       end
-      p
+      nil
     end
 
     # Pass 0. Returns the glyph string.
     def self.lex(p : Program) : String
+      if (err = try_lex(p))
+        raise err
+      end
+      p.to_s
+    end
+
+    # `lex`'s logic, returning the `Error` instead of raising it.
+    def self.try_lex(p : Program) : Error?
       text = p.text
       layer = [] of Int32
       pos = 0
@@ -211,7 +236,7 @@ module CrystalRobots::Compiler
         end
         unless matched
           line, col = p.line_col(pos)
-          raise Error.new("Unexpected character #{text[pos].inspect}", line, col)
+          return Error.new("Unexpected character #{text[pos].inspect}", line, col)
         end
       end
       # end of input terminates the last statement
@@ -219,7 +244,7 @@ module CrystalRobots::Compiler
         layer << p.push(Type::Newline, text.size, 0, 0, :lex)
       end
       p.add_pass(layer, :lex)
-      p.to_s
+      nil
     end
 
     # One reduction pass. Returns false when no rule matches.

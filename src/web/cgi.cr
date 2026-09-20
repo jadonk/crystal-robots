@@ -10,6 +10,7 @@ require "html"
 require "uri"
 require "../compiler"
 require "../battle/field"
+require "../battle/svg_replay"
 require "../tournament/tournament"
 require "./docs"
 require "./robot_api"
@@ -512,13 +513,12 @@ module CrystalRobots::Web
 
     WEB_CYCLE_LIMIT =  60_000_i64 # about three minutes of replay at the default pace
     WEB_CYCLE_MAX   = 500_000_i64
-    ROBOT_COLORS    = ["0x4C97FF", "0xFF8C1A", "0x59C059", "0xFFAB19"]
-    ANIM_FRAMES     = 400 # keyframes recorded per match; SMIL interpolates between them
-    # Replay pace in CROBOTS cycles per second (`cps=`). At 300 a motion
-    # update lands every 50 ms: a robot at full speed crosses the field in
-    # about seven seconds and a missile covers its 700 m range in under a
-    # second, which is the feel of the original curses display.
-    ANIM_CPS     =    300
+    # Shared with the browser-hosted `crd_battle_run` (`src/browser.cr`),
+    # which draws with the same `Battle.svg_animation` this page's own
+    # `svg_animation` delegates to below -- one renderer, not two.
+    ROBOT_COLORS = Battle::ROBOT_COLORS
+    ANIM_CPS     = Battle::ANIM_CPS
+    ANIM_FRAMES  =    400 # keyframes recorded per match; SMIL interpolates between them
     ANIM_CPS_MAX = 20_000
     # A series like `crobots -m`: seeds seed, seed+1, ... with a total work cap.
     MATCHES_MAX      =          10
@@ -1130,117 +1130,19 @@ module CrystalRobots::Web
     end
 
     # The whole match as one SVG with native (SMIL) animation: no script,
-    # so it works under Fossil's content security policy. Positions are
-    # keyframes at each recorded frame, interpolated linearly in between;
-    # missiles switch discretely. Fossil passes raw HTML blocks through.
+    # so it works under Fossil's content security policy. `Battle.svg_animation`
+    # (`src/battle/svg_replay.cr`) is the real implementation, shared with
+    # the browser build's `crd_battle_run` (`src/browser.cr`) so there is
+    # exactly one renderer for the same `Battle::Field` wherever it ran.
     def svg_animation(field : Battle::Field, cps : Int32 = ANIM_CPS) : String
-      frames = field.frames
-      total = Math.max(1_i64, frames.last.cycle)
-      # screen time is proportional to cycles, so the pace is a fixed number
-      # of CROBOTS cycles per second however many frames were recorded
-      key_times = frames.map { |f| (f.cycle.to_f / total).round(5) }.join(';')
-      dur = "#{(total.to_f / cps).round(3)}s"
-      String.build do |svg|
-        svg << %(<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -30 1060 1060" width="520" height="520" role="img" aria-label="battle replay">\n)
-        svg << %(<rect x="0" y="0" width="1000" height="1000" fill="#f4f4f0" stroke="#888" stroke-width="3"/>\n)
-        field.robots.each_with_index do |robot, i|
-          color = "#" + ROBOT_COLORS[i % ROBOT_COLORS.size][2..]
-          xs = frames.map { |f| f.robots[i].x // Battle::CLICK }
-          ys = frames.map { |f| 1000 - f.robots[i].y // Battle::CLICK }
-          alive = frames.map { |f| f.robots[i].active ? "1" : "0.3" }
-          # the trail is drawn as far as the robot has come: a dashed stroke
-          # whose visible length follows the path length at each frame
-          lengths = [0.0]
-          xs.each_index { |k| next if k == 0; lengths << lengths[k - 1] + Math.hypot(xs[k] - xs[k - 1], ys[k] - ys[k - 1]) }
-          total = Math.max(1.0, lengths.last)
-          svg << %(<polyline fill="none" stroke="#{color}" stroke-opacity="0.35" stroke-width="3" stroke-dasharray="#{total.round(1)}" points=")
-          xs.each_with_index { |x, k| svg << x << ',' << ys[k] << ' ' }
-          svg << %(">\n)
-          svg << animate("stroke-dashoffset", lengths.map { |l| (total - l).round(1) }.join(';'), key_times, dur, "linear")
-          svg << "</polyline>\n"
-          # the robot: one group translated along the path; inside it the
-          # body, the nose (drive heading), the scanner sweep and the cannon
-          # barrel rotate about the centre. Screen y points down, so a
-          # heading of h degrees is a rotation of -h.
-          svg << %(<g>\n)
-          svg << animate_transform("translate", xs.each_with_index.map { |x, k| "#{x} #{ys[k]}" }.join(';'), key_times, dur, "linear")
-          svg << animate("opacity", alive.join(';'), key_times, dur, "discrete")
-          scans = frames.map { |f| -f.robots[i].scan }
-          svg << %(<line x1="0" y1="0" x2="160" y2="0" stroke="#{color}" stroke-opacity="0.45" stroke-width="2" stroke-dasharray="6 6">\n)
-          svg << animate_transform("rotate", scans.join(';'), key_times, dur, "discrete")
-          svg << "</line>\n"
-          svg << %(<circle r="14" fill="#{color}" stroke="#000" stroke-width="2"/>\n)
-          headings = unwrap(frames.map { |f| -f.robots[i].heading })
-          svg << %(<line x1="0" y1="0" x2="30" y2="0" stroke="#000" stroke-width="4" stroke-linecap="round">\n)
-          svg << animate_transform("rotate", headings.join(';'), key_times, dur, "linear")
-          svg << "</line>\n"
-          cannons = frames.map { |f| -f.robots[i].cannon }
-          shown = frames.map { |f| f.robots[i].fired ? "1" : "0" }
-          svg << %(<line x1="0" y1="0" x2="26" y2="0" stroke="#d00" stroke-width="6" stroke-linecap="butt">\n)
-          svg << animate_transform("rotate", cannons.join(';'), key_times, dur, "discrete")
-          svg << animate("opacity", shown.join(';'), key_times, dur, "discrete")
-          svg << "</line>\n"
-          svg << %(<text y="-24" font-size="30" font-family="sans-serif" text-anchor="middle" fill="#222">#{HTML.escape(robot.name)}</text>\n)
-          svg << "</g>\n"
-        end
-        field.robots.each_index do |owner|
-          Battle::MIS_ROBOT.times do |slot|
-            xs = [] of Int32
-            ys = [] of Int32
-            rs = [] of Int32
-            ops = [] of String
-            last_x = 0
-            last_y = 0
-            frames.each do |f|
-              m = f.missiles.find { |st| st.owner == owner && st.slot == slot }
-              if m
-                last_x = m.x // Battle::CLICK
-                last_y = 1000 - m.y // Battle::CLICK
-                rs << (m.exploding ? 40 : 7)
-                ops << (m.exploding ? "0.25" : "1")
-              else
-                rs << 0
-                ops << "0"
-              end
-              xs << last_x
-              ys << last_y
-            end
-            next if rs.all?(&.zero?)
-            svg << %(<circle r="0" fill="#d00" stroke="#d00" stroke-width="2">\n)
-            svg << animate("cx", xs.join(';'), key_times, dur, "discrete")
-            svg << animate("cy", ys.join(';'), key_times, dur, "discrete")
-            svg << animate("r", rs.join(';'), key_times, dur, "discrete")
-            svg << animate("fill-opacity", ops.join(';'), key_times, dur, "discrete")
-            svg << "</circle>\n"
-          end
-        end
-        svg << "</svg>"
-      end
-    end
-
-    private def animate(attr : String, values : String, key_times : String, dur : String, mode : String) : String
-      %(<animate attributeName="#{attr}" values="#{values}" keyTimes="#{key_times}" dur="#{dur}" calcMode="#{mode}" repeatCount="indefinite"/>\n)
-    end
-
-    private def animate_transform(type : String, values : String, key_times : String, dur : String, mode : String) : String
-      %(<animateTransform attributeName="transform" type="#{type}" values="#{values}" keyTimes="#{key_times}" dur="#{dur}" calcMode="#{mode}" repeatCount="indefinite"/>\n)
+      Battle.svg_animation(field, cps)
     end
 
     # Angles for linear interpolation: each step takes the short way round,
-    # so a turn from 350 to 10 does not spin backwards through 180.
+    # so a turn from 350 to 10 does not spin backwards through 180. See
+    # `Battle.unwrap` (`src/battle/svg_replay.cr`).
     def unwrap(angles : Array(Int32)) : Array(Int32)
-      out_angles = [] of Int32
-      running = 0
-      angles.each_with_index do |a, k|
-        if k == 0
-          running = a
-        else
-          d = (a - angles[k - 1]) % 360 # floored: 0..359
-          running += d > 180 ? d - 360 : d
-        end
-        out_angles << running
-      end
-      out_angles
+      Battle.unwrap(angles)
     end
 
     # One frame of the field as a Pikchr diagram: 4 inches for 1000 meters,
