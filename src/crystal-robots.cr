@@ -1,6 +1,7 @@
 # TODO: Write documentation for `CrystalRobots`
 require "./compiler"
 require "./battle/field"
+require "./badge/session"
 require "option_parser"
 require "wait_group"
 
@@ -201,6 +202,7 @@ module CrystalRobots
     @robots_to_battle : Array(String) | Nil
     @port : UInt32 | Nil
     @outfile : String | Nil
+    @badge = false
 
     def initialize(@run_parser = true, @matches = 1, @cycles = 500_000, @seed = 1_u64, @exit = false, @interpreter = false, @robot_to_compile = nil, @robots_to_battle = nil, @port = nil, @outfile = nil)
     end
@@ -279,6 +281,15 @@ module CrystalRobots
           end
         end
         return status
+      end
+
+      if @badge
+        files = @robots_to_battle
+        if files.nil? || files.empty?
+          STDERR.puts "--badge needs at least one robot source file"
+          return 1
+        end
+        return run_badge_session(files)
       end
 
       if @robots_to_battle.nil?
@@ -360,6 +371,28 @@ module CrystalRobots
       0
     end
 
+    # Runs one live match, publishing `status.json` and consuming
+    # `command.json` for the badge-launcher wire contract
+    # (docs/crystal-robots-wire-contract.md in badge-launcher) instead of
+    # printing the `run_matches` summary.
+    def run_badge_session(files : Array(String)) : Int32
+      entries = [] of {String, String}
+      files.each do |file|
+        unless File.exists?(file)
+          STDERR.puts "#{file}: no such file"
+          return 1
+        end
+        entries << {File.basename(file, ".cr"), File.read(file)}
+      end
+      entries << entries[0] if entries.size == 1
+      field = Battle::Field.new(entries, seed: @seed, limit: @cycles.to_i64)
+      session = Badge::Session.new(field)
+      puts "Publishing status to #{Badge.status_path}, reading commands from #{Badge.command_path}"
+      session.run_until_done
+      puts "Match finished after #{field.cycles} cycles"
+      0
+    end
+
     def customize_parser(parser)
       parser.banner = "Welcome to Crystal Robots!\nUsage: crystal-robots [options] robot-source-file-1 [..2 [..3 [robot-source-file-4]]] [>file]"
       parser.on "-v", "--version", "Show version and check-in" do
@@ -395,6 +428,9 @@ module CrystalRobots
       end
       parser.on "--seed=SEED", "Random seed for the first match (default 1); later matches add 1" do |seed|
         @seed = seed.to_u64
+      end
+      parser.on "--badge", "Run one live match, publishing status.json / consuming command.json for the badge-launcher wire contract" do
+        @badge = true
       end
       parser.on "-p PORT", "--port=PORT", "Serve web interface on port PORT" do |port|
         # TODO: implement web server
