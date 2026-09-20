@@ -7,8 +7,15 @@
 //   node spec/support/wasm32_battle_check.mjs site/crystal-robots.wasm <request-file>
 //
 // <request-file> is JSON: {"robots":[{"name":..,"source":..}, 2 to 4 of
-// these], "seed":N, "limit":N, "cps":N} -- the same request `battle_run`'s
-// own JS caller (the page) builds.
+// these], "seed":N, "limit":N, "cps":N, "max_frames":N} -- the same
+// request `battle_run`'s own JS caller (the page) builds. `report.svg` no
+// longer exists (Phase 6): `report.skeleton` (a static SVG) and
+// `report.frameBuffer` (an `ArrayBuffer`, this run's binary frame log,
+// see `Browser.encode_frames` in `src/browser.cr`) replace it -- the
+// latter is not JSON-serializable, so this driver leaves it out of the
+// printed report; `spec/wasm32_spec.cr`'s differential test compares
+// `skeleton`/`frame_count`/`robot_count` instead of a frame-by-frame
+// binary diff.
 import { readFile } from "node:fs/promises";
 import { battle } from "../../site/wasi-shim.js";
 
@@ -17,5 +24,8 @@ const bytes = await readFile(modulePath);
 const compiledModule = await WebAssembly.compile(bytes);
 const request = JSON.parse(await readFile(requestPath, "utf8"));
 
-const report = await battle(compiledModule, request.robots, request.seed, request.limit, request.cps);
+const report = await battle(compiledModule, request.robots, request.seed, request.limit, request.cps, {
+  maxFrames: request.max_frames,
+});
+delete report.frameBuffer;
 process.stdout.write(JSON.stringify(report));

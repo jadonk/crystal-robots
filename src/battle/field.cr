@@ -274,6 +274,16 @@ module CrystalRobots::Battle
     getter seed : UInt64
     getter limit : Int64
 
+    # Set by `cannon`, `scan`, `move_robots` and `move_missiles` whenever a
+    # battle event worth seeing happens (a shot fired, a scan hit, damage
+    # dealt, a death, a missile impact); read and cleared once per motion
+    # update by `record_after_update`/`record_if_event` below. A frame
+    # budget (`@max_frames`) still sets the downsample interval for quiet
+    # stretches, but an event always earns its own frame regardless of
+    # that interval -- Phase 6's fix for cannon fire and impacts falling
+    # between samples on a long, heavily downsampled match.
+    @event_pending = false
+
     # `entries` are {name, source} pairs, at most four. `positions`, when
     # given, are start positions in meters instead of CROBOTS's random
     # quadrants (for specs and demonstrations).
@@ -320,7 +330,7 @@ module CrystalRobots::Battle
           move_missiles
           count_missiles
           updates += 1
-          record(c) if updates % every == 0
+          record_after_update(c, updates, every)
         end
       end
       # let flying missiles land
@@ -331,6 +341,7 @@ module CrystalRobots::Battle
         move_missiles
         count_missiles
         guard += 1
+        record_if_event(c)
       end
       @cycles = c
       record(c)
@@ -357,6 +368,25 @@ module CrystalRobots::Battle
       @frames << Frame.new(c, @robots.map(&.state), missiles)
     end
 
+    # Records this update's frame when the fixed downsample interval is
+    # due, or unconditionally when `@event_pending` says something
+    # happened during it -- either way `@event_pending` resets for the
+    # next update.
+    private def record_after_update(c : Int64, updates : Int64, every : Int64) : Nil
+      event = @event_pending
+      @event_pending = false
+      record(c) if event || updates % every == 0
+    end
+
+    # Same, but for a motion update outside the main loop (missiles still
+    # landing after a winner is already decided): no downsample interval
+    # applies there, only an event earns a frame.
+    private def record_if_event(c : Int64) : Nil
+      event = @event_pending
+      @event_pending = false
+      record(c) if event
+    end
+
     # CROBOTS rand_pos: one robot per quadrant.
     private def rand_pos : Nil
       quad = [false, false, false, false]
@@ -380,6 +410,7 @@ module CrystalRobots::Battle
         if r.damage >= 100
           r.damage = 100
           r.active = false
+          @event_pending = true
           next
         end
         r.reload -= 1 if r.reload > 0
@@ -427,6 +458,7 @@ module CrystalRobots::Battle
               other.speed = 0
               other.d_speed = 0
               other.damage += COLLISION
+              @event_pending = true
             end
           end
 
@@ -434,19 +466,23 @@ module CrystalRobots::Battle
             r.x = 0
             r.speed = r.d_speed = 0
             r.damage += COLLISION
+            @event_pending = true
           elsif r.x > MAX_X * CLICK
             r.x = MAX_X * CLICK - 1
             r.speed = r.d_speed = 0
             r.damage += COLLISION
+            @event_pending = true
           end
           if r.y < 0
             r.y = 0
             r.speed = r.d_speed = 0
             r.damage += COLLISION
+            @event_pending = true
           elsif r.y > MAX_Y * CLICK
             r.y = MAX_Y * CLICK - 1
             r.speed = r.d_speed = 0
             r.damage += COLLISION
+            @event_pending = true
           end
         end
       end
@@ -455,9 +491,10 @@ module CrystalRobots::Battle
     # CROBOTS move_miss.
     def move_missiles : Nil
       @robots.each do |r|
-        if r.damage >= 100
+        if r.damage >= 100 && r.active
           r.damage = 100
           r.active = false
+          @event_pending = true
         end
         r.missiles.each do |m|
           next unless m.stat.flying?
@@ -485,6 +522,11 @@ module CrystalRobots::Battle
           end
           m.stat = MissileStatus::Exploding if m.curr_dist == m.rang
           next unless m.stat.exploding?
+          # `m.stat.flying?` above only lets a missile reach here on the
+          # one update it actually detonates (every later update it is
+          # exploding, not flying, and `next unless m.stat.flying?` bails
+          # before this point), so this always marks a genuine impact.
+          @event_pending = true
           @robots.each do |target|
             next unless target.active
             dx = (target.x - m.cur_x) // CLICK
@@ -493,12 +535,14 @@ module CrystalRobots::Battle
             DAMAGE.each do |(within, percent)|
               if d < within
                 target.damage += percent
+                @event_pending = true
                 break
               end
             end
-            if target.damage >= 100
+            if target.damage >= 100 && target.active
               target.damage = 100
               target.active = false
+              @event_pending = true
             end
           end
         end
@@ -553,6 +597,7 @@ module CrystalRobots::Battle
           closest = distance if distance < closest || closest == 0
         end
       end
+      @event_pending = true if closest != 0
       closest
     end
 
@@ -575,6 +620,7 @@ module CrystalRobots::Battle
         m.rang = distance * CLICK
         m.curr_dist = 0
         m.count = EXP_COUNT
+        @event_pending = true
         return 1
       end
       0

@@ -39,6 +39,9 @@
   .robot-slot label { display: block; font-weight: bold; margin-bottom: 0.25rem; font-size: 0.85rem; }
   .battle-controls label { margin-right: 1rem; }
   .battle-controls input[type="number"] { width: 6rem; }
+  .battle-playback-controls { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.5rem; flex-wrap: wrap; }
+  .battle-playback-controls input[type="number"] { width: 6rem; }
+  .battle-scrubber { flex: 1 1 16rem; min-width: 12rem; }
   #fight-replay svg { max-width: 100%; height: auto; margin-top: 0.75rem; }
   #fight-standings { list-style: none; padding: 0; margin: 0.5rem 0 0; }
   #fight-standings li { padding: 0.15rem 0; }
@@ -84,7 +87,7 @@
   <div class="battle-controls">
     <label>Seed <input type="number" id="fight-seed" value="1" min="0" step="1"></label>
     <label>Cycle limit <input type="number" id="fight-limit" value="60000" min="15" max="500000" step="1"></label>
-    <label>Replay speed, cycles/second <input type="number" id="fight-cps" value="300" min="1" max="20000" step="1"></label>
+    <label>Initial replay speed, cycles/second (adjustable during playback) <input type="number" id="fight-cps" value="300" min="1" max="20000" step="1"></label>
   </div>
   <div>
     <button id="fight-run" disabled>Fight</button>

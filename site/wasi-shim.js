@@ -211,20 +211,33 @@ export async function check(compiledModule, source, { onStderr } = {}) {
 
 // Runs one match entirely in the module: `robots` is 2 to 4
 // `{ name, source }` pairs, `seed`/`limit` the same meaning as
-// `bin/crystal-robots`'s own `--seed`/`-l`, `cps` the replay's real-time
-// pace in CROBOTS cycles per second (see `Browser.battle_run` in
-// `src/browser.cr`). Returns `{ seed, limit, cycles, winner, robots, svg }`
-// -- `svg` the whole match as one SMIL-animated SVG string
-// (`CrystalRobots::Battle.svg_animation`, `src/battle/svg_replay.cr`), the
-// same renderer the served `/battle` page uses -- or
-// `{ trapped: true, stderr }` if the request itself was malformed (a page
-// bug, not a robot's: an individual robot's parse/check/runtime failure is
-// reported per-robot in `robots[].error` instead).
-export async function battle(compiledModule, robots, seed, limit, cps, { onStderr } = {}) {
-  const payload = JSON.stringify({ robots, seed, limit, cps });
+// `bin/crystal-robots`'s own `--seed`/`-l`. `maxFrames` (an option, like
+// `onStderr`) is the frame-log budget `Field#initialize`'s `max_frames`
+// takes (`src/battle/field.cr`); omit it for `Browser.battle_run`'s own
+// default (`BATTLE_FRAMES_DEFAULT`, two orders of magnitude larger than
+// the served `/battle` page keeps -- `site/battle.js` and
+// `site/editor/editor.js` both rely on that default rather than passing
+// one). Returns `{ seed, limit, cycles, frame_count, robot_count,
+// missile_slots, winner, robots, skeleton, frameBuffer }` --
+// `skeleton` a static SVG string (`Battle.svg_skeleton`,
+// `src/battle/svg_replay.cr`: the same shapes the served page's SMIL
+// replay draws, but with no `<animate>` elements of its own) and
+// `frameBuffer` an `ArrayBuffer` holding the match's per-cycle frame log
+// (`Browser.encode_frames`, layout documented in `src/browser.cr`) --
+// `site/battle-playback.js` decodes it and drives `skeleton`'s ids at
+// 60 fps. Or `{ trapped: true, stderr }` if the request itself was
+// malformed (a page bug, not a robot's: an individual robot's
+// parse/check/runtime failure is reported per-robot in `robots[].error`
+// instead).
+export async function battle(compiledModule, robots, seed, limit, cps, { onStderr, maxFrames } = {}) {
+  const payload = JSON.stringify({ robots, seed, limit, cps, max_frames: maxFrames });
   const result = await callEntry(
     compiledModule, payload, "crd_battle_alloc", "crd_battle_run", "crd_battle_result_ptr", "crd_battle_result_len", onStderr,
   );
   if (result.trapped) return result;
-  return result.report;
+  const { instance, report } = result;
+  const fp = instance.exports.crd_battle_frames_ptr();
+  const fl = instance.exports.crd_battle_frames_len();
+  report.frameBuffer = instance.exports.memory.buffer.slice(fp, fp + fl);
+  return report;
 }

@@ -60,34 +60,41 @@ describe "Browser build (wasm32-unknown-wasi)" do
   # `Battle::Field#run_stepwise`, `src/battle/step_robot.cr`'s non-fiber,
   # non-raising engine -- inside one module instance, interleaving 2 to 4
   # robots the way `bin/crystal-robots`' own matches do, at the same
-  # per-cycle granularity `field.cr`'s fiber-based `run` uses, and renders
-  # the same SVG SMIL replay (`Battle.svg_animation`,
-  # `src/battle/svg_replay.cr`) the served `/battle` page does. `run` itself
+  # per-cycle granularity `field.cr`'s fiber-based `run` uses. `run` itself
   # is not the comparison target here: it depends on `spawn`/`Channel`,
   # untrusted on this build target (see `step_robot.cr`'s module comment),
   # so the ground truth is `run_stepwise` run natively -- the exact same
   # Crystal source `crd_battle_run` calls, compiled for the native target
   # instead of wasm32-unknown-wasi, the same cross-compilation-fidelity
   # comparison Phase 5b-1's own cases above make for `crd_run`/
-  # `crd_interpret`. Same seed, same robots, same replay speed: the
-  # standings and the rendered SVG text must match exactly.
+  # `crd_interpret`. Same seed, same robots, same frame budget: standings,
+  # frame count and the rendered SVG skeleton (Phase 6's `svg_skeleton`,
+  # `src/battle/svg_replay.cr` -- the JS-driven in-page replay's static
+  # shapes, `Battle.svg_animation`'s SMIL replay stays the served
+  # `/battle` page's own renderer, untouched) must match exactly.
+  # `spec/battle_spec.cr` and `spec/browser_spec.cr` cover the new
+  # event-guaranteed frame log itself, natively, without needing the
+  # compiled wasm32 module.
   wasm32_it "runs a battle identically to the native interpreter engine" do
     sniper = File.read("examples/sniper.cr")
     rabbit = File.read("examples/rabbit.cr")
     seed = 3_u64
     limit = 40_000_i64
     cps = 300
+    max_frames = 500
 
-    report = Browser32.battle([{"sniper", sniper}, {"rabbit", rabbit}], seed, limit, cps)
+    report = Browser32.battle([{"sniper", sniper}, {"rabbit", rabbit}], seed, limit, cps, max_frames)
     report["trapped"]?.should be_nil
 
-    native = CrystalRobots::Battle::Field.new([{"sniper", sniper}, {"rabbit", rabbit}], seed: seed, limit: limit).run_stepwise
+    native = CrystalRobots::Battle::Field.new([{"sniper", sniper}, {"rabbit", rabbit}], seed: seed, limit: limit, max_frames: max_frames).run_stepwise
     report["winner"].as_s?.should eq native.winner.try(&.name)
     report["cycles"].as_i64.should eq native.cycles
     report["robots"].as_a.map { |r| {r["name"].as_s, r["active"].as_bool, r["damage"].as_i, r["restarts"].as_i} }.should eq(
       native.robots.map { |r| {r.name, r.active, r.damage, r.restarts} }
     )
-    report["svg"].as_s.should eq CrystalRobots::Battle.svg_animation(native, cps)
+    report["frame_count"].as_i.should eq native.frames.size
+    report["robot_count"].as_i.should eq native.robots.size
+    report["skeleton"].as_s.should eq CrystalRobots::Battle.svg_skeleton(native)
   end
 
   # A robot whose source fails to parse or check must not take the whole

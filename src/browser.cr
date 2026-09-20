@@ -47,6 +47,7 @@ module CrystalRobots::Browser
   @@check_result = Bytes.empty
   @@battle_input = Bytes.empty
   @@battle_result = Bytes.empty
+  @@battle_frames = Bytes.empty
 
   # Reserves `len` bytes for the next call's source; the shim writes the
   # UTF-8 source into the returned offset before calling `crd_run`.
@@ -166,8 +167,12 @@ module CrystalRobots::Browser
 
   # Reserves `len` bytes for the next call's battle request: a JSON object
   # `{"robots":[{"name":..,"source":..}, 2 to 4 of these], "seed":N,
-  # "limit":N, "cps":N}`, written by the shim before calling
-  # `crd_battle_run`.
+  # "limit":N, "max_frames":N}`, written by the shim before calling
+  # `crd_battle_run`. `max_frames` is optional (defaults to
+  # `BATTLE_FRAMES_DEFAULT` below); a `cps` key is accepted for backward
+  # compatibility with older requests but ignored -- replay speed is a
+  # client-side playback control now (`site/battle-playback.js`), not
+  # something baked into a server-rendered SMIL duration.
   def battle_alloc(len : Int32) : Pointer(UInt8)
     @@battle_input = Bytes.new(len)
     @@battle_input.to_unsafe
@@ -187,44 +192,158 @@ module CrystalRobots::Browser
   BATTLE_LIMIT_MIN = CrystalRobots::Battle::MOTION_CYCLES.to_i64
   BATTLE_LIMIT_MAX = CrystalRobots::Battle::CYCLE_LIMIT
 
+  # Bounds a page-supplied frame budget (`max_frames` on the request,
+  # `Field#initialize`'s own parameter). The served `/battle` page and the
+  # native CLI keep a modest budget (400 and 200 respectively, `ANIM_FRAMES`
+  # in `src/web/cgi.cr` and `Field`'s own default) because they still build
+  # one SMIL keyframe list per recorded frame; the browser has no such
+  # limit -- `site/battle-playback.js` reads the frame log as a typed
+  # array and only ever touches the two frames bracketing "now" -- so its
+  # default here is two orders of magnitude larger. Either way a battle
+  # event (cannon fire, missile impact, damage, death, scan hit) always
+  # gets its own frame in addition to the budget, per `Field#run_stepwise`
+  # (`src/battle/step_robot.cr`) and `Field`'s `@event_pending` machinery
+  # (`src/battle/field.cr`).
+  BATTLE_FRAMES_MIN     =    200
+  BATTLE_FRAMES_DEFAULT = 20_000
+  BATTLE_FRAMES_MAX     = 60_000
+
+  def battle_frames_ptr : Pointer(UInt8)
+    @@battle_frames.to_unsafe
+  end
+
+  def battle_frames_len : Int32
+    @@battle_frames.size
+  end
+
+  # Packs `field.frames` into the compact binary layout documented on
+  # `encode_frames` below, for `crd_battle_frames_ptr`/`_len`. Every
+  # numeric conversion here is the unchecked (`!`) form: an overflow
+  # exception on this target traps the whole module instead of unwinding
+  # (see the module comment on `crd_run`/`crd_interpret`), and none of
+  # these values can realistically leave their declared ranges (clicks are
+  # a small multiple of a 1000x1000 m field, angles are 0..359, damage is
+  # 0..100) -- unchecked truncation is strictly safer here than a raise
+  # that cannot be caught.
+  #
+  # Layout (little-endian throughout, read directly with a JS `DataView`):
+  #
+  #   offset 0: u8  version (1)
+  #   offset 1: u8  robot_count (2..4)
+  #   offset 2: u16 missile_slots (per robot; `Battle::MIS_ROBOT`, today 2)
+  #   offset 4: u32 frame_count
+  #   offset 8: `frame_count` frames, back to back, each:
+  #     u32 cycle
+  #     `robot_count` robot records, 12 bytes each, in robot order:
+  #       i16 x, i16 y (clicks), i16 heading, i16 scan, i16 cannon (degrees,
+  #       0..359), u8 damage (0..100), u8 flags (bit 0 active, bit 1 fired)
+  #     `robot_count * missile_slots` missile records, 6 bytes each, in
+  #     owner-major/slot-minor order (owner 0 slot 0, owner 0 slot 1,
+  #     owner 1 slot 0, ...):
+  #       i16 x, i16 y (clicks), u8 flags (bit 0 present, bit 1 exploding),
+  #       u8 padding (0)
+  #
+  # Every robot and every missile slot occupies its record at every frame,
+  # whether or not it did anything that frame (an unfired slot is present
+  # with flags 0) -- a fixed stride per frame lets the reader index frame
+  # `i` directly (`8 + i * frame_stride`) instead of parsing a
+  # variable-length record, the reason for a typed-array transfer over one
+  # JSON object per frame in the first place (a 500,000-cycle match can
+  # log tens of thousands of frames; JSON.parse-ing that many small
+  # objects is exactly the cost this format avoids).
+  def self.encode_frames(field : CrystalRobots::Battle::Field) : Bytes
+    n = field.robots.size
+    slots = CrystalRobots::Battle::MIS_ROBOT
+    frames = field.frames
+    io = IO::Memory.new
+    io.write_bytes(1_u8)
+    io.write_bytes(n.to_u8!)
+    io.write_bytes(slots.to_u16!, IO::ByteFormat::LittleEndian)
+    io.write_bytes(frames.size.to_u32!, IO::ByteFormat::LittleEndian)
+    frames.each do |f|
+      io.write_bytes(f.cycle.to_u32!, IO::ByteFormat::LittleEndian)
+      f.robots.each do |r|
+        io.write_bytes(r.x.to_i16!, IO::ByteFormat::LittleEndian)
+        io.write_bytes(r.y.to_i16!, IO::ByteFormat::LittleEndian)
+        io.write_bytes(r.heading.to_i16!, IO::ByteFormat::LittleEndian)
+        io.write_bytes(r.scan.to_i16!, IO::ByteFormat::LittleEndian)
+        io.write_bytes(r.cannon.to_i16!, IO::ByteFormat::LittleEndian)
+        io.write_bytes(r.damage.to_u8!)
+        flags = 0_u8
+        flags |= 1_u8 if r.active
+        flags |= 2_u8 if r.fired
+        io.write_bytes(flags)
+      end
+      n.times do |owner|
+        slots.times do |slot|
+          m = f.missiles.find { |st| st.owner == owner && st.slot == slot }
+          if m
+            io.write_bytes(m.x.to_i16!, IO::ByteFormat::LittleEndian)
+            io.write_bytes(m.y.to_i16!, IO::ByteFormat::LittleEndian)
+            mflags = 1_u8
+            mflags |= 2_u8 if m.exploding
+            io.write_bytes(mflags)
+          else
+            io.write_bytes(0_i16, IO::ByteFormat::LittleEndian)
+            io.write_bytes(0_i16, IO::ByteFormat::LittleEndian)
+            io.write_bytes(0_u8)
+          end
+          io.write_bytes(0_u8) # padding, keeps the missile record even-sized
+        end
+      end
+    end
+    io.to_slice
+  end
+
   # Runs one match -- `CrystalRobots::Battle::Field#run_stepwise` (see
   # `src/battle/step_robot.cr`): the same battlefield physics and the same
   # tree-walking interpreter `bin/crystal-robots`'s own matches use, driven
   # without fibers or `raise`, both unsafe on this target (see the module
   # comment on `crd_run`/`crd_interpret`, and `step_robot.cr`'s own header)
   # -- for the source most recently written via `battle_alloc`, and stores
-  # a JSON report (final standings plus the SVG SMIL replay
-  # `CrystalRobots::Battle.svg_animation` renders from the finished
-  # `Field`, `src/battle/svg_replay.cr`, the same renderer the served
-  # `/battle` page uses) in `@@battle_result`. The per-cycle frame log
-  # itself stays inside this call, not part of the report: the page has no
-  # use for it once the SVG is built. A robot whose source fails to parse
-  # or check is reported inactive with its `error`, same as the served
-  # `/battle` page; it does not stop the match or this call. Traps only on
-  # a malformed request (the page's own bug, not a robot's) -- see the
-  # module comment.
+  # a JSON report (final standings plus a static SVG "skeleton",
+  # `CrystalRobots::Battle.svg_skeleton`, `src/battle/svg_replay.cr`) in
+  # `@@battle_result`, and the per-cycle frame log itself, packed by
+  # `encode_frames` above, in `@@battle_frames` (`crd_battle_frames_ptr`/
+  # `_len`). Phase 6 correction: this used to render the whole match as one
+  # SMIL-animated SVG string (`Battle.svg_animation`) the way the served
+  # `/battle` page still does; with a frame budget now two orders of
+  # magnitude larger for the in-page battle (`max_frames` below), building
+  # that many `<animate>` keyframes would be exactly the slow, unresponsive
+  # rendering this phase exists to fix, so the frame log goes to
+  # `site/battle-playback.js` instead, which draws only the two frames
+  # bracketing "now" per `requestAnimationFrame` tick. A robot whose source
+  # fails to parse or check is reported inactive with its `error`, same as
+  # the served `/battle` page; it does not stop the match or this call.
+  # Traps only on a malformed request (the page's own bug, not a robot's)
+  # -- see the module comment.
   def battle_run : Int32
     payload = JSON.parse(String.new(@@battle_input))
     robots = payload["robots"].as_a
     seed = (payload["seed"]?.try(&.as_i64?) || 1_i64).to_u64
     limit = (payload["limit"]?.try(&.as_i64?) || BATTLE_LIMIT_MAX).clamp(BATTLE_LIMIT_MIN, BATTLE_LIMIT_MAX)
-    cps = (payload["cps"]?.try(&.as_i?) || CrystalRobots::Battle::ANIM_CPS).clamp(1, 20_000)
+    max_frames = (payload["max_frames"]?.try(&.as_i?) || BATTLE_FRAMES_DEFAULT).clamp(BATTLE_FRAMES_MIN, BATTLE_FRAMES_MAX)
 
     json = String.build do |io|
       if robots.size < 2 || robots.size > 4
+        @@battle_frames = Bytes.empty
         io << {error: "a battle needs 2 to 4 robots, got #{robots.size}"}.to_json
       else
         entries = robots.map { |r| {r["name"].as_s, r["source"].as_s} }
-        field = CrystalRobots::Battle::Field.new(entries, seed: seed, limit: limit).run_stepwise
+        field = CrystalRobots::Battle::Field.new(entries, seed: seed, limit: limit, max_frames: max_frames).run_stepwise
+        @@battle_frames = Browser.encode_frames(field)
         io << '{'
         io << "\"seed\":" << seed << ','
         io << "\"limit\":" << limit << ','
         io << "\"cycles\":" << field.cycles << ','
+        io << "\"frame_count\":" << field.frames.size << ','
+        io << "\"robot_count\":" << field.robots.size << ','
+        io << "\"missile_slots\":" << CrystalRobots::Battle::MIS_ROBOT << ','
         io << "\"winner\":" << field.winner.try(&.name).to_json << ','
         io << "\"robots\":[" << field.robots.map { |r|
           {name: r.name, active: r.active, damage: r.damage, error: r.error, restarts: r.restarts, cycles: r.cycles}.to_json
         }.join(",") << "],"
-        io << "\"svg\":" << CrystalRobots::Battle.svg_animation(field, cps).to_json
+        io << "\"skeleton\":" << CrystalRobots::Battle.svg_skeleton(field).to_json
         io << '}'
       end
     end
@@ -314,4 +433,15 @@ end
 
 fun crd_battle_result_len : Int32
   CrystalRobots::Browser.battle_result_len
+end
+
+# The match's per-cycle frame log, packed by `Browser.encode_frames`
+# (layout documented there) for the last `crd_battle_run`; read with
+# `crd_battle_frames_ptr`/`crd_battle_frames_len`.
+fun crd_battle_frames_ptr : UInt8*
+  CrystalRobots::Browser.battle_frames_ptr
+end
+
+fun crd_battle_frames_len : Int32
+  CrystalRobots::Browser.battle_frames_len
 end

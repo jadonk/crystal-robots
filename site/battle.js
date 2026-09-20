@@ -1,17 +1,24 @@
 // Battle section glue: no framework, no CDN, no rendering of its own.
 // Collects the robots/seed/limit/cps inputs, calls `battle()` from
 // wasi-shim.js (`crd_battle_run`, `Battle::Field#run_stepwise` --
-// `src/battle/step_robot.cr` -- see `src/browser.cr`) and inserts the SVG
-// string it returns: the same SMIL-animated replay the served `/battle`
-// page renders (`CrystalRobots::Battle.svg_animation`,
-// `src/battle/svg_replay.cr`), generated in Crystal either way, so there
-// is exactly one renderer for the same picture on both pages. Reuses the
+// `src/battle/step_robot.cr` -- see `src/browser.cr`) and hands its
+// `skeleton`/`frameBuffer` to `mountBattlePlayback`
+// (`./battle-playback.js`), which plays the match back live at 60 fps
+// instead of inserting one fire-and-forget SMIL animation (Phase 6). The
+// shapes it draws still come from Crystal (`Battle.svg_skeleton`,
+// `src/battle/svg_replay.cr`), the same renderer the served `/battle`
+// page's own SMIL replay draws from, so both pages still look identical.
+// `MAX_FRAMES` requests the larger of the two frame budgets
+// `Browser.battle_run` accepts (`src/browser.cr`); the served page and
+// `bin/crystal-robots` keep their own, much smaller ones. Reuses the
 // module `app.js` already loaded: one `crystal-robots.wasm` compile for
 // the whole page.
 import { battle } from "./wasi-shim.js";
+import { mountBattlePlayback } from "./battle-playback.js";
 import { moduleReady } from "./app.js";
 
 const MAX_ROBOTS = 4;
+const MAX_FRAMES = 20000;
 
 const slotsEl = document.getElementById("battle-slots");
 const seedEl = document.getElementById("battle-seed");
@@ -24,6 +31,7 @@ const standingsEl = document.getElementById("battle-standings");
 
 let examples = [];
 let slots = [];
+let activePlayback = null;
 
 function createSlot(index) {
   const wrap = document.createElement("div");
@@ -123,6 +131,7 @@ async function runBattle() {
   runButton.disabled = true;
   statusEl.textContent = "Running…";
   standingsEl.innerHTML = "";
+  if (activePlayback) activePlayback.stop();
   replayEl.innerHTML = "";
 
   try {
@@ -130,7 +139,7 @@ async function runBattle() {
     const seed = Math.max(0, Math.trunc(Number(seedEl.value)) || 0);
     const limit = Math.max(1, Math.trunc(Number(limitEl.value)) || 60000);
     const cps = Math.max(1, Math.trunc(Number(cpsEl.value)) || 300);
-    const result = await battle(compiledModule, robots, seed, limit, cps);
+    const result = await battle(compiledModule, robots, seed, limit, cps, { maxFrames: MAX_FRAMES });
     if (result.trapped) {
       // A malformed request, not a robot's own bug -- see
       // `Browser.battle_run`'s module comment in `src/browser.cr`: a bad
@@ -143,8 +152,8 @@ async function runBattle() {
       statusEl.textContent = result.error;
       return;
     }
-    statusEl.textContent = `${result.cycles} cycles.`;
-    replayEl.innerHTML = result.svg;
+    statusEl.textContent = `${result.cycles} cycles, ${result.frame_count} frames recorded.`;
+    activePlayback = mountBattlePlayback(replayEl, result, cps);
     renderStandings(result);
   } finally {
     runButton.disabled = false;
