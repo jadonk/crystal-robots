@@ -12,12 +12,17 @@ reserved Unicode glyphs with a regex grammar rule, so `Program#derivation`
 prints the whole parse as one line per pass. That design document is written
 first, as the target; the commits below build up to it one rule at a time.
 
-**Status 2026-09-17: Phase A done**, commits A.1 through A.14 below, all on
-the `session/bab6654802593d134c4c380d63e96c01a10e052943f93399d6829382eb005b93`
-branch pending review and merge. `crystal spec -Dwasmer` is green end to
-end (66 examples); the differential spec (`spec/differential_spec.cr`)
-runs three robots through both the interpreter and wasmer and checks
-identical `puts` output. Phases B through E are next.
+**Status 2026-09-20: the whole arc below is done**, plus considerably more
+that this plan predates — grammar/checker parity with the shipped example
+robots, the tournament, the full CGI web layer, and the remaining trunk
+features. The maintainer's decision on ticket 7b6bf1909f (2026-09-20)
+keeps this as a permanent parallel history rather than merging it, so the
+phase lettering below (A-E, written before any of it existed) no longer
+matches the phase lettering the actual commits used. **[docs/TUTORIAL.md](TUTORIAL.md)
+is the authoritative, as-built commit-by-commit index** — read that file
+for the real phase list, the full commit table, and the blog-post outline
+per phase; this file remains as the original design intent it was written
+against.
 
 ## Phase A — the compiler and WASM emitter (mirrors the chasm blog post)
 
