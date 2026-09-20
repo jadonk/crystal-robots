@@ -192,6 +192,23 @@ export async function run(compiledModule, source, { onStderr } = {}) {
   return report;
 }
 
+// Runs `source` through `crd_check` (parse + checker only, via
+// `Parser.try_parse`/`Checker.check` -- see `Browser.check` in
+// `src/browser.cr`), for the editor's live-typing loop (Phase 6):
+// unlike `run`, above, this never traps on a source that is merely
+// mid-edit -- a parse error comes back as `{message, line, col}` data, the
+// same wording the served `/parse` page shows, instead of stderr text from
+// a trapped instance. Returns `{passes, derivation, error, problems}` or
+// `{trapped: true, stderr}` if the call itself somehow still trapped (a
+// bug, not a normal bad-robot source).
+export async function check(compiledModule, source, { onStderr } = {}) {
+  const result = await callEntry(
+    compiledModule, source, "crd_alloc", "crd_check", "crd_check_result_ptr", "crd_check_result_len", onStderr,
+  );
+  if (result.trapped) return result;
+  return result.report;
+}
+
 // Runs one match entirely in the module: `robots` is 2 to 4
 // `{ name, source }` pairs, `seed`/`limit` the same meaning as
 // `bin/crystal-robots`'s own `--seed`/`-l`, `cps` the replay's real-time

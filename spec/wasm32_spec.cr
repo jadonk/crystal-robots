@@ -1,6 +1,7 @@
 require "./spec_helper"
 require "../src/battle/step_robot"
 require "../src/battle/svg_replay"
+require "../src/web/robot_api"
 
 # `site/crystal-robots.wasm` is the browser build of `src/browser.cr`
 # (Phase 5b-1): the tokenizer/parser, checker and WASM emitter (`crd_run`)
@@ -105,5 +106,34 @@ describe "Browser build (wasm32-unknown-wasi)" do
     bad_robot["active"].as_bool.should be_false
     bad_robot["error"].as_s.should contain "Cannot reduce"
     report["winner"].as_s.should eq "idle"
+  end
+
+  # Phase 6: `site/cheat-sheet.json` (`scripts/build_cheat_sheet.cr`, a
+  # `ci.cr --with-wasm32` step) is the file the editor's page fetches; it
+  # must be byte-identical to `RobotAPI.cheat_sheet_json` computed fresh
+  # right now, not just structurally similar -- otherwise a rebuild that
+  # changes `ENTRIES` without re-running the generator would ship a stale
+  # cheat-sheet next to the always-current served panel.
+  wasm32_it "exports site/cheat-sheet.json identical to the panel's own data, right now" do
+    File.read("site/cheat-sheet.json").should eq CrystalRobots::Web::RobotAPI.cheat_sheet_json
+  end
+
+  # Phase 6: the editor forks an example, the kid edits it, and it must
+  # still check clean through the same non-raising path (`crd_check`,
+  # `Browser.check`) the live-typing loop uses -- proof that an edited
+  # example round-trips through the module, not just an untouched one.
+  wasm32_it "checks an edited example clean through crd_check, not just the untouched original" do
+    original = File.read("examples/sniper.cr")
+    edited = original.sub("main(\"Sniper\")", "main(\"Sniper Junior\")") + "# edited by the editor's live-check spec\n"
+    edited.should_not eq original
+
+    report = Browser32.check(edited)
+    report["trapped"]?.should be_nil
+    report["error"].raw.should be_nil
+    report["problems"].as_a.should be_empty
+
+    program = C::Parser.new(edited).program
+    report["passes"].as_i.should eq program.passes
+    report["derivation"].as_s.should eq program.derivation
   end
 end

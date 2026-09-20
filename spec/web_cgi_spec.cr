@@ -1,5 +1,6 @@
 require "./spec_helper"
 require "../src/web/cgi"
+require "json"
 require "uri"
 
 private def run_cgi(caps : String, path : String, method = "GET", query = "", body = "", script = "/ext/robots", user = "jkridner") : String
@@ -67,6 +68,7 @@ describe CrystalRobots::Web::CGI do
     reply.should start_with "Status: 200 OK\r\nContent-Type: text/x-markdown\r\n\r\n# Crystal Robots"
     reply.should contain "[counter.cr](/ext/robots/examples/counter)"
     reply.should contain "logged in as `jkridner`"
+    reply.should contain "[Build your own robot](#{CrystalRobots::Web::CGI::EDITOR_URL})"
   end
 
   it "accepts developer, reader, admin and setup capabilities" do
@@ -303,6 +305,41 @@ describe CrystalRobots::Web::CGI do
     cgi.wiki = wiki
     cgi.serve
     reply.to_s.should contain "# Battle: target vs target" # w= ignored without wiki-read
+  end
+
+  describe "/wiki-robots.json" do
+    it "lists every saved robot's name and source, for the browser editor's picker (Phase 6)" do
+      wiki = CrystalRobots::Web::WikiRobots.from_pages(SAVED_ROBOTS)
+      env = {"PATH_INFO" => "/wiki-robots.json", "SCRIPT_NAME" => "/ext/robots", "FOSSIL_CAPABILITIES" => "oij", "FOSSIL_USER" => "jkridner"}
+      reply = IO::Memory.new
+      cgi = CrystalRobots::Web::CGI.new(env, reply)
+      cgi.wiki = wiki
+      cgi.serve
+      reply.to_s.should start_with "Status: 200 OK\r\nContent-Type: application/json\r\n\r\n"
+      json = JSON.parse(reply.to_s.split("\r\n\r\n", 2)[1])
+      json.as_a.map { |r| r["name"].as_s }.sort.should eq wiki.names.sort
+      json.as_a.find { |r| r["name"].as_s == "spinner" }.not_nil!["source"].as_s.should eq wiki.source("spinner")
+    end
+
+    it "needs a login with check-in permission, same as /wiki/<name>" do
+      wiki = CrystalRobots::Web::WikiRobots.from_pages(SAVED_ROBOTS)
+      env = {"PATH_INFO" => "/wiki-robots.json", "SCRIPT_NAME" => "/ext/robots", "FOSSIL_CAPABILITIES" => "ohj", "FOSSIL_USER" => "anonymous"}
+      reply = IO::Memory.new
+      cgi = CrystalRobots::Web::CGI.new(env, reply)
+      cgi.wiki = wiki
+      cgi.serve
+      reply.to_s.should start_with "Status: 403"
+    end
+
+    it "needs the wiki-read capability, same as /wiki/<name>" do
+      wiki = CrystalRobots::Web::WikiRobots.from_pages(SAVED_ROBOTS)
+      env = {"PATH_INFO" => "/wiki-robots.json", "SCRIPT_NAME" => "/ext/robots", "FOSSIL_CAPABILITIES" => "oi", "FOSSIL_USER" => "jkridner"}
+      reply = IO::Memory.new
+      cgi = CrystalRobots::Web::CGI.new(env, reply)
+      cgi.wiki = wiki
+      cgi.serve
+      reply.to_s.should start_with "Status: 403"
+    end
   end
 
   it "escapes names in Pikchr labels" do

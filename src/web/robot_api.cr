@@ -1,4 +1,5 @@
 require "../compiler"
+require "json"
 
 # The robot API reference panel shown beside the editor on the parse and
 # battle pages. `ENTRIES` is written by hand (a 10-year-old's wording can't
@@ -135,5 +136,23 @@ module CrystalRobots::Web::RobotAPI
       end
       md << "</details>\n\n"
     end
+  end
+
+  # The same `GROUPS`/`ENTRIES` the served panel above renders from,
+  # exported as JSON for the browser editor's cheat-sheet (Phase 6): one
+  # Crystal source of truth for both surfaces, never a second hand-kept
+  # list. Written to `site/cheat-sheet.json` by
+  # `scripts/build_cheat_sheet.cr`, a step inside `ci.cr --with-wasm32`
+  # alongside `site/robots.json`; `spec/wasm32_spec.cr` checks the two stay
+  # byte-identical.
+  def self.cheat_sheet_json : String
+    cost = CrystalRobots::Compiler::Interpreter::Costs.crobots.builtin
+    {
+      groups:  GROUPS,
+      cost:    cost,
+      entries: ENTRIES.map { |name, e|
+        {name: name, signature: e.signature, returns: e.returns, blurb: e.blurb, example: e.example, group: e.group}
+      },
+    }.to_json
   end
 end

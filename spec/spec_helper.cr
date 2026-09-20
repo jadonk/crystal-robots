@@ -113,6 +113,7 @@ end
     MODULE_PATH         = "site/crystal-robots.wasm"
     CHECK_SCRIPT        = "spec/support/wasm32_check.mjs"
     BATTLE_CHECK_SCRIPT = "spec/support/wasm32_battle_check.mjs"
+    EDITOR_CHECK_SCRIPT = "spec/support/wasm32_check_check.mjs"
 
     # Runs `source` through every pass in a temp file and returns the
     # parsed JSON report `crd_run` builds (see `src/browser.cr`), via
@@ -149,6 +150,24 @@ end
         output = IO::Memory.new
         status = Process.run("node", [BATTLE_CHECK_SCRIPT, MODULE_PATH, file.path], output: output, error: STDERR)
         raise "node #{BATTLE_CHECK_SCRIPT} exited #{status.exit_code}" unless status.success?
+        JSON.parse(output.to_s)
+      ensure
+        file.delete
+      end
+    end
+
+    # Runs `source` through `crd_check` (the editor's live-typing check,
+    # Phase 6 -- `Browser.check` in `src/browser.cr`, never raising even
+    # on a bad-but-still-typing source) and returns the parsed JSON
+    # report, via `spec/support/wasm32_check_check.mjs`.
+    def self.check(source : String) : JSON::Any
+      file = File.tempfile("crd-wasm32-check", ".cr")
+      begin
+        file.print(source)
+        file.flush
+        output = IO::Memory.new
+        status = Process.run("node", [EDITOR_CHECK_SCRIPT, MODULE_PATH, file.path], output: output, error: STDERR)
+        raise "node #{EDITOR_CHECK_SCRIPT} exited #{status.exit_code}" unless status.success?
         JSON.parse(output.to_s)
       ensure
         file.delete
