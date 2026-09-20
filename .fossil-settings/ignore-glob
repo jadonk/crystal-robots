@@ -6,6 +6,7 @@ docs-api/*
 .wasmer/*
 .wasm32-wasi-libs/*
 site/crystal-robots.wasm
+site/robots.json
 *.dwarf
 examples/test.wasm
 manifest.uuid

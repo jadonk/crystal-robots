@@ -1,12 +1,17 @@
-# Publishes the Phase 5b-1 browser compiler (crystal-robots.wasm plus the
-# static page in site/) to GitHub Pages at https://jadonk.github.io/crystal-robots/.
+# Publishes the Phase 5b browser compiler and battle (crystal-robots.wasm
+# plus the static page in site/) to GitHub Pages at
+# https://jadonk.github.io/crystal-robots/.
 #
 # The GitHub repository is a read-only mirror: trunk is developed on
 # Fossil and pushed here through a Forgejo push mirror (see docs/PLAN.md,
 # Phase 7). This workflow only reacts to that mirrored history landing on
-# `main` or `dev`; it does not build anything ci.sh does not already build --
-# `scripts/ci.sh --with-wasm32` is the one command, so a developer running
-# it locally sees exactly what this workflow publishes.
+# `main` or `dev`; `scripts/ci.sh --with-wasm32` builds and specs
+# `site/crystal-robots.wasm`, so a developer running it locally sees the
+# same module this workflow publishes. `site/robots.json` (the battle
+# page's example-robot picker, Phase 5b-2) is a separate, Crystal-invocable
+# step (`scripts/build_robots_json.cr`), deliberately kept out of ci.sh:
+# ci.sh is being replaced by `ci.cr` on a parallel branch (ticket
+# feebeb1531), so a new build step lands here or in a spec, not there.
 # Fossil trunk lands on the mirror's `dev` branch, not `main`.
 name: Deploy browser compiler to GitHub Pages
 
@@ -37,6 +42,8 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y lld
 
       - run: scripts/ci.sh --with-wasm32
+
+      - run: crystal run scripts/build_robots_json.cr
 
       - uses: actions/upload-pages-artifact@v3
         with:
