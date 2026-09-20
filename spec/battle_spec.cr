@@ -1,5 +1,6 @@
 require "./spec_helper"
 require "../src/battle/field"
+require "../src/battle/step_robot"
 
 alias B = CrystalRobots::Battle
 
@@ -144,5 +145,45 @@ describe CrystalRobots::Battle do
     seen.should_not be_empty
     seen.map(&.owner).uniq.should eq [0]
     seen.map(&.slot).uniq.should eq [0]
+  end
+
+  # Phase 6 (ticket a83cd0a90f): a tight frame budget must still show every
+  # shot's impact, not just whatever the fixed downsample interval happens
+  # to land on -- the maintainer's complaint that cannon fire and impacts
+  # fall between samples. Point-blank range (5 m) means a missile explodes
+  # the same or next motion update it is fired, so counting recorded
+  # frames with an exploding missile is a reliable proxy for "a shot
+  # landed". `RELOAD` (15 motion cycles) between shots keeps successive
+  # impacts from landing on the same recorded cycle.
+  it "never drops a frame with a cannon-fire event, however tight the frame budget" do
+    shooter = "main(\"S\") do\n  while true\n    cannon(0, 5)\n    sleep\n  end\nend\n"
+    f = B::Field.new([{"s", shooter}, {"i", IDLE}], seed: 1_u64, limit: 30_000_i64, max_frames: 2).run
+    impacts = f.frames.count { |fr| fr.missiles.any?(&.exploding) }
+    impacts.should be >= 10
+    f.frames.size.should be > 2 # a budget of 2 alone could never have kept this many
+  end
+
+  # Same guarantee for `run_stepwise` (`src/battle/step_robot.cr`), the
+  # non-fiber engine `crd_battle_run` uses on wasm32 -- both engines share
+  # `Field#move_robots`/`move_missiles`/`cannon`/`scan`, so the event flag
+  # and this guarantee are not fiber-path-specific.
+  it "never drops a frame with a cannon-fire event under the stepwise engine either" do
+    shooter = "main(\"S\") do\n  while true\n    cannon(0, 5)\n    sleep\n  end\nend\n"
+    f = B::Field.new([{"s", shooter}, {"i", IDLE}], seed: 1_u64, limit: 30_000_i64, max_frames: 2).run_stepwise
+    impacts = f.frames.count { |fr| fr.missiles.any?(&.exploding) }
+    impacts.should be >= 10
+    f.frames.size.should be > 2
+  end
+
+  # A robot that dies has damage >= 100 in exactly one recorded frame's
+  # worth of state (the death update): a downsample-only log could show
+  # the robot alive right up to a frame long after it actually died.
+  it "never drops the frame a robot dies in, however tight the frame budget" do
+    counter = File.read("examples/counter.cr")
+    target = File.read("examples/target.cr")
+    f = B::Field.new([{"counter", counter}, {"target", target}], seed: 1_u64, limit: 200_000_i64, max_frames: 2).run
+    dead_frame = f.frames.find { |fr| fr.robots.any? { |r| !r.active } }
+    dead_frame.should_not be_nil
+    f.frames.size.should be > 2
   end
 end

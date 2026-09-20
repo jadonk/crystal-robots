@@ -135,13 +135,17 @@ end
     # Runs one match through `crd_battle_run` (`Battle::Field#run_stepwise`,
     # `src/battle/step_robot.cr`) and returns the parsed JSON report, via
     # `spec/support/wasm32_battle_check.mjs`. `robots` is 2 to 4
-    # `{name, source}` pairs.
-    def self.battle(robots : Array({String, String}), seed : UInt64, limit : Int64, cps : Int32 = 300) : JSON::Any
+    # `{name, source}` pairs. `max_frames` mirrors `Browser.battle_run`'s
+    # own request field (`src/browser.cr`); pass the same value used to
+    # build a native comparison `Field` so frame counts and the rendered
+    # skeleton are comparing the same downsample budget.
+    def self.battle(robots : Array({String, String}), seed : UInt64, limit : Int64, cps : Int32 = 300, max_frames : Int32? = nil) : JSON::Any
       request = {
-        robots: robots.map { |(name, source)| {name: name, source: source} },
-        seed:   seed,
-        limit:  limit,
-        cps:    cps,
+        robots:     robots.map { |(name, source)| {name: name, source: source} },
+        seed:       seed,
+        limit:      limit,
+        cps:        cps,
+        max_frames: max_frames,
       }.to_json
       file = File.tempfile("crd-wasm32-battle", ".json")
       begin

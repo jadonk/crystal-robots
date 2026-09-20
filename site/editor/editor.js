@@ -9,9 +9,18 @@
 // `battle()`, the same call `../battle.js` makes). No framework, no CDN,
 // same CSP as the rest of `site/` (no inline script). Phase 6.
 import { check, battle } from "../wasi-shim.js";
+import { mountBattlePlayback } from "../battle-playback.js";
 
 const DEBOUNCE_MS = 500; // "a short pause" -- one of the plan's defaults,
 // waiting on the wiki user's own answer (docs/PLAN.md, Phase 6)
+
+// Requests the larger of the two frame budgets `Browser.battle_run`
+// accepts (`src/browser.cr`), same as `../battle.js`'s in-page battle
+// (Phase 6): the fight preview here plays back live too
+// (`mountBattlePlayback`), not a fire-and-forget SMIL animation, so a
+// long fight is worth recording in full rather than downsampled to the
+// served page's much smaller default.
+const MAX_FRAMES = 20000;
 
 const pickerEl = document.getElementById("picker");
 const forkButton = document.getElementById("fork");
@@ -219,6 +228,7 @@ const replayEl = document.getElementById("fight-replay");
 const standingsEl = document.getElementById("fight-standings");
 
 let opponentSlots = [];
+let activePlayback = null;
 
 function buildFightSlots() {
   slotsEl.innerHTML = "";
@@ -282,6 +292,7 @@ async function runFight() {
   fightButton.disabled = true;
   fightStatusEl.textContent = "Running…";
   standingsEl.innerHTML = "";
+  if (activePlayback) activePlayback.stop();
   replayEl.innerHTML = "";
 
   try {
@@ -289,7 +300,7 @@ async function runFight() {
     const seed = Math.max(0, Math.trunc(Number(seedEl.value)) || 0);
     const limit = Math.max(1, Math.trunc(Number(limitEl.value)) || 60000);
     const cps = Math.max(1, Math.trunc(Number(cpsEl.value)) || 300);
-    const result = await battle(compiledModule, contestants, seed, limit, cps);
+    const result = await battle(compiledModule, contestants, seed, limit, cps, { maxFrames: MAX_FRAMES });
     if (result.trapped) {
       fightStatusEl.textContent = "Fight request failed.";
       standingsEl.textContent = result.stderr || "(the module aborted with no message)";
@@ -299,8 +310,8 @@ async function runFight() {
       fightStatusEl.textContent = result.error;
       return;
     }
-    fightStatusEl.textContent = `${result.cycles} cycles.`;
-    replayEl.innerHTML = result.svg;
+    fightStatusEl.textContent = `${result.cycles} cycles, ${result.frame_count} frames recorded.`;
+    activePlayback = mountBattlePlayback(replayEl, result, cps);
     renderStandings(result);
   } finally {
     fightButton.disabled = false;

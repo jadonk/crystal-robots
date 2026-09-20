@@ -13,6 +13,16 @@ require "html"
 # internal to Crystal. Extracted from `cgi.cr` verbatim, which is why the
 # comments below still say "Fossil": the SVG itself has no idea which
 # server (or none) is serving it.
+#
+# Phase 6 correction (2026-09-20): a long, event-guaranteed frame log
+# (`Field#run`/`run_stepwise`, both in this module) is too big to hand to
+# SMIL as one `<animate>` keyframe list without the browser choking, so
+# `crd_battle_run` no longer builds `svg_animation` for the in-page
+# battle at all -- it sends `svg_skeleton` (below) plus the compact frame
+# log (`Browser.encode_frames`, `src/browser.cr`) instead, and
+# `site/battle-playback.js` drives it in `requestAnimationFrame`.
+# `svg_animation` is unchanged and still the served `/battle` page's own
+# renderer.
 module CrystalRobots::Battle
   ROBOT_COLORS = ["0x4C97FF", "0xFF8C1A", "0x59C059", "0xFFAB19"]
 
@@ -108,6 +118,52 @@ module CrystalRobots::Battle
           svg << animate("r", rs.join(';'), key_times, dur, "discrete")
           svg << animate("fill-opacity", ops.join(';'), key_times, dur, "discrete")
           svg << "</circle>\n"
+        end
+      end
+      svg << "</svg>"
+    end
+  end
+
+  # A static SVG "skeleton": the same shapes `svg_animation` draws (trail,
+  # body, scan sweep, heading nose, cannon barrel, missiles) at the
+  # match's first frame, each tagged with a stable `id` instead of driven
+  # by `<animate>`/`<animateTransform>` elements. `site/battle-playback.js`
+  # (Phase 6) sets attributes on these ids directly, at 60 fps, from the
+  # compact binary frame log `Browser.encode_frames` builds
+  # (`src/browser.cr`) -- so a long, heavily-recorded match plays back
+  # smoothly in `requestAnimationFrame` instead of asking the browser's
+  # own SMIL engine to step through however many thousands of keyframes
+  # were kept. `svg_animation` stays exactly as it is for the served
+  # `/battle` page, which has no script of its own to drive playback with;
+  # both functions draw the same shapes at the same coordinates, so the
+  # two pages still look identical, only how they play differs.
+  def self.svg_skeleton(field : Field) : String
+    f0 = field.frames.first
+    String.build do |svg|
+      svg << %(<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -30 1060 1060" width="520" height="520" role="img" aria-label="battle replay">\n)
+      svg << %(<rect x="0" y="0" width="1000" height="1000" fill="#f4f4f0" stroke="#888" stroke-width="3"/>\n)
+      field.robots.each_with_index do |robot, i|
+        color = "#" + ROBOT_COLORS[i % ROBOT_COLORS.size][2..]
+        rs = f0.robots[i]
+        x = rs.x // CLICK
+        y = 1000 - rs.y // CLICK
+        svg << %(<polyline id="trail-#{i}" fill="none" stroke="#{color}" stroke-opacity="0.35" stroke-width="3" points="#{x},#{y}"/>\n)
+        svg << %(<g id="robot-#{i}" transform="translate(#{x} #{y})">\n)
+        svg << %(<line id="scan-#{i}" x1="0" y1="0" x2="160" y2="0" stroke="#{color}" stroke-opacity="0.45" stroke-width="2" stroke-dasharray="6 6" transform="rotate(#{-rs.scan})"/>\n)
+        svg << %(<circle id="body-#{i}" r="14" fill="#{color}" stroke="#000" stroke-width="2" opacity="#{rs.active ? 1 : 0.3}"/>\n)
+        svg << %(<line id="heading-#{i}" x1="0" y1="0" x2="30" y2="0" stroke="#000" stroke-width="4" stroke-linecap="round" transform="rotate(#{-rs.heading})"/>\n)
+        svg << %(<line id="cannon-#{i}" x1="0" y1="0" x2="26" y2="0" stroke="#d00" stroke-width="6" stroke-linecap="butt" transform="rotate(#{-rs.cannon})" opacity="#{rs.fired ? 1 : 0}"/>\n)
+        svg << %(<text y="-24" font-size="30" font-family="sans-serif" text-anchor="middle" fill="#222">#{HTML.escape(robot.name)}</text>\n)
+        svg << "</g>\n"
+      end
+      field.robots.each_index do |owner|
+        MIS_ROBOT.times do |slot|
+          m = f0.missiles.find { |st| st.owner == owner && st.slot == slot }
+          mx = m ? m.x // CLICK : 0
+          my = m ? 1000 - m.y // CLICK : 0
+          mr = m ? (m.exploding ? 40 : 7) : 0
+          mop = m ? (m.exploding ? "0.25" : "1") : "0"
+          svg << %(<circle id="missile-#{owner}-#{slot}" cx="#{mx}" cy="#{my}" r="#{mr}" fill="#d00" stroke="#d00" stroke-width="2" fill-opacity="#{mop}"/>\n)
         end
       end
       svg << "</svg>"
