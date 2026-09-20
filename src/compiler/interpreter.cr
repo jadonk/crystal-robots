@@ -1,528 +1,550 @@
-require "./program"
-require "./parser"
-
-# A tree-walking reference interpreter over the same AST `WASM_Emitter`
-# compiles, integer-only, sharing its truncating `/ // %` for now (see
-# `WASM_Emitter`'s comment on the same point). Every builtin goes through
-# `Host`, the seam a real battlefield will implement later; `NullHost` is
-# a deterministic stand-in with the same behavior the WASM specs bind
-# their own stand-in host to, so the two engines can be run against each
-# other on the same robot and checked for the same output.
+# Reference interpreter: walks the parsed `Program` and executes it with
+# integer semantics. Robot builtins go through a `Host`, so the same
+# program runs against a stub, the battlefield simulation, or (later) the
+# same interface the WebAssembly imports bind to.
 module CrystalRobots::Compiler
+  # The robot's view of the world. Every builtin the language exposes is a
+  # method here; the interpreter, the native prelude and the WASM imports
+  # all target this one interface.
   abstract class Host
-    abstract def puts(n : Int32) : Int32
-    abstract def scan(angle : Int32, resolution : Int32) : Int32
-    abstract def cannon(angle : Int32, range : Int32) : Int32
-    abstract def drive(heading : Int32, speed : Int32) : Int32
+    abstract def scan(degree : Int32, resolution : Int32) : Int32
+    abstract def cannon(degree : Int32, range : Int32) : Int32
+    abstract def drive(degree : Int32, speed : Int32) : Int32
     abstract def damage : Int32
     abstract def speed : Int32
     abstract def loc_x : Int32
     abstract def loc_y : Int32
     abstract def sleep : Int32
-    abstract def rand(n : Int32) : Int32
-    abstract def sqrt(n : Int32) : Int32
-    abstract def sin(n : Int32) : Int32
-    abstract def cos(n : Int32) : Int32
-    abstract def tan(n : Int32) : Int32
-    abstract def atan(n : Int32) : Int32
-  end
+    abstract def rand(limit : Int32) : Int32
 
-  # No battlefield exists yet: the sensors return fixed, distinct values,
-  # the two-argument builtins return the sum of their arguments, and the
-  # math builtins do real degree-based trigonometry. `puts` collects into
-  # `puts_out`.
-  class NullHost < Host
-    getter puts_out = [] of Int32
-
-    def puts(n : Int32) : Int32
-      @puts_out << n
-      n
-    end
-
-    def scan(angle : Int32, resolution : Int32) : Int32
-      angle + resolution
-    end
-
-    def cannon(angle : Int32, range : Int32) : Int32
-      angle + range
-    end
-
-    def drive(heading : Int32, speed : Int32) : Int32
-      heading + speed
-    end
-
-    def damage : Int32
-      11
-    end
-
-    def speed : Int32
-      22
-    end
-
-    def loc_x : Int32
-      33
-    end
-
-    def loc_y : Int32
-      44
-    end
-
-    def sleep : Int32
-      55
-    end
-
-    def rand(n : Int32) : Int32
-      n
+    # Called for every `puts`.
+    def puts(value : Value) : Nil
     end
 
     def sqrt(n : Int32) : Int32
-      Math.sqrt(n).to_i32
+      Math.isqrt(n.to_i64.abs).to_i32
     end
 
-    def sin(n : Int32) : Int32
-      Math.sin(n.to_f * Math::PI / 180).round.to_i32
+    def sin(degree : Int32) : Int32
+      (Math.sin(degree * Math::PI / 180) * 100000).to_i32
     end
 
-    def cos(n : Int32) : Int32
-      Math.cos(n.to_f * Math::PI / 180).round.to_i32
+    def cos(degree : Int32) : Int32
+      (Math.cos(degree * Math::PI / 180) * 100000).to_i32
     end
 
-    def tan(n : Int32) : Int32
-      Math.tan(n.to_f * Math::PI / 180).round.to_i32
+    def tan(degree : Int32) : Int32
+      (Math.tan(degree * Math::PI / 180) * 100000).to_i32
     end
 
-    def atan(n : Int32) : Int32
-      (Math.atan(n.to_f) * 180 / Math::PI).round.to_i32
+    def atan(ratio : Int32) : Int32
+      (Math.atan(ratio / 100000.0) * 180 / Math::PI).to_i32
     end
   end
 
-  # Behaves exactly like `NullHost` -- there is still no battlefield -- but
-  # also echoes every `puts` to the console, for the CLI's `-i`.
-  class ConsoleHost < NullHost
-    def puts(n : Int32) : Int32
-      STDOUT.puts n
-      super
+  # A host with no battlefield: sensors read zero, actuators do nothing,
+  # `rand` is seeded so runs are reproducible.
+  class NullHost < Host
+    def initialize(seed : UInt64 = 1_u64)
+      @random = Random.new(seed)
+    end
+
+    def scan(degree : Int32, resolution : Int32) : Int32
+      0
+    end
+
+    def cannon(degree : Int32, range : Int32) : Int32
+      0
+    end
+
+    def drive(degree : Int32, speed : Int32) : Int32
+      0
+    end
+
+    def damage : Int32
+      0
+    end
+
+    def speed : Int32
+      0
+    end
+
+    def loc_x : Int32
+      0
+    end
+
+    def loc_y : Int32
+      0
+    end
+
+    def sleep : Int32
+      0
+    end
+
+    def rand(limit : Int32) : Int32
+      limit <= 0 ? 0 : @random.rand(limit)
     end
   end
 
   class Interpreter
-    # Every builtin name `builtin0`/`builtin1`/`builtin2` below actually
-    # dispatch, in one place: spec-checked against those three `case`
-    # statements (spec/interpreter_spec.cr) and against
-    # Web::RobotAPI::ENTRIES's keys, so a builtin can never go
-    # undocumented and a documented name can never be make-believe.
-    BUILTIN_NAMES = %w(
-      damage speed loc_x loc_y sleep
-      puts rand sqrt sin cos tan atan
-      scan cannon drive
-    )
+    class RuntimeError < Exception
+    end
 
-    # How many cycles each kind of work costs, the same units CROBOTS
-    # charged per bytecode instruction, mapped onto this tree-walker's
-    # coarser AST-node granularity: a fetch or a store is one instruction
-    # in either machine, an operator is one BINOP, a builtin call folds
-    # the intrinsic dispatch and its bogus-frame cleanup into one weight,
-    # and a user call folds pushing arguments and the FCALL into another.
-    # `Costs.statements` is the simplest possible model -- one per
-    # statement executed, everything else free -- kept for comparisons
-    # that only care about how many statements ran.
-    class Costs
-      property fetch = 1
-      property operator = 1
-      property store = 1
-      property builtin = 2
-      property call = 3
-      property branch = 1
-      property statement = 1
-
-      def self.statements : Costs
-        c = new
-        c.fetch = c.operator = c.store = c.builtin = c.call = c.branch = 0
-        c
-      end
+    # Raised when the step budget is used up; the caller decides what a
+    # step means (a cycle limit for the CLI, a fairness slice for battles).
+    class StepLimit < Exception
     end
 
     private class BreakSignal < Exception
     end
 
     private class ReturnSignal < Exception
-      getter value : Int32
+      getter value : Value
 
-      def initialize(@value : Int32)
+      def initialize(@value : Value)
+        super("return")
       end
     end
 
-    private class Scope
-      property locals = {} of String => Int32
+    # A user function: its parameter names and the statement nodes of its body.
+    private record Function, params : Array(String), body : Array(Int32)
+
+    @@puts_out = [] of String
+
+    # The class-level capture is for the CLI and specs; a battlefield host
+    # keeps its own bounded output and turns this off.
+    CAPTURE_LIMIT = 10_000
+    property capture = true
+
+    # Deeper than this and a robot is recursing without end.
+    MAX_CALL_DEPTH = 200
+
+    # What a program is charged, in cycles, for each kind of work. The
+    # default follows the CROBOTS virtual machine, which charged one cycle
+    # per instruction: a FETCH or CONST per operand, one BINOP per operator,
+    # one STORE per assignment, FRAME + FCALL + RETSUB around a call, one
+    # BRANCH per condition, and a CHOP at the end of an expression
+    # statement. `Costs.statements` is the older model: one cycle per
+    # statement, nothing else.
+    record Costs, fetch : Int32 = 1, operator : Int32 = 1, store : Int32 = 1,
+      builtin : Int32 = 2, call : Int32 = 3, branch : Int32 = 1, statement : Int32 = 1 do
+      def self.crobots : Costs
+        new
+      end
+
+      def self.statements : Costs
+        new(fetch: 0, operator: 0, store: 0, builtin: 0, call: 0, branch: 0, statement: 1)
+      end
     end
 
-    def self.execute(program : Program, host : Host, costs : Costs = Costs.new) : Int64
-      i = new(program, host, costs)
-      i.run
-      i.cycles
+    property costs : Costs = Costs.crobots
+
+    # One entry per builtin the language exposes, keyed by name. This is the
+    # single table `builtin` dispatches through, so a name can only reach a
+    # robot program by being listed here — nothing else (docs, specs) can
+    # drift from what actually runs.
+    alias BuiltinFn = Array(Value) -> Value
+
+    # Every registered builtin's name, e.g. for a web page listing what a
+    # robot can call. Built from the real dispatch table, not a hand list.
+    def self.builtin_names : Array(String)
+      new(Program.new(""), NullHost.new).builtin_names
     end
 
-    getter cycles = 0_i64
-
-    # When both are set, `sync_step` is called once per statement executed
-    # and once per loop-condition check -- covering an empty loop body
-    # too, so a bare `while true` still cooperates -- letting a scheduler
-    # interleave several robots' interpreters, each in its own Fiber, one
-    # step at a time: send on `done_channel` (blocks until the scheduler
-    # is ready to collect it), then receive from `step_channel` (blocks
-    # until the scheduler permits the next step). `nil` by default: every
-    # existing caller runs a robot to completion in one call, unaffected.
-    #
-    # This is deliberately not bare `Fiber.yield`: Crystal's own fiber
-    # scheduler does not guarantee a `Fiber.yield` call hands control
-    # back to whichever fiber called `resume` (confirmed by hand -- a
-    # tight `Fiber.new`/`resume`/`Fiber.yield` loop ran a fiber to
-    # completion in one `resume` instead of pausing at each `yield`); a
-    # `Channel` round-trip is the concurrency primitive Crystal actually
-    # guarantees ordering for.
-    property step_channel : Channel(Nil)?
-    property done_channel : Channel(Nil)?
-
-    # A standalone cycle cap, independent of `step_channel`/`done_channel`:
-    # a robot's own `main` block is written `while true`, meant to be
-    # bounded by a battlefield's cycle limit (many fibers, one per robot,
-    # cooperating through those channels); running one robot alone with
-    # `limit` set instead raises once that many cycles have been
-    # charged, wherever it happens to be, rather than looping forever
-    # with no scheduler to bound it. `nil` by default: every existing
-    # caller is unaffected.
-    #
-    # Deliberately left for a caller to rescue (or not): on wasm32 (see
-    # `src/browser.cr`) a `rescue` cannot catch this or anything else
-    # `run` might raise, so `StepLimit` reaching a caller uncaught is
-    # correct there, not a gap to close here.
-    class StepLimit < Exception
+    def builtin_names : Array(String)
+      @builtins.keys
     end
 
-    def initialize(@program : Program, @host : Host, @costs : Costs = Costs.new, @limit : Int64? = nil)
-      @globals = {} of String => Int32
-      @functions = {} of String => Int32
-      @arity = {} of String => Int32
-      # A static pass, matching `WASM_Emitter`'s: every `global(...)` and
-      # every plain top-level assignment (the shape the example robots use
-      # for constants, `C1X = 10`) declares a global up front, at 0, so a
-      # function reads the same set of globals no matter what has run yet.
-      body_of(@program.root).each do |stmt|
+    # Everything `puts` wrote since `puts_clear`, one line per call.
+    def self.puts_out : String
+      @@puts_out.join("\n")
+    end
+
+    def self.puts_clear : Nil
+      @@puts_out = [] of String
+    end
+
+    # Run a parsed program to completion. Returns 0.
+    def self.execute(p : Program, host : Host = NullHost.new) : Int32
+      new(p, host).run
+    end
+
+    getter program : Program, host : Host, steps : Int32
+
+    # Called on every step. The battlefield uses it to hand control back to
+    # the scheduler between robots (see `Battle::Robot`).
+    property on_step : Proc(Nil)? = nil
+
+    @builtins : Hash(String, BuiltinFn)
+
+    def initialize(@program : Program, @host : Host = NullHost.new, @step_limit : Int32 = 1_000_000)
+      @globals = {} of String => Value
+      @constants = {} of String => Value
+      @functions = {} of String => Function
+      @frames = [] of Hash(String, Value)
+      @steps = 0
+      @builtins = build_builtins
+    end
+
+    private def build_builtins : Hash(String, BuiltinFn)
+      {
+        "puts" => BuiltinFn.new { |args|
+          @@puts_out << args[0].to_s if @capture && @@puts_out.size < CAPTURE_LIMIT
+          @host.puts(args[0])
+          0.as(Value)
+        },
+        "damage" => BuiltinFn.new { |args| @host.damage.as(Value) },
+        "speed"  => BuiltinFn.new { |args| @host.speed.as(Value) },
+        "loc_x"  => BuiltinFn.new { |args| @host.loc_x.as(Value) },
+        "loc_y"  => BuiltinFn.new { |args| @host.loc_y.as(Value) },
+        "sleep"  => BuiltinFn.new { |args| @host.sleep.as(Value) },
+        "rand"   => BuiltinFn.new { |args| @host.rand(int(args[0])).as(Value) },
+        "sqrt"   => BuiltinFn.new { |args| @host.sqrt(int(args[0])).as(Value) },
+        "sin"    => BuiltinFn.new { |args| @host.sin(int(args[0])).as(Value) },
+        "cos"    => BuiltinFn.new { |args| @host.cos(int(args[0])).as(Value) },
+        "tan"    => BuiltinFn.new { |args| @host.tan(int(args[0])).as(Value) },
+        "atan"   => BuiltinFn.new { |args| @host.atan(int(args[0])).as(Value) },
+        "scan"   => BuiltinFn.new { |args| @host.scan(int(args[0]), int(args[1])).as(Value) },
+        "cannon" => BuiltinFn.new { |args| @host.cannon(int(args[0]), int(args[1])).as(Value) },
+        "drive"  => BuiltinFn.new { |args| @host.drive(int(args[0]), int(args[1])).as(Value) },
+      } of String => BuiltinFn
+    end
+
+    def run : Int32
+      main_body = nil
+      @program.children(@program.root).each do |stmt|
         case @program[stmt].rule
-        when :global
-          @globals[@program.value(@program.arg(stmt, 2))] = 0
-        when :def
-          head = @program.children(stmt)[0]
-          idents = @program.children(head).select { |i| @program.type(i) == Type::Identifier }
-          name = @program.lexeme(idents[0])
-          @functions[name] = stmt
-          @arity[name] = idents.size - 1
-        when :exprstmt
-          expr = @program.arg(stmt, 0)
-          if @program[expr].rule == :assign
-            name = @program.value(@program.arg(expr, 0))
-            @globals[name] = 0 unless @globals.has_key?(name)
-          end
+        when :def    then define(stmt)
+        when :global then declare_global(stmt)
+        when :main   then main_body = body_of(stmt)
+        else              exec_top(stmt)
+        end
+      end
+      if main_body
+        @frames << {} of String => Value
+        begin
+          main_body.each { |s| exec(s) }
+        rescue ReturnSignal
+        ensure
+          @frames.pop
+        end
+      end
+      0
+    end
+
+    # Top-level statements outside `main`: constants and plain statements.
+    private def exec_top(stmt : Int32) : Nil
+      expr = @program.arg(stmt, 0)
+      if @program[stmt].rule == :exprstmt && @program[expr].rule == :assign
+        name = @program.lexeme(@program.arg(expr, 0))
+        value = eval(@program.arg(expr, 2))
+        tick(@costs.store)
+        @constants[name] = value
+        tick(@costs.statement)
+      else
+        @frames << @constants
+        begin
+          exec(stmt)
+        ensure
+          @frames.pop
         end
       end
     end
 
-    def run : Nil
-      main_stmts = [] of Int32
-      scope = Scope.new
-      body_of(@program.root).each do |stmt|
-        case @program[stmt].rule
-        when :def
-        when :main
-          main_stmts = body_of(stmt)
-        else
-          exec_statement(stmt, scope)
-        end
-      end
-      main_stmts.each { |s| exec_statement(s, scope) }
+    private def define(stmt : Int32) : Nil
+      head = @program.arg(stmt, 0)
+      names = @program.children(head).select { |i| @program.type(i) == Type::Identifier }.map { |i| @program.lexeme(i) }
+      @functions[names[0]] = Function.new(names[1..], body_of(stmt))
     end
 
+    private def declare_global(stmt : Int32) : Nil
+      kids = @program.children(stmt) # 🌐 ⟮ 𝑥 ， V ⟯ ⏎
+      @globals[@program.lexeme(kids[2])] = eval(kids[4])
+    end
+
+    # The statement children of a block node (everything that is a ❢).
     private def body_of(block : Int32) : Array(Int32)
       @program.children(block).select { |i| @program.type(i) == Type::Statement }
     end
 
-    private def charge(n : Int32) : Nil
-      @cycles += n
-    end
-
-    private def sync_step : Nil
-      d = @done_channel
-      s = @step_channel
-      if d && s
-        d.send(nil)
-        s.receive
-      end
-      raise StepLimit.new("step limit #{@limit} reached") if (limit = @limit) && @cycles >= limit
-    end
-
-    # The value of a statement is the value of its expression, or, for
-    # `if`, whichever branch's last statement ran; a loop is not a value
-    # and yields 0, matching `WASM_Emitter`'s reset of `Ctx#ret`.
-    private def exec_statement(stmt : Int32, scope : Scope) : Int32
-      charge(@costs.statement)
-      sync_step
-      case @program[stmt].rule
-      when :global
-        @globals[@program.value(@program.arg(stmt, 2))] = eval(@program.arg(stmt, 4), scope)
-      when :exprstmt
-        return eval(@program.arg(stmt, 0), scope)
-      when :while
-        loop_exec(stmt, scope, while_true: true)
-      when :until
-        loop_exec(stmt, scope, while_true: false)
-      when :break
-        charge(@costs.branch)
-        raise BreakSignal.new
-      when :return
-        charge(@costs.branch)
-        kids = @program.children(stmt)
-        raise ReturnSignal.new(kids.size > 2 ? eval(kids[1], scope) : 0)
-      when :if
-        return if_exec(stmt, scope)
-      when :case
-        return case_exec(stmt, scope)
-      end
-      0
-    end
-
-    private def loop_exec(stmt : Int32, scope : Scope, while_true : Bool) : Nil
-      head = @program.children(stmt)[0]
-      cond = @program.arg(head, 1)
-      loop do
-        value = eval(cond, scope)
-        charge(@costs.branch)
-        sync_step
-        keep_going = while_true ? value != 0 : value == 0
-        break unless keep_going
-        begin
-          body_of(stmt).each { |s| exec_statement(s, scope) }
-        rescue BreakSignal
-          break
+    # Charge `n` cycles; the hook runs once per cycle so a scheduler sees
+    # every one of them.
+    private def tick(n : Int32) : Nil
+      n.times do
+        @steps += 1
+        raise StepLimit.new("step limit #{@step_limit} reached") if @steps > @step_limit
+        if (hook = @on_step)
+          hook.call
         end
       end
     end
 
-    private def if_exec(stmt : Int32, scope : Scope) : Int32
-      branches = [] of {Int32?, Array(Int32)}
+    private def truthy?(v : Value) : Bool
+      v.is_a?(String) || v != 0
+    end
+
+    # Execute one statement. Returns the value of an expression statement so
+    # a function body can return its last expression.
+    def exec(stmt : Int32) : Value?
+      n = @program[stmt]
+      case n.rule
+      when :exprstmt
+        value = eval(@program.arg(stmt, 0))
+        tick(@costs.statement)
+        value
+      when :return
+        kids = @program.children(stmt)
+        value = kids.size > 2 ? eval(kids[1]) : 0
+        tick(@costs.branch)
+        raise ReturnSignal.new(value)
+      when :break
+        tick(@costs.branch)
+        raise BreakSignal.new("break")
+      when :if
+        exec_if(stmt)
+      when :while
+        exec_loop(stmt, true)
+      when :until
+        exec_loop(stmt, false)
+      when :case
+        exec_case(stmt)
+      when :global
+        declare_global(stmt)
+        nil
+      when :def
+        define(stmt)
+        nil
+      else
+        raise RuntimeError.new("cannot execute #{n.rule}")
+      end
+    end
+
+    private def exec_if(stmt : Int32) : Value?
+      taken = false
+      result = nil
       @program.children(stmt).each do |k|
         case @program.type(k)
         when Type::IfHead, Type::ElsifHead
-          branches << {@program.arg(k, 1), [] of Int32}
+          break if taken
+          taken = truthy?(eval(@program.arg(k, 1)))
+          tick(@costs.branch)
         when Type::ElseKeyword
-          branches << {nil, [] of Int32}
+          break if taken
+          taken = true
         when Type::Statement
-          branches.last[1] << k
+          result = exec(k) if taken
         end
-      end
-      branches.each do |(cond, stmts)|
-        if cond
-          value = eval(cond, scope)
-          charge(@costs.branch)
-          next if value == 0
-        end
-        result = 0
-        stmts.each { |s| result = exec_statement(s, scope) }
-        return result
-      end
-      0
-    end
-
-    private def case_exec(stmt : Int32, scope : Scope) : Int32
-      kids = @program.children(stmt)
-      subject = eval(@program.arg(kids[0], 1), scope)
-      branches = [] of {Int32?, Array(Int32)}
-      kids.each do |k|
-        case @program.type(k)
-        when Type::WhenHead
-          branches << {@program.arg(k, 1), [] of Int32}
-        when Type::ElseKeyword
-          branches << {nil, [] of Int32}
-        when Type::Statement
-          branches.last[1] << k
-        end
-      end
-      branches.each do |(cond, stmts)|
-        if cond
-          value = eval(cond, scope)
-          charge(@costs.branch)
-          next if value != subject
-        end
-        result = 0
-        stmts.each { |s| result = exec_statement(s, scope) }
-        return result
-      end
-      0
-    end
-
-    # An identifier in value position: a variable fetch, or -- if it is
-    # not a variable at all -- a call to a zero-parameter function, the
-    # `run`/`change`/`new_corner` style bare calls the example robots use.
-    # Charges its own cost (call or fetch) rather than the fixed fetch
-    # `eval`'s :lex case charges a plain number literal with.
-    private def identifier_get(name : String, scope : Scope) : Int32
-      if !scope.locals.has_key?(name) && !@globals.has_key?(name) && @arity[name]? == 0
-        value = call_function(name, [] of Int32)
-        charge(@costs.call)
-        value
-      else
-        charge(@costs.fetch)
-        scope.locals[name]? || @globals[name]? || raise "undefined variable #{name}"
-      end
-    end
-
-    # Store into a variable and return the value: a global that already
-    # exists goes there unless shadowed by a local of the same name,
-    # otherwise it is a local, first assignment introducing it.
-    private def set_variable(name : String, value : Int32, scope : Scope) : Int32
-      if @globals.has_key?(name) && !scope.locals.has_key?(name)
-        @globals[name] = value
-      else
-        scope.locals[name] = value
-      end
-      value
-    end
-
-    private def call_function(name : String, args : Array(Int32)) : Int32
-      stmt = @functions[name]? || raise "undefined function #{name}"
-      head = @program.arg(stmt, 0)
-      params = @program.children(head).select { |i| @program.type(i) == Type::Identifier }[1..].map { |i| @program.lexeme(i) }
-      scope = Scope.new
-      params.each_with_index { |p, idx| scope.locals[p] = args[idx] }
-      result = 0
-      begin
-        body_of(stmt).each { |s| result = exec_statement(s, scope) }
-      rescue e : ReturnSignal
-        result = e.value
       end
       result
     end
 
-    def eval(i : Int32, scope : Scope) : Int32
+    private def exec_loop(stmt : Int32, while_true : Bool) : Value?
+      head = @program.arg(stmt, 0)
+      cond = @program.arg(head, 1)
+      body = body_of(stmt)
+      begin
+        loop do
+          test = truthy?(eval(cond)) == while_true
+          tick(@costs.branch) # an empty loop body must still consume the budget
+          break unless test
+          body.each { |s| exec(s) }
+        end
+      rescue BreakSignal
+      end
+      nil
+    end
+
+    private def exec_case(stmt : Int32) : Value?
+      kids = @program.children(stmt)
+      subject = eval(@program.arg(kids[0], 1))
+      taken = false
+      done = false
+      result = nil
+      kids[1..].each do |k|
+        case @program.type(k)
+        when Type::WhenHead
+          break if done
+          taken = eval(@program.arg(k, 1)) == subject
+          tick(@costs.branch)
+          done = true if taken
+        when Type::ElseKeyword
+          break if done
+          taken = true
+          done = true
+        when Type::Statement
+          result = exec(k) if taken
+        end
+      end
+      result
+    end
+
+    # Evaluate an expression node.
+    def eval(i : Int32) : Value
       n = @program[i]
       case n.rule
       when :lex
-        if n.type == Type::Identifier
-          identifier_get(@program.value(n), scope)
-        else
-          charge(@costs.fetch)
-          @program.value(n).to_i32
-        end
+        eval_leaf(i)
       when :literal
-        charge(@costs.fetch)
+        tick(@costs.fetch)
         @program.type(@program.arg(i, 0)) == Type::TrueKeyword ? 1 : 0
-      when :assign
-        name = @program.value(@program.arg(i, 0))
-        value = eval(@program.arg(i, 2), scope)
-        charge(@costs.store)
-        set_variable(name, value, scope)
-      when :opassign
-        name = @program.value(@program.arg(i, 0))
-        opt = case @program.type(@program.arg(i, 1))
-              when Type::AddAssign then Type::AddOperator
-              when Type::SubAssign then Type::SubOperator
-              when Type::MulAssign then Type::MulOperator
-              else                      Type::ModOperator
-              end
-        old = scope.locals[name]? || @globals[name]? || raise "undefined variable #{name}"
-        value = binary(opt, old, eval(@program.arg(i, 2), scope))
-        charge(@costs.fetch + @costs.operator + @costs.store)
-        set_variable(name, value, scope)
       when :paren
-        eval(@program.arg(i, 1), scope)
+        eval(@program.arg(i, 1))
       when :neg
-        value = -eval(@program.arg(i, 1), scope)
-        charge(@costs.operator)
+        value = 0 &- int(eval(@program.arg(i, 1)))
+        tick(@costs.operator)
         value
       when :mul, :add, :cmp, :eq, :and, :or
-        value = binary(@program.type(@program.arg(i, 1)), eval(@program.arg(i, 0), scope), eval(@program.arg(i, 2), scope))
-        charge(@costs.operator)
+        value = binop(@program.type(@program.arg(i, 1)), eval(@program.arg(i, 0)), eval(@program.arg(i, 2)))
+        tick(@costs.operator)
         value
+      when :assign
+        value = eval(@program.arg(i, 2))
+        tick(@costs.store)
+        assign(@program.lexeme(@program.arg(i, 0)), value)
+      when :opassign
+        name = @program.lexeme(@program.arg(i, 0))
+        op = case @program.type(@program.arg(i, 1))
+             when Type::AddAssign then Type::AddOperator
+             when Type::SubAssign then Type::SubOperator
+             when Type::MulAssign then Type::MulOperator
+             else                      Type::ModOperator
+             end
+        value = binop(op, lookup(name), eval(@program.arg(i, 2)))
+        tick(@costs.fetch + @costs.operator + @costs.store)
+        assign(name, value)
       when :call0
-        value = builtin0(@program.lexeme(i))
-        charge(@costs.builtin)
-        value
-      when :command1, :call1
-        arg_index = n.rule == :call1 ? 2 : 1
-        value = builtin1(@program.lexeme(@program.arg(i, 0)), eval(@program.arg(i, arg_index), scope))
-        charge(@costs.builtin)
-        value
-      when :command2, :call2
-        a, b = n.rule == :call2 ? {2, 4} : {1, 3}
-        value = builtin2(@program.lexeme(@program.arg(i, 0)), eval(@program.arg(i, a), scope), eval(@program.arg(i, b), scope))
-        charge(@costs.builtin)
-        value
+        tick(@costs.builtin)
+        builtin(@program.lexeme(i), [] of Value)
+      when :call1, :command1, :call2, :command2
+        kids = @program.children(i)
+        args = kids[1..].reject { |k| {Type::OpenParen, Type::CloseParen, Type::Comma}.includes?(@program.type(k)) }
+        values = args.map { |k| eval(k) }
+        tick(@costs.builtin)
+        builtin(@program.lexeme(kids[0]), values)
       when :call
         kids = @program.children(i)
         args = kids[2..].reject { |k| {Type::CloseParen, Type::Comma}.includes?(@program.type(k)) }
-        value = call_function(@program.lexeme(kids[0]), args.map { |a| eval(a, scope) })
-        charge(@costs.call)
-        value
+        values = args.map { |k| eval(k) }
+        tick(@costs.call)
+        call(@program.lexeme(kids[0]), values)
       else
-        raise "expression #{n.rule} is not supported by the interpreter"
+        raise RuntimeError.new("cannot evaluate #{n.rule}")
       end
     end
 
-    private def binary(opt : Type, left : Int32, right : Int32) : Int32
-      case opt
-      when Type::AddOperator then left + right
-      when Type::SubOperator then left - right
-      when Type::MulOperator then left * right
-      when Type::DivOperator, Type::FloorDivOperator
-        left.tdiv(right)
-      when Type::ModOperator then left.remainder(right)
-      when Type::EqOperator  then left == right ? 1 : 0
-      when Type::NeOperator  then left != right ? 1 : 0
-      when Type::LtOperator  then left < right ? 1 : 0
-      when Type::GtOperator  then left > right ? 1 : 0
-      when Type::LeOperator  then left <= right ? 1 : 0
-      when Type::GeOperator  then left >= right ? 1 : 0
-      when Type::AndOperator then left != 0 && right != 0 ? 1 : 0
-      when Type::OrOperator  then left != 0 || right != 0 ? 1 : 0
-      when Type::XorOperator then left ^ right
+    private def eval_leaf(i : Int32) : Value
+      n = @program[i]
+      case n.type
+      when Type::Number
+        tick(@costs.fetch)
+        @program.value(n).to_i32
+      when Type::String
+        tick(@costs.fetch)
+        @program.value(n)[1...-1]
+      when Type::Identifier
+        identifier(@program.value(n))
+      when Type::ZeroArgMethod
+        tick(@costs.builtin)
+        builtin(@program.value(n), [] of Value)
       else
-        raise "operator #{opt} is not supported by the interpreter"
+        raise RuntimeError.new("#{n.type} is not a value")
       end
     end
 
-    private def builtin0(name : String) : Int32
-      case name
-      when "damage" then @host.damage
-      when "speed"  then @host.speed
-      when "loc_x"  then @host.loc_x
-      when "loc_y"  then @host.loc_y
-      when "sleep"  then @host.sleep
+    # A bare identifier is a variable, a constant, or a call to a
+    # zero-parameter function.
+    private def identifier(name : String) : Value
+      if defined?(name)
+        tick(@costs.fetch)
+        return lookup(name)
+      end
+      if @functions.has_key?(name)
+        tick(@costs.call) # a bare call is an FCALL, not a FETCH
+        return call(name, [] of Value)
+      end
+      raise RuntimeError.new("undefined variable or function #{name}")
+    end
+
+    private def defined?(name : String) : Bool
+      (@frames.last?.try(&.has_key?(name)) || false) || @globals.has_key?(name) || @constants.has_key?(name)
+    end
+
+    private def lookup(name : String) : Value
+      if (frame = @frames.last?) && frame.has_key?(name)
+        frame[name]
+      elsif @globals.has_key?(name)
+        @globals[name]
+      elsif @constants.has_key?(name)
+        @constants[name]
       else
-        raise "undefined builtin #{name}"
+        raise RuntimeError.new("undefined variable #{name}")
       end
     end
 
-    private def builtin1(name : String, a : Int32) : Int32
-      case name
-      when "puts" then @host.puts(a)
-      when "rand" then @host.rand(a)
-      when "sqrt" then @host.sqrt(a)
-      when "sin"  then @host.sin(a)
-      when "cos"  then @host.cos(a)
-      when "tan"  then @host.tan(a)
-      when "atan" then @host.atan(a)
+    private def assign(name : String, value : Value) : Value
+      if @globals.has_key?(name)
+        @globals[name] = value
+      elsif (frame = @frames.last?)
+        frame[name] = value
       else
-        raise "undefined builtin #{name}"
+        @constants[name] = value
+      end
+      value
+    end
+
+    private def int(v : Value) : Int32
+      v.is_a?(Int32) ? v : raise RuntimeError.new("expected a number, got #{v.inspect}")
+    end
+
+    private def binop(op : Type, l : Value, r : Value) : Value
+      a = int(l)
+      b = int(r)
+      case op
+      when Type::AddOperator then a &+ b
+      when Type::SubOperator then a &- b
+      when Type::MulOperator then a &* b
+      when Type::FloorDivOperator, Type::DivOperator
+        # CROBOTS returns 0 on division by zero; MIN // -1 wraps like the ops above
+        b == 0 ? 0 : (b == -1 ? 0 &- a : a // b)
+      when Type::ModOperator
+        b == 0 || b == -1 ? 0 : a % b
+      when Type::EqOperator  then a == b ? 1 : 0
+      when Type::NeOperator  then a != b ? 1 : 0
+      when Type::LtOperator  then a < b ? 1 : 0
+      when Type::GtOperator  then a > b ? 1 : 0
+      when Type::LeOperator  then a <= b ? 1 : 0
+      when Type::GeOperator  then a >= b ? 1 : 0
+      when Type::AndOperator then a != 0 && b != 0 ? 1 : 0
+      when Type::OrOperator  then a != 0 || b != 0 ? 1 : 0
+      when Type::XorOperator then a ^ b
+      else
+        raise RuntimeError.new("unknown operator #{op}")
       end
     end
 
-    private def builtin2(name : String, a : Int32, b : Int32) : Int32
-      case name
-      when "scan"   then @host.scan(a, b)
-      when "cannon" then @host.cannon(a, b)
-      when "drive"  then @host.drive(a, b)
-      else
-        raise "undefined builtin #{name}"
+    private def call(name : String, args : Array(Value)) : Value
+      fn = @functions[name]? || raise RuntimeError.new("undefined function #{name}")
+      raise RuntimeError.new("call depth exceeded #{MAX_CALL_DEPTH} in #{name}") if @frames.size > MAX_CALL_DEPTH
+      if fn.params.size != args.size
+        raise RuntimeError.new("#{name} expects #{fn.params.size} arguments, got #{args.size}")
       end
+      frame = {} of String => Value
+      fn.params.each_with_index { |param, k| frame[param] = args[k] }
+      @frames << frame
+      result = 0.as(Value)
+      begin
+        fn.body.each { |s| result = exec(s) || 0 }
+      rescue ret : ReturnSignal
+        result = ret.value
+      ensure
+        @frames.pop
+      end
+      result
+    end
+
+    private def builtin(name : String, args : Array(Value)) : Value
+      fn = @builtins[name]? || raise RuntimeError.new("unknown builtin #{name}")
+      fn.call(args)
     end
   end
 end

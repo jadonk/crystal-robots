@@ -1,9 +1,9 @@
-require "../compiler/interpreter"
+require "../compiler"
 
 # The robot API reference panel shown beside the editor on the parse and
-# battle pages. `ENTRIES` is written by hand (a 10-year-old's wording
-# can't be generated), but its keys are checked in spec against
-# `Interpreter::BUILTIN_NAMES`, the interpreter's own dispatch list, so a
+# battle pages. `ENTRIES` is written by hand (a 10-year-old's wording can't
+# be generated), but its *keys* are checked in spec against
+# `Interpreter.builtin_names`, the interpreter's own dispatch table, so a
 # builtin can never go undocumented and a documented name can never be
 # make-believe.
 module CrystalRobots::Web::RobotAPI
@@ -113,11 +113,11 @@ module CrystalRobots::Web::RobotAPI
   } of String => Entry
 
   # A collapsible reference panel, `<details>`/`<summary>` only (Fossil's
-  # content security policy forbids inline script). `docs_href` is the
-  # page's own link to `/docs`, so the panel points back to the full
-  # language reference wherever the app is mounted.
+  # CSP forbids inline script). `docs_href` is the page's own `link_base` +
+  # `/docs`, so the panel links back to the full language reference
+  # wherever the binary is mounted.
   def self.panel(docs_href : String) : String
-    cost = Compiler::Interpreter::Costs.new.builtin
+    cost = CrystalRobots::Compiler::Interpreter::Costs.crobots.builtin
     String.build do |md|
       md << "<details class=\"robot-api\">\n"
       md << "<summary><strong>Robot API reference</strong> — what your robot can call</summary>\n\n"

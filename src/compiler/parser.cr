@@ -1,5 +1,3 @@
-require "./program"
-
 # The progressive multipass tokenizer.
 #
 # Pass 0 turns the source text into a glyph string with the lexical rules.
@@ -10,11 +8,16 @@ require "./program"
 # higher-precedence rules always win. Parsing ends when no rule matches;
 # success is the single Program glyph `⏹`.
 #
-# See docs/PARSER.md for the reasoning; this commit adds case/when/else,
-# the last statement shape docs/PARSER.md's rule list names.
+# See `docs/PARSER.md` for the reasoning behind the rule order and the
+# lookaround guards.
 module CrystalRobots::Compiler
   class Parser
     class Error < Exception
+      getter line : Int32, col : Int32
+
+      def initialize(message : String, @line : Int32, @col : Int32)
+        super("#{message} at #{@line}:#{@col}")
+      end
     end
 
     # One grammar rule: a regex over glyphs and the glyph it reduces to.
@@ -26,14 +29,14 @@ module CrystalRobots::Compiler
     end
 
     KEYWORDS = {
-      "global" => Type::GlobalKeyword,
-      "while" => Type::WhileKeyword, "until" => Type::UntilKeyword,
-      "end" => Type::EndKeyword, "break" => Type::BreakKeyword,
-      "if" => Type::IfKeyword, "elsif" => Type::ElsifKeyword, "else" => Type::ElseKeyword,
-      "case" => Type::CaseKeyword, "when" => Type::WhenKeyword,
-      "def" => Type::DefKeyword, "return" => Type::ReturnKeyword,
-      "main" => Type::MainKeyword, "do" => Type::DoKeyword,
-      "true" => Type::TrueKeyword, "false" => Type::FalseKeyword,
+      "begin" => Type::BeginKeyword, "break" => Type::BreakKeyword, "case" => Type::CaseKeyword,
+      "def" => Type::DefKeyword, "do" => Type::DoKeyword, "else" => Type::ElseKeyword,
+      "elsif" => Type::ElsifKeyword, "end" => Type::EndKeyword, "false" => Type::FalseKeyword,
+      "for" => Type::ForKeyword, "if" => Type::IfKeyword, "in" => Type::InKeyword,
+      "next" => Type::NextKeyword, "nil" => Type::NilKeyword, "require" => Type::RequireKeyword,
+      "then" => Type::ThenKeyword, "true" => Type::TrueKeyword, "while" => Type::WhileKeyword,
+      "until" => Type::UntilKeyword, "when" => Type::WhenKeyword, "return" => Type::ReturnKeyword,
+      "main" => Type::MainKeyword, "global" => Type::GlobalKeyword,
       "damage" => Type::ZeroArgMethod, "speed" => Type::ZeroArgMethod, "loc_x" => Type::ZeroArgMethod,
       "loc_y" => Type::ZeroArgMethod, "sleep" => Type::ZeroArgMethod,
       "puts" => Type::OneArgMethod, "rand" => Type::OneArgMethod, "sqrt" => Type::OneArgMethod,
@@ -43,35 +46,31 @@ module CrystalRobots::Compiler
     }
 
     OPERATORS = {
-      "//" => Type::FloorDivOperator, "==" => Type::EqOperator, "!=" => Type::NeOperator,
-      "<=" => Type::LeOperator, ">=" => Type::GeOperator,
-      "+=" => Type::AddAssign, "-=" => Type::SubAssign, "*=" => Type::MulAssign, "%=" => Type::ModAssign,
-      "&&" => Type::AndOperator, "||" => Type::OrOperator,
+      "==" => Type::EqOperator, "!=" => Type::NeOperator, "<=" => Type::LeOperator,
+      ">=" => Type::GeOperator, "&&" => Type::AndOperator, "||" => Type::OrOperator,
+      "+=" => Type::AddAssign, "-=" => Type::SubAssign, "*=" => Type::MulAssign,
+      "%=" => Type::ModAssign, "//" => Type::FloorDivOperator,
       "+" => Type::AddOperator, "-" => Type::SubOperator, "*" => Type::MulOperator,
-      "/" => Type::DivOperator, "%" => Type::ModOperator, "=" => Type::Assign, "^" => Type::XorOperator,
-      "<" => Type::LtOperator, ">" => Type::GtOperator,
-      "(" => Type::OpenParen, ")" => Type::CloseParen, "," => Type::Comma,
+      "/" => Type::DivOperator, "%" => Type::ModOperator, "<" => Type::LtOperator,
+      ">" => Type::GtOperator, "&" => Type::AndOperator, "|" => Type::OrOperator,
+      "^" => Type::XorOperator, "=" => Type::Assign, "(" => Type::OpenParen,
+      ")" => Type::CloseParen, "," => Type::Comma,
     }
 
-    # Pass 0 rules, tried in order at the current text position. `:skip`
-    # drops the match (whitespace); `:word` looks the lexeme up in
-    # `KEYWORDS`, falling back to an identifier; `:operator` looks it up in
-    # `OPERATORS`.
+    # Pass 0 rules, tried in order at the current text position. A nil type
+    # drops the match. Operators and words are looked up in the tables.
     LEXICAL = [
-      {/\A#[^\n]*/, :skip},
-      {/\A[ \t\r]+/, :skip},
-      {/\A(\n|;)+/, :newline},
-      {/\A"[^"]*"/, :string},
-      {/\A[0-9]+/, :number},
-      {/\A(\/\/|==|!=|<=|>=|\+=|-=|\*=|%=|&&|\|\||[-+*\/%(),=<>^])/, :operator},
-      {/\A[A-Za-z_][A-Za-z0-9_]*/, :word},
+      {/\A#[^\n]*/, nil},
+      {/\A[ \t\r]+/, nil},
+      {/\A(\n|;)+/, Type::Newline},
+      {/\A"[^"]*"/, Type::String},
+      {/\A[0-9]+/, Type::Number},
+      {/\A(==|!=|<=|>=|&&|\|\||\+=|-=|\*=|%=|\/\/|[-+*\/%<>=&|^(),])/, Type::Invalid},
+      {/\A[A-Za-z_][A-Za-z0-9_]*/, Type::Identifier},
     ]
 
-    # Anything that is already a value: a number, a reduced expression, or
-    # an identifier -- but not one immediately followed by `(`, which is a
-    # pending call and must wait for the `call` rule, not be scooped up as
-    # a bare value by an infix rule first.
-    V = "(?:[№😑]|𝑥(?!⟮))"
+    # Anything that is already a value: number, string, expression, identifier.
+    V = "[№🐍😑𝑥]"
 
     # Infix operator glyphs by precedence level, tightest first.
     MULOPS = "⊗／⊘％"
@@ -81,12 +80,11 @@ module CrystalRobots::Compiler
     ANDOPS = "∧"
     OROPS  = "∨⊻"
 
-    # An infix rule at level L reduces `V op V` only when the left operand
-    # is not preceded by an operator of level <= L (that operand belongs to
-    # the earlier operator, giving left associativity) and the right
-    # operand is not followed by an operator of a tighter level (that
-    # operand belongs to the tighter operator instead). See docs/PARSER.md
-    # section 2 for the full reasoning.
+    # An infix rule at level L reduces `V op V` only when the left operand is
+    # not preceded by an operator of level <= L (that operand belongs to the
+    # earlier operator, giving left associativity) and the right operand is
+    # not followed by an operator of level < L (that operand belongs to the
+    # tighter operator).
     def self.infix(ops : String, higher : String) : Regex
       ahead = higher.empty? ? "" : "(?![#{higher}])"
       Regex.new("(?<![#{higher}#{ops}])#{V}[#{ops}]#{V}#{ahead}")
@@ -97,21 +95,24 @@ module CrystalRobots::Compiler
     GRAMMAR = [
       # headers first: a def or main header must never be read as a call
       Rule.new(:main_head, /🏁⟮🐍⟯🔖⏎/, Type::MainHead),
-      Rule.new(:global, /🌐⟮𝑥，#{V}⟯⏎/, Type::Statement),
       Rule.new(:def_head, /🔕𝑥(⟮(𝑥(，𝑥)*)?⟯)?⏎/, Type::DefHead),
+      Rule.new(:global, /🌐⟮𝑥，#{V}⟯⏎/, Type::Statement),
+      # values
       Rule.new(:literal, /[🔢🔚]/, Type::Expression),
       Rule.new(:call0, /∉/, Type::Expression),
       Rule.new(:call, /𝑥⟮(#{V}(，#{V})*)?⟯/, Type::Expression),
       Rule.new(:call1, /∊⟮#{V}⟯/, Type::Expression),
       Rule.new(:call2, /∋⟮#{V}，#{V}⟯/, Type::Expression),
       Rule.new(:paren, /⟮#{V}⟯/, Type::Expression),
-      Rule.new(:neg, /(?<![№𝑥😑⟯])⊖#{V}/, Type::Expression),
+      Rule.new(:neg, /(?<![№🐍😑𝑥⟯])⊖#{V}/, Type::Expression),
+      # infix, tightest first
       Rule.new(:mul, infix(MULOPS, ""), Type::Expression),
       Rule.new(:add, infix(ADDOPS, MULOPS), Type::Expression),
       Rule.new(:cmp, infix(CMPOPS, MULOPS + ADDOPS), Type::Expression),
       Rule.new(:eq, infix(EQOPS, MULOPS + ADDOPS + CMPOPS), Type::Expression),
       Rule.new(:and, infix(ANDOPS, MULOPS + ADDOPS + CMPOPS + EQOPS), Type::Expression),
       Rule.new(:or, infix(OROPS, MULOPS + ADDOPS + CMPOPS + EQOPS + ANDOPS), Type::Expression),
+      # command calls without parentheses bind loosest of all expressions
       Rule.new(:command1, /∊#{V}(?=[⏎⟯，])/, Type::Expression),
       Rule.new(:command2, /∋#{V}，#{V}(?=[⏎⟯，])/, Type::Expression),
       # assignment is right associative: only once the value is complete
@@ -140,19 +141,45 @@ module CrystalRobots::Compiler
 
     property program : Program
 
-    # Parse `src` completely. Raises `Parser::Error` when the text cannot
-    # be reduced to a program.
+    # Parse `src` completely. Raises `Parser::Error` with a source location
+    # when the text cannot be reduced to a program.
     def initialize(src : String = "")
       @program = Program.new(src)
       Parser.parse(@program)
     end
 
+    # Work budgets. Every pass re-emits the glyphs it did not reduce, so the
+    # total number of glyphs emitted is the parser's cost; a long operator
+    # chain reduces one glyph per pass and would otherwise cost the square of
+    # its length. CROBOTS capped a robot at 1000 machine instructions; two
+    # million glyphs is a few hundred passes over a robot several times the
+    # size of the largest example, and well under a second of work.
+    class_property max_passes = 20_000
+    class_property max_glyphs = 2_000_000
+
     def self.parse(p : Program) : Program
       lex(p)
+      if p.current.empty?
+        # an empty source is an empty program
+        idx = p.push(Type::Program, p.source.size, 0, 1, :program)
+        p.add_pass([idx], :program)
+        return p
+      end
       while reduce_once(p)
+        # a budget error points at the parser's most recent reduction
+        if p.passes > max_passes
+          line, col = p.location(p.size - 1)
+          raise Error.new("Program needs more than #{max_passes} passes", line, col)
+        end
+        if p.emitted > max_glyphs
+          line, col = p.location(p.size - 1)
+          raise Error.new("Program is too large to parse (more than #{max_glyphs} glyphs of work)", line, col)
+        end
       end
       unless p.parsed?
-        raise Error.new("Cannot reduce #{p.glyphs(p.current)}")
+        bad = p.current.find { |i| p.type(i) != Type::Statement } || p.current[0]
+        line, col = p.location(bad)
+        raise Error.new("Cannot reduce #{p.type(bad).glyph} (#{p.type(bad)}) in #{p}", line, col)
       end
       p
     end
@@ -165,37 +192,34 @@ module CrystalRobots::Compiler
       while pos < text.size
         rest = text[pos..]
         matched = false
-        LEXICAL.each do |(regex, action)|
+        LEXICAL.each do |(regex, type)|
           m = regex.match(rest)
           next unless m
           matched = true
           lexeme = m[0]
-          case action
-          when :skip
-            # whitespace: nothing to push
-          when :newline
-            unless layer.empty? || p.type(layer.last) == Type::Newline
-              layer << p.push(Type::Newline, pos, lexeme.size, 0, :lex)
-            end
-          when :number
-            layer << p.push(Type::Number, pos, lexeme.size, 0, :lex)
-          when :string
-            layer << p.push(Type::String, pos, lexeme.size, 0, :lex)
-          when :operator
-            layer << p.push(OPERATORS[lexeme], pos, lexeme.size, 0, :lex)
-          when :word
-            layer << p.push(KEYWORDS.fetch(lexeme, Type::Identifier), pos, lexeme.size, 0, :lex)
+          t = type
+          if t == Type::Invalid
+            t = OPERATORS[lexeme]
+          elsif t == Type::Identifier
+            t = KEYWORDS.fetch(lexeme, Type::Identifier)
+          end
+          if t && !(t == Type::Newline && (layer.empty? || p.type(layer.last) == Type::Newline))
+            layer << p.push(t, pos, lexeme.size, 0, :lex)
           end
           pos += lexeme.size
           break
         end
-        raise Error.new("Unexpected character #{text[pos].inspect}") unless matched
+        unless matched
+          line, col = p.line_col(pos)
+          raise Error.new("Unexpected character #{text[pos].inspect}", line, col)
+        end
       end
+      # end of input terminates the last statement
       unless layer.empty? || p.type(layer.last) == Type::Newline
         layer << p.push(Type::Newline, text.size, 0, 0, :lex)
       end
       p.add_pass(layer, :lex)
-      p.glyphs(layer)
+      p.to_s
     end
 
     # One reduction pass. Returns false when no rule matches.
@@ -210,7 +234,7 @@ module CrystalRobots::Compiler
         next_layer = [] of Int32
         cursor = 0
         matches.each do |m|
-          b = m.begin(0).not_nil!
+          b = m.begin(0)
           len = m[0].size
           (cursor...b).each { |i| next_layer << layer[i] }
           next_layer << p.push(rule.type, base + b, len, level, rule.name)
