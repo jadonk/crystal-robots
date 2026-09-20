@@ -7,6 +7,7 @@
 # `FOSSIL_CAPABILITIES`, both supplied by Fossil.
 require "http/params"
 require "html"
+require "json"
 require "uri"
 require "../compiler"
 require "../battle/field"
@@ -172,6 +173,25 @@ module CrystalRobots::Web
     BODY_LIMIT   = 65_536
     SOURCE_LIMIT = 20_000
     PASTE_LIMIT  =  6_000 # a pasted robot travels in the battle page's links
+
+    # `site/editor` (Phase 6), published to GitHub Pages by
+    # `.github/workflows/pages.yml`. Linked from the overview rather than
+    # served here: `site/crystal-robots.wasm` is a generated, gitignored
+    # build artifact this CGI binary does not embed (unlike the small text
+    # assets `Docs` embeds for the API reference), so the editor's static
+    # page stays on the static host. `wiki-robots.json`, above, is this
+    # binary's half of the contract for offering saved robots in the
+    # editor's picker: `site/editor/editor.js` only ever calls it with a
+    # `?wiki=<base>` query parameter naming where to find it (no base, no
+    # attempt -- see `editor.js`'s module comment), and a plain `fetch`
+    # carries no credentials across origins, so this only ever lights up
+    # once `site/editor` is reachable from the *same origin* as this CGI
+    # app -- a static mount of `site/` alongside the extroot symlink is
+    # the planned way, left to trunk-ops, not decided by this ticket.
+    # Cross-origin (GitHub Pages fetching this server's cookie-gated JSON)
+    # is deliberately not supported: that needs CORS plus credentialed
+    # fetch, a bigger security surface than this ticket opens.
+    EDITOR_URL = "https://jadonk.github.io/crystal-robots/editor/"
 
     class BadRequest < Exception
     end
@@ -350,6 +370,19 @@ module CrystalRobots::Web
         else
           not_found
         end
+      when "wiki-robots.json"
+        # The browser editor's (Phase 6) picker, for the served site: the
+        # same saved robots `/wiki/<name>` and the battle page's `w=`
+        # checkboxes already read through `WikiRobots`, as one JSON list
+        # instead of a page per robot, so client-side JS can offer them
+        # without a page round trip per pick. Same gate as `/wiki/<name>`
+        # and the battle form's saved-robot checkboxes: login with
+        # check-in (`i`) and wiki-read (`j`). GitHub Pages has no Fossil
+        # behind it, so `site/editor`'s picker there simply never reaches
+        # this route and shows the bundled examples only.
+        return login_required unless may_run?
+        return forbidden unless wiki_visible?
+        reply_json(wiki.names.map { |n| {name: n, source: wiki.source(n) || ""} }.to_json)
       else
         not_found
       end
@@ -373,6 +406,10 @@ module CrystalRobots::Web
 
     def plain(status : String, text : String) : Nil
       @out << "Status: " << status << "\r\nContent-Type: text/plain\r\n\r\n" << text << "\n"
+    end
+
+    def reply_json(json : String, status : String = "200 OK") : Nil
+      @out << "Status: " << status << "\r\nContent-Type: application/json\r\n\r\n" << json
     end
 
     # The API reference. Built pages are served raw (they carry their own
@@ -459,6 +496,8 @@ module CrystalRobots::Web
         else
           md << "\n## Battle and parse\n\nRunning battles and parsing your own robots needs a login with check-in permission: [log in](#{login_link(form_base)}) and this page will offer both.\n\n"
         end
+        md << "\n## Editor\n\n[Build your own robot](#{EDITOR_URL}) in the browser: fork an example, get checked as you type, "
+        md << "and fight it, all client-side, no server round trip.\n\n"
         md << "\n## Tournament\n\n[Pick robots and run a tournament](#{base}/tournament): every saved robot and example can enter, pools then a bracket, one champion.\n\n"
         md << "See [docs/PARSER.md](/doc/trunk/docs/PARSER.md) for how the passes work, "
         md << "[docs/PLAN.md](/doc/trunk/docs/PLAN.md) for what comes next"

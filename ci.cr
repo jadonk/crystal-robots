@@ -5,11 +5,12 @@
 #   crystal run ci.cr -- --with-wasmer   # also run the WebAssembly specs under wasmer 4.4.0,
 #                                         # installing it under ./.wasmer when absent
 #   crystal run ci.cr -- --with-wasm32   # also build site/crystal-robots.wasm (Phase 5b-1,
-#                                         # the browser compiler) and site/robots.json (the
-#                                         # battle page's example-robot picker, Phase 5b-2),
-#                                         # then run their specs; installs wasm32-wasi-libs
-#                                         # under ./.wasm32-wasi-libs; needs `node` on PATH
-#                                         # (its specs drive the module through
+#                                         # the browser compiler), site/robots.json (the
+#                                         # battle page's example-robot picker, Phase 5b-2)
+#                                         # and site/cheat-sheet.json (the editor's cheat-
+#                                         # sheet, Phase 6), then run their specs; installs
+#                                         # wasm32-wasi-libs under ./.wasm32-wasi-libs; needs
+#                                         # `node` on PATH (its specs drive the module through
 #                                         # site/wasi-shim.js, the same code the browser loads)
 #
 # Without --with-wasmer the wasmer specs are reported as pending with their
@@ -235,6 +236,9 @@ if with_wasm32
 
   step!("build site/robots.json (the battle page's example-robot picker, Phase 5b-2)",
     "crystal", ["run", "scripts/build_robots_json.cr"])
+
+  step!("build site/cheat-sheet.json (the browser editor's cheat-sheet, Phase 6)",
+    "crystal", ["run", "scripts/build_cheat_sheet.cr"])
 
   spec_flags << "-Dcrd_wasm32"
 end

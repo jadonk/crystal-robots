@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>crystal-robots: robot editor</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 72rem; margin: 2rem auto; padding: 0 1rem; color: #222; }
+  h1 { font-size: 1.4rem; }
+  h2 { font-size: 1.1rem; }
+  p.lede { color: #555; }
+  select, button { font-size: 1rem; padding: 0.3rem 0.6rem; }
+  #status, #fight-status { font-weight: bold; }
+  .layout { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
+  .editor-pane { flex: 2 1 28rem; min-width: 20rem; }
+  .cheat-pane { flex: 1 1 18rem; min-width: 16rem; max-height: 32rem; overflow-y: auto; border: 1px solid #ccc; border-radius: 4px; padding: 0.5rem 0.75rem; background: #fafafa; }
+  .cheat-pane h2 { margin-top: 0; }
+  .cheat-pane .group { margin-bottom: 0.75rem; }
+  .cheat-pane .group h3 { font-size: 0.95rem; margin: 0.5rem 0 0.25rem; }
+  .cheat-pane ul { padding-left: 1.1rem; margin: 0.25rem 0; }
+  .cheat-pane li { margin: 0.35rem 0; font-size: 0.85rem; }
+  .cheat-pane code { font-size: 0.85rem; }
+  .picker-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.5rem; }
+  .code-frame { display: flex; border: 1px solid #999; border-radius: 4px; overflow: hidden; }
+  .gutter { list-style: none; margin: 0; padding: 0.5rem 0.4rem; background: #eee; color: #888; text-align: right;
+            font-family: ui-monospace, monospace; font-size: 0.85rem; line-height: 1.4; overflow: hidden; user-select: none; }
+  .gutter li { white-space: nowrap; }
+  .gutter li.error { background: #ffd7d7; color: #a00; font-weight: bold; border-radius: 2px; }
+  textarea#editor-source { flex: 1; border: none; resize: vertical; padding: 0.5rem; font-family: ui-monospace, monospace;
+                            font-size: 0.85rem; line-height: 1.4; height: 22rem; box-sizing: border-box; }
+  textarea#editor-source:focus { outline: none; }
+  #problems { background: #f4f4f4; padding: 0.5rem 0.75rem; margin-top: 0.5rem; white-space: pre-wrap; word-break: break-word; }
+  #problems.ok { color: #2a7a2a; }
+  #problems.bad { color: #a00; }
+  section { margin-top: 1.5rem; }
+  .robot-slot { border: 1px solid #ccc; border-radius: 4px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; display: inline-block; margin-right: 0.5rem; }
+  .robot-slot label { display: block; font-weight: bold; margin-bottom: 0.25rem; font-size: 0.85rem; }
+  .battle-controls label { margin-right: 1rem; }
+  .battle-controls input[type="number"] { width: 6rem; }
+  #fight-replay svg { max-width: 100%; height: auto; margin-top: 0.75rem; }
+  #fight-standings { list-style: none; padding: 0; margin: 0.5rem 0 0; }
+  #fight-standings li { padding: 0.15rem 0; }
+  #fight-standings .dead { color: #888; text-decoration: line-through; }
+</style>
+</head>
+<body>
+<h1>crystal-robots: robot editor</h1>
+<p class="lede">
+  Fork an example or a saved robot, edit it here, and get checked as you type &mdash; the same tokenizer,
+  parser and checker as the <a href="../">in-browser compiler</a>, running entirely in this page, no server
+  round trip. See <a href="../">the compiler page</a> for the full tokens/derivation/WASM view of a single run.
+</p>
+
+<div class="picker-row">
+  <label for="picker">Start from</label>
+  <select id="picker" disabled><option>Loading&hellip;</option></select>
+  <button id="fork" disabled>Fork into the editor</button>
+  <span id="status">Loading&hellip;</span>
+</div>
+
+<div class="layout">
+  <div class="editor-pane">
+    <div class="code-frame">
+      <ol class="gutter" id="gutter"></ol>
+      <textarea id="editor-source" spellcheck="false"></textarea>
+    </div>
+    <pre id="problems"></pre>
+  </div>
+  <div class="cheat-pane" id="cheat-sheet">
+    <h2>Cheat sheet</h2>
+    <p>Loading&hellip;</p>
+  </div>
+</div>
+
+<section id="fight">
+  <h2>Fight</h2>
+  <p class="lede">Feed the buffer above into the battlefield against up to three opponents &mdash; the same
+    physics and interpreter <code>bin/crystal-robots</code>'s own matches use, run entirely in this page.</p>
+
+  <div id="fight-slots"></div>
+
+  <div class="battle-controls">
+    <label>Seed <input type="number" id="fight-seed" value="1" min="0" step="1"></label>
+    <label>Cycle limit <input type="number" id="fight-limit" value="60000" min="15" max="500000" step="1"></label>
+    <label>Replay speed, cycles/second <input type="number" id="fight-cps" value="300" min="1" max="20000" step="1"></label>
+  </div>
+  <div>
+    <button id="fight-run" disabled>Fight</button>
+    <span id="fight-status">Loading&hellip;</span>
+  </div>
+
+  <div id="fight-replay"></div>
+  <ul id="fight-standings"></ul>
+</section>
+
+<script type="module" src="./editor.js"></script>
+</body>
+</html>
