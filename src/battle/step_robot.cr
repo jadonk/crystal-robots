@@ -767,7 +767,7 @@ module CrystalRobots::Battle
           move_missiles
           count_missiles
           updates += 1
-          record(c) if updates % every == 0
+          record_after_update(c, updates, every)
         end
       end
       guard = 0
@@ -777,6 +777,7 @@ module CrystalRobots::Battle
         move_missiles
         count_missiles
         guard += 1
+        record_if_event(c)
       end
       @cycles = c
       record(c)
