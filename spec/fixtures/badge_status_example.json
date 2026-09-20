@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "generated_at_ms": 1737400000000,
+  "seq": 42,
+  "mode": "LIVE",
+  "robots": [
+    {
+      "id": "robot-1",
+      "name": "ZEPTO-A",
+      "connected": true,
+      "battery_pct": 87,
+      "state": "RUNNING",
+      "position": { "x": 1.2, "y": 3.4, "heading_deg": 90.0 },
+      "task": "patrol",
+      "error_text": ""
+    }
+  ],
+  "event_text": "",
+  "banner_text": ""
+}

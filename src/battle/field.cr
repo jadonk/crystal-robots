@@ -308,7 +308,13 @@ module CrystalRobots::Battle
     end
 
     # Run the match to its end: one survivor or the cycle limit.
-    def run : self
+    #
+    # `on_update`, when given, is called after every motion update (every
+    # `MOTION_CYCLES` instructions) with `self` -- a hook for a live
+    # observer such as `Badge::Session` to publish a status snapshot or
+    # check for a pending command without the engine itself knowing
+    # anything about the badge-launcher wire contract.
+    def run(on_update : (Field ->)? = nil) : self
       @robots.each(&.start)
       if (positions = @positions)
         positions.each_with_index { |(x, y), i| place(i, x, y) if i < @robots.size }
@@ -331,6 +337,7 @@ module CrystalRobots::Battle
           count_missiles
           updates += 1
           record_after_update(c, updates, every)
+          on_update.try(&.call(self))
         end
       end
       # let flying missiles land
