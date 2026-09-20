@@ -97,6 +97,18 @@ forkButton.addEventListener("click", forkSelected);
 // --- Gutter: one line-number row per source line, synced scroll, and a
 // highlighted row with a hover title for any line a check reported. ---
 
+function syncGutterScroll() {
+  gutterEl.scrollTop = sourceEl.scrollTop;
+}
+
+// The textarea's CSS height is a fixed default (`resize: vertical` lets
+// the user drag it taller or shorter); mirror whatever height it ends up
+// at onto the gutter so the two stay the same number of visible rows tall
+// and `syncGutterScroll` has the same scroll range to work with.
+new ResizeObserver(() => {
+  gutterEl.style.height = `${sourceEl.clientHeight}px`;
+}).observe(sourceEl);
+
 function renderGutter() {
   const lineCount = Math.max(1, sourceEl.value.split("\n").length);
   if (gutterEl.children.length !== lineCount) {
@@ -112,6 +124,7 @@ function renderGutter() {
       li.removeAttribute("title");
     }
   }
+  syncGutterScroll();
 }
 
 function markErrorLine(line, message) {
@@ -121,9 +134,7 @@ function markErrorLine(line, message) {
   li.title = li.title ? `${li.title}\n${message}` : message;
 }
 
-sourceEl.addEventListener("scroll", () => {
-  gutterEl.scrollTop = sourceEl.scrollTop;
-});
+sourceEl.addEventListener("scroll", syncGutterScroll);
 
 // --- Live check, debounced a short pause after typing stops. ---
 
