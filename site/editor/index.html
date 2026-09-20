@@ -23,11 +23,13 @@
   .picker-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.5rem; }
   .code-frame { display: flex; border: 1px solid #999; border-radius: 4px; overflow: hidden; }
   .gutter { list-style: none; margin: 0; padding: 0.5rem 0.4rem; background: #eee; color: #888; text-align: right;
-            font-family: ui-monospace, monospace; font-size: 0.85rem; line-height: 1.4; overflow: hidden; user-select: none; }
+            font-family: ui-monospace, monospace; font-size: 0.85rem; line-height: 1.4; overflow: hidden; user-select: none;
+            height: 22rem; box-sizing: border-box; }
   .gutter li { white-space: nowrap; }
   .gutter li.error { background: #ffd7d7; color: #a00; font-weight: bold; border-radius: 2px; }
   textarea#editor-source { flex: 1; border: none; resize: vertical; padding: 0.5rem; font-family: ui-monospace, monospace;
-                            font-size: 0.85rem; line-height: 1.4; height: 22rem; box-sizing: border-box; }
+                            font-size: 0.85rem; line-height: 1.4; height: 22rem; box-sizing: border-box;
+                            white-space: pre; overflow-x: auto; }
   textarea#editor-source:focus { outline: none; }
   #problems { background: #f4f4f4; padding: 0.5rem 0.75rem; margin-top: 0.5rem; white-space: pre-wrap; word-break: break-word; }
   #problems.ok { color: #2a7a2a; }
@@ -62,7 +64,7 @@
   <div class="editor-pane">
     <div class="code-frame">
       <ol class="gutter" id="gutter"></ol>
-      <textarea id="editor-source" spellcheck="false"></textarea>
+      <textarea id="editor-source" spellcheck="false" wrap="off"></textarea>
     </div>
     <pre id="problems"></pre>
   </div>
