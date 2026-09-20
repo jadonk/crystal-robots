@@ -44,6 +44,7 @@ module CrystalRobots::Browser
   @@result = Bytes.empty
   @@wasm = Bytes.empty
   @@interpret_result = Bytes.empty
+  @@check_result = Bytes.empty
   @@battle_input = Bytes.empty
   @@battle_result = Bytes.empty
 
@@ -119,6 +120,48 @@ module CrystalRobots::Browser
     json = {status: "finished after #{interpreter.steps} steps", puts: CrystalRobots::Compiler::Interpreter.puts_out}.to_json
     @@interpret_result = json.to_slice
     @@interpret_result.size
+  end
+
+  def check_result_ptr : Pointer(UInt8)
+    @@check_result.to_unsafe
+  end
+
+  def check_result_len : Int32
+    @@check_result.size
+  end
+
+  # Parses (never raising -- `Parser.try_parse`/`try_lex`, the same
+  # non-raising path `src/battle/step_robot.cr` uses to isolate a bad
+  # robot's parse failure) and, on success, checks the source most
+  # recently written via `alloc`, for the editor's live-typing loop (Phase
+  # 6): unlike `run`, this never traps on a bad-but-still-typing source, so
+  # the shim can call it after every debounced keystroke without
+  # reinstantiating on every mistake. Stores a JSON report in
+  # `@@check_result` (`{"passes":N,"derivation":"...","error":{"message",
+  # "line","col"}|null,"problems":[{"message","line","col"}, ...]}`) --
+  # `error` and a non-empty `problems` are mutually exclusive, since a
+  # program with a parse error was never checked. The wording matches
+  # `Compiler::Parser::Error#message` and `Checker::Problem#message`, the
+  # same plain words `src/web/cgi.cr`'s served `/parse` page shows.
+  def check : Int32
+    program = CrystalRobots::Compiler::Program.new(String.new(@@input))
+    err = CrystalRobots::Compiler::Parser.try_parse(program)
+    json = String.build do |io|
+      io << '{'
+      io << "\"passes\":" << program.passes << ','
+      io << "\"derivation\":" << program.derivation.to_json << ','
+      if err
+        io << "\"error\":{\"message\":" << err.message.to_s.to_json << ",\"line\":" << err.line << ",\"col\":" << err.col << "},"
+        io << "\"problems\":[]"
+      else
+        problems = CrystalRobots::Compiler::Checker.check(program)
+        io << "\"error\":null,"
+        io << "\"problems\":[" << problems.map { |p| {message: p.message, line: p.line, col: p.col}.to_json }.join(",") << ']'
+      end
+      io << '}'
+    end
+    @@check_result = json.to_slice
+    @@check_result.size
   end
 
   # Reserves `len` bytes for the next call's battle request: a JSON object
@@ -233,6 +276,22 @@ end
 
 fun crd_interpret_result_len : Int32
   CrystalRobots::Browser.interpret_result_len
+end
+
+# Parses and checks the source last written via `crd_alloc`, for the
+# editor's live-typing loop (Phase 6); never traps on a bad-but-typing
+# source, unlike `crd_run` (see `Browser.check`'s module comment). Returns
+# the JSON report's length, read with `crd_check_result_ptr`/`_len`.
+fun crd_check : Int32
+  CrystalRobots::Browser.check
+end
+
+fun crd_check_result_ptr : UInt8*
+  CrystalRobots::Browser.check_result_ptr
+end
+
+fun crd_check_result_len : Int32
+  CrystalRobots::Browser.check_result_len
 end
 
 # Allocates `len` bytes and returns their address; the shim writes the

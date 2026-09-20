@@ -8,6 +8,7 @@
 /.wasm32-wasi-libs/
 /site/crystal-robots.wasm
 /site/robots.json
+/site/cheat-sheet.json
 *.dwarf
 /examples/test.wasm
 /manifest.uuid
