@@ -22,7 +22,7 @@ describe ".github/workflows/pages.yml" do
     workflow[true].as_h.keys.map(&.as_s).should contain "workflow_dispatch"
   end
 
-  it "runs the build steps in order: checkout, install Crystal, apt lld, ci.sh --with-wasm32, upload the Pages artifact" do
+  it "runs the build steps in order: checkout, install Crystal, apt lld, ci.cr --with-wasm32, upload the Pages artifact" do
     steps = workflow["jobs"]["build"]["steps"].as_a
     identifiers = steps.map do |s|
       h = s.as_h
@@ -32,7 +32,7 @@ describe ".github/workflows/pages.yml" do
       "actions/checkout@v4",
       "oprypin/install-crystal@v1",
       "sudo apt-get update && sudo apt-get install -y lld",
-      "scripts/ci.sh --with-wasm32",
+      "crystal run ci.cr -- --with-wasm32",
       "actions/upload-pages-artifact@v3",
     ]
   end
