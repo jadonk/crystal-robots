@@ -136,9 +136,9 @@ baseline, and the open parser-architecture decision.
 One command runs everything the review pipeline runs:
 
 ```
-scripts/ci.sh                 # shards, build-docs, build, spec, format check, example builds, CLI smoke
-scripts/ci.sh --with-wasmer   # also runs the WebAssembly specs under wasmer 4.4.0 (installed under ./.wasmer if absent)
-scripts/ci.sh --with-wasm32   # also builds site/crystal-robots.wasm, the browser compiler (installed libs under ./.wasm32-wasi-libs if absent)
+crystal run ci.cr --                 # shards, build-docs, build, spec, format check, example builds, CLI smoke
+crystal run ci.cr -- --with-wasmer   # also runs the WebAssembly specs under wasmer 4.4.0 (installed under ./.wasmer if absent)
+crystal run ci.cr -- --with-wasm32   # also builds site/crystal-robots.wasm, the browser compiler (installed libs under ./.wasm32-wasi-libs if absent)
 ```
 
 The pieces, if you want them separately:
@@ -162,14 +162,11 @@ export WASMER_DIR=$HOME/.wasmer
 The browser compiler (`site/`, published at
 [jadonk.github.io/crystal-robots](https://jadonk.github.io/crystal-robots/)
 by `.github/workflows/pages.yml`) needs the wasm32-wasi-libs sysroot to
-link, pinned the same way:
-
-```
-scripts/install_wasm32_wasi_libs.sh 0.0.3
-export WASM32_WASI_LIBS=$PWD/.wasm32-wasi-libs
-crystal build --target wasm32-unknown-wasi src/browser.cr -o site/crystal-robots.wasm \
-  --link-flags="-L$WASM32_WASI_LIBS/lib/wasm32-wasi" --release --no-debug
-```
+link, pinned to release 0.0.3 the same way; `crystal run ci.cr --
+--with-wasm32` installs it under `./.wasm32-wasi-libs` and builds
+`site/crystal-robots.wasm` in one step (its `install_wasm32_wasi_libs`
+function is the only installer, downloaded and extracted directly, no
+shell script involved).
 
 The parser design is described in [docs/PARSER.md](docs/PARSER.md); the
 phased plan and current status in [docs/PLAN.md](docs/PLAN.md).
@@ -187,8 +184,8 @@ The repository is Fossil, hosted at <https://ollama.openbeagle.org/crystal-robot
 
 1. `fossil clone https://ollama.openbeagle.org/crystal-robots crystal-robots.fossil` and `fossil open` it.
 2. Work on a branch: `fossil commit --branch my-feature -m "..."`.
-3. Run `scripts/ci.sh` before asking for review; it is the same gate the
-   merge pipeline runs.
+3. Run `crystal run ci.cr` before asking for review; it is the same gate
+   the merge pipeline runs.
 4. Ask for review in the project forum. Merges to trunk are done by the
    trunk operator after the suite passes on a merge stand-in; the served
    app is rebuilt from trunk after the merge.

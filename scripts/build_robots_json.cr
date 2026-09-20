@@ -1,6 +1,6 @@
 # Generates `site/robots.json`: the example robots (`examples/*.cr`) the
 # battle page's picker offers, bundled at build time so the static site
-# needs no server to list them. Run by `scripts/ci.sh --with-wasm32`,
+# needs no server to list them. Run by `ci.cr` under `--with-wasm32`,
 # alongside `site/crystal-robots.wasm` -- both generated, both gitignored
 # (`.fossil-settings/ignore-glob`).
 #

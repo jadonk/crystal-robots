@@ -48,19 +48,21 @@ compiler work is fixed alongside the migration, not after it.
 
 | **[tried 2026-09-14]** 2026-09-10 | Replay pace is now CROBOTS cycles per second (`cps=`, default 300: a motion update every 50 ms, a full-speed robot crosses the field in about seven seconds, a missile covers its range in under a second), screen time proportional to cycles; default web cycle limit 60k; `matches=` runs a series like `crobots -m` with a wins/ties score table and a replay link per match, capped at 10 matches and 600k cycles of work |
 
-| 2026-09-11 | Phase 7, from the coordinator's answers: versioned `.fossil-settings/ignore-glob` with `.gitignore` as mirror (1ca7c7ed); `scripts/ci.sh` as the one gate command, `--with-wasmer` installs 4.4.0 under the checkout (b980ca71); `build-docs` subcommand embeds `crystal docs` output, served at `/ext/crystal-robots/docs` (2daa7da4); README points at Fossil with mirrors read-only, Fossil contributing flow, `.gitlab-ci.yml` delegates to ci.sh (dda76b7f); **[try]** permissions on capability letters: o/h read, i battle and parse, j saved robots (af515555) |
+| 2026-09-11 | Phase 7, from the coordinator's answers: versioned `.fossil-settings/ignore-glob` with `.gitignore` as mirror (1ca7c7ed); `ci.cr` as the one gate command, `--with-wasmer` installs 4.4.0 under the checkout (b980ca71); `build-docs` subcommand embeds `crystal docs` output, served at `/ext/crystal-robots/docs` (2daa7da4); README points at Fossil with mirrors read-only, Fossil contributing flow, `.gitlab-ci.yml` delegates to ci.cr (dda76b7f); **[try]** permissions on capability letters: o/h read, i battle and parse, j saved robots (af515555) |
 
 | **[tried 2026-09-14]** 2026-09-11 | Maintainer review notes (trunk-ops thread): saved robots are read in ONE `fossil sql --readonly` query (latest `robot/*` wiki artifacts as hex, W card parsed in-process), no per-robot export and nothing cached across requests; the API docs are served inside the Fossil chrome (body extracted, scripts and search dropped, inline scoped styles, `fossil-doc` wrapper, doc comments intact) instead of crystal-docs' own UI whose inline script the CSP blocks, aligned with the Ollama-Codex docs CGI; Fossil's versioned `manifest` setting keeps `manifest.uuid` in checkouts and tarballs, embedded at compile time, and `--version` and `/version` report `crystal-robots 0.0.1 (check-in <hash>)` so a deploy can be compared with trunk |
 
-| **[tried 2026-09-14]** 2026-09-11 | Gate regression fix (trunk-ops on `4f6581bb`): the single-query listing split each SQL row at the FIRST space, so any `robot/*` page name with a space — live or a deleted one's leftover tag — crashed the overview, battle and wiki routes for everyone; rows now split at the LAST space (the hex payload never contains one), covered by a spec with a space-named robot and a deleted space-named tag asserting `/`, `/battle` and `/wiki/<name>` stay 200. Also from the same review: a failed `fossil sql` now raises instead of rendering an empty 200 listing; the docs sanitizer strips script tags case-insensitively plus event attributes and `javascript:` links as defense in depth; `search-index.js`/`index.json` are no longer embedded (the search UI they back is already stripped); `scripts/ci.sh` refuses the release `shards build` when `manifest.uuid` is missing or empty (a plain `crystal build` outside ci.sh still falls back to "unknown" for local dev) |
+| **[tried 2026-09-14]** 2026-09-11 | Gate regression fix (trunk-ops on `4f6581bb`): the single-query listing split each SQL row at the FIRST space, so any `robot/*` page name with a space — live or a deleted one's leftover tag — crashed the overview, battle and wiki routes for everyone; rows now split at the LAST space (the hex payload never contains one), covered by a spec with a space-named robot and a deleted space-named tag asserting `/`, `/battle` and `/wiki/<name>` stay 200. Also from the same review: a failed `fossil sql` now raises instead of rendering an empty 200 listing; the docs sanitizer strips script tags case-insensitively plus event attributes and `javascript:` links as defense in depth; `search-index.js`/`index.json` are no longer embedded (the search UI they back is already stripped); `ci.cr` refuses the release `shards build` when `manifest.uuid` is missing or empty (a plain `crystal build` outside ci.cr still falls back to "unknown" for local dev) |
 
 | 2026-09-17 | Maintainer correction and expansion of Phase 6: the AST-once-built diagram is a third view, distinct from the existing parse-in-progress derivation and the planned interpreter-walk diagram; `crystal_emitter` must round-trip (source → AST → `crystal_emitter` → recompile → identical behavior), a bar that must keep holding once GPCR (a future Crystal-subset DSL, additive to crystal-robots's own syntax) exists; battlefield-visual, execution-stepping and browser-editor backlog items opened (see "Phase 6 correction and expansion" below and the [Backlog](/wiki?name=Backlog) wiki page) |
 
-| 2026-09-19 | Phase 5b-1 done: `src/browser.cr` compiles for `wasm32-unknown-wasi` (`scripts/install_wasm32_wasi_libs.sh` pins wasm32-wasi-libs 0.0.3, `scripts/ci.sh --with-wasm32` builds `site/crystal-robots.wasm`, 716 KB release); `site/index.html`+`app.js`+`wasi-shim.js` run it in a static page, no framework, no CDN; `examples/test.cr` round-trips tokens/checker/interpreter/WASM bytes identical to the native CLI; spike finding that reshaped the design: Crystal 1.18.2 has no working exceptions on `wasm32` at all (any `raise` traps the module immediately, confirmed by testing), so `crd_run` and `crd_interpret` are separate calls and the shim reinstantiates per call; `.github/workflows/pages.yml` deploys to jadonk.github.io/crystal-robots on push to `main`, gated on Pages being enabled (source: GitHub Actions); live and verified at [jadonk.github.io/crystal-robots](https://jadonk.github.io/crystal-robots/) |
+| 2026-09-19 | Phase 5b-1 done: `src/browser.cr` compiles for `wasm32-unknown-wasi` (`crystal run ci.cr -- --with-wasm32` pins and installs wasm32-wasi-libs 0.0.3, then builds `site/crystal-robots.wasm`, 716 KB release); `site/index.html`+`app.js`+`wasi-shim.js` run it in a static page, no framework, no CDN; `examples/test.cr` round-trips tokens/checker/interpreter/WASM bytes identical to the native CLI; spike finding that reshaped the design: Crystal 1.18.2 has no working exceptions on `wasm32` at all (any `raise` traps the module immediately, confirmed by testing), so `crd_run` and `crd_interpret` are separate calls and the shim reinstantiates per call; `.github/workflows/pages.yml` deploys to jadonk.github.io/crystal-robots on push to `main`, gated on Pages being enabled (source: GitHub Actions); live and verified at [jadonk.github.io/crystal-robots](https://jadonk.github.io/crystal-robots/) |
 
-| 2026-09-20 | Phase 5b-2 done: battle entirely in the browser, no server (deferred by Phase 5b-1). `src/battle/step_robot.cr` gives `Battle::Robot` a second, non-fiber execution path (`start_stepwise`/`step!`) that runs the interpreter's own tree-walk in continuation-passing style, pausing after exactly one charged CROBOTS cycle — the same granularity `field.cr`'s fiber/`Channel` gives the native path — without `spawn`, `Fiber` or ever calling `raise`; `Field#run_stepwise` drives it with the same physics `run` already has. `Compiler::Parser` gains non-raising `try_parse`/`try_lex` (returning the `Error` instead of raising it) so a bad robot's parse failure can be reported as data instead of trapping the module; `parse`/`lex` are unchanged, thin wrappers over them. **Maintainer correction, same day:** no canvas/JS renderer — `src/web/cgi.cr`'s `svg_animation` (the served `/battle` page's SMIL-animated SVG) moved to `src/battle/svg_replay.cr` as `Battle.svg_animation`, a plain function of a finished `Field`; `cgi.cr` now delegates to it (`ROBOT_COLORS`/`ANIM_CPS` likewise point at the shared constants), one renderer for both surfaces. `src/browser.cr` exports `crd_battle_alloc`/`crd_battle_run`/`crd_battle_result_*`: one JSON request (2 to 4 `{name, source}` robots, a seed, a cycle limit clamped to CROBOTS's own `[MOTION_CYCLES, CYCLE_LIMIT]`, a replay `cps`), one JSON report — standings plus the rendered SVG string; the per-cycle frame log stays inside the call, never crosses into JS. `site/wasi-shim.js`'s `battle()` takes the same inputs; `site/battle.js` (new, no framework, no CDN) only collects them and inserts the returned SVG — no drawing code of its own. `site/robots.json` (the picker's bundled examples, from `examples/*.cr`) is generated by `scripts/build_robots_json.cr`, called from `.github/workflows/pages.yml` directly rather than `scripts/ci.sh`: ci.sh is being replaced by `ci.cr` on a parallel branch (ticket feebeb1531), so a new build step lands beside it, not inside it, until that merges. `spec/wasm32_spec.cr` compares a seeded battle's standings, cycle count and rendered SVG text against `Battle::Field#run_stepwise` + `Battle.svg_animation` run natively — the same source compiled for both targets, the same cross-compilation-fidelity check Phase 5b-1's own cases make for `crd_run`/`crd_interpret` — and confirms a robot with a parse error is reported inactive with its `error`, isolated, not a trap. Manually verified end to end: a 4-robot native run and the same request driven through node + the real `site/wasi-shim.js` produce byte-identical JSON reports (SVG included); a deliberately bad robot source alongside a good one reports `{active: false, error: "Cannot reduce..."}` for the bad one and a winner among the rest, no trap; the page loads and a battle runs to completion with the SVG replay rendering correctly (headless Chrome screenshot, no console errors). |
+| 2026-09-19 | `ci.cr` is now the CI, not a forwarder: every `scripts/ci.sh` step (manifest.uuid check, node/wasm-ld checks, examples build, format check, docs build, CLI smoke) is plain Crystal (`Process.run` per step, failing fast with the step name and exit status); `install_wasm32_wasi_libs.sh` is ported inline as `HTTP::Client` code, `scripts/ci.sh` and that script are deleted; `install_wasmer.sh` stays and is still shelled out to (porting its platform-detection installer was judged out of proportion to the opt-in `--with-wasmer` flag it serves, see the `ci.cr` header). Invocation everywhere is `crystal run ci.cr -- [flags]`; `spec/workflow_spec.cr` parses `.github/workflows/pages.yml` with stdlib `YAML` and pins its trigger branches, step order and the exact `crystal run ci.cr -- --with-wasm32` command (folds in 41dc8cbf88) |
 
-Spec suite: 101 examples green with `-Dwasmer`; `scripts/ci.sh --with-wasmer` green end to end; `scripts/ci.sh --with-wasm32` green end to end (Phase 5b-1, Phase 5b-2).
+| 2026-09-20 | Phase 5b-2 done: battle entirely in the browser, no server (deferred by Phase 5b-1). `src/battle/step_robot.cr` gives `Battle::Robot` a second, non-fiber execution path (`start_stepwise`/`step!`) that runs the interpreter's own tree-walk in continuation-passing style, pausing after exactly one charged CROBOTS cycle — the same granularity `field.cr`'s fiber/`Channel` gives the native path — without `spawn`, `Fiber` or ever calling `raise`; `Field#run_stepwise` drives it with the same physics `run` already has. `Compiler::Parser` gains non-raising `try_parse`/`try_lex` (returning the `Error` instead of raising it) so a bad robot's parse failure can be reported as data instead of trapping the module; `parse`/`lex` are unchanged, thin wrappers over them. **Maintainer correction, same day:** no canvas/JS renderer — `src/web/cgi.cr`'s `svg_animation` (the served `/battle` page's SMIL-animated SVG) moved to `src/battle/svg_replay.cr` as `Battle.svg_animation`, a plain function of a finished `Field`; `cgi.cr` now delegates to it (`ROBOT_COLORS`/`ANIM_CPS` likewise point at the shared constants), one renderer for both surfaces. `src/browser.cr` exports `crd_battle_alloc`/`crd_battle_run`/`crd_battle_result_*`: one JSON request (2 to 4 `{name, source}` robots, a seed, a cycle limit clamped to CROBOTS's own `[MOTION_CYCLES, CYCLE_LIMIT]`, a replay `cps`), one JSON report — standings plus the rendered SVG string; the per-cycle frame log stays inside the call, never crosses into JS. `site/wasi-shim.js`'s `battle()` takes the same inputs; `site/battle.js` (new, no framework, no CDN) only collects them and inserts the returned SVG — no drawing code of its own. `site/robots.json` (the picker's bundled examples, from `examples/*.cr`) is generated by `scripts/build_robots_json.cr`, run as a step inside `ci.cr` under `--with-wasm32` (folded in once ticket feebeb1531's `ci.cr` port landed on trunk) rather than a separate workflow or `scripts/ci.sh` step, keeping `crystal run ci.cr -- --with-wasm32` the one command a developer or the Pages workflow runs. `spec/wasm32_spec.cr` compares a seeded battle's standings, cycle count and rendered SVG text against `Battle::Field#run_stepwise` + `Battle.svg_animation` run natively — the same source compiled for both targets, the same cross-compilation-fidelity check Phase 5b-1's own cases make for `crd_run`/`crd_interpret` — and confirms a robot with a parse error is reported inactive with its `error`, isolated, not a trap. Manually verified end to end: a 4-robot native run and the same request driven through node + the real `site/wasi-shim.js` produce byte-identical JSON reports (SVG included); a deliberately bad robot source alongside a good one reports `{active: false, error: "Cannot reduce..."}` for the bad one and a winner among the rest, no trap; the page loads and a battle runs to completion with the SVG replay rendering correctly (headless Chrome screenshot, no console errors). |
+
+Spec suite: 101 examples green with `-Dwasmer`; `crystal run ci.cr -- --with-wasmer` green end to end; `crystal run ci.cr -- --with-wasm32` green end to end (Phase 5b-1, Phase 5b-2).
 
 **WASM robots on the battlefield, decided.** Cycle ticks are injected at
 every operation and builtin call in both engines (above), so a WASM robot
@@ -312,7 +314,7 @@ has no libc at all in Crystal's stdlib, so nothing past a no-op `main`
 builds; `wasm32-unknown-wasi` is the target the stdlib actually supports,
 provided a wasm32-wasi libc/libgc/libpcre2. The static site lives in
 `site/` (`index.html`, `app.js`, `wasi-shim.js` versioned; `crystal-robots.wasm`
-generated by `scripts/ci.sh --with-wasm32` and gitignored, same as
+generated by `crystal run ci.cr -- --with-wasm32` and gitignored, same as
 `docs-api/` and `bin/`).
 
 **Phase 5b-1 spike, answered (2026-09-19).** All three known unknowns
@@ -326,16 +328,16 @@ from the original item 1, plus one nobody had asked yet:
   -lc`. The libs: [lbguilherme/wasm-libs](https://github.com/lbguilherme/wasm-libs)
   release **0.0.3** (its only release), `wasm32-wasi-sysroot.tar.gz`
   (headers plus `lib/wasm32-wasi/*.a`, including `libc.a`, `libgc.a`,
-  `libpcre2-8.a`) — pulled in the same shape as `scripts/install_wasmer.sh`
-  by `scripts/install_wasm32_wasi_libs.sh`, installed under
-  `./.wasm32-wasi-libs` (`WASM32_WASI_LIBS`), wired into `scripts/ci.sh`
+  `libpcre2-8.a`) — downloaded with `HTTP::Client` and extracted by
+  `ci.cr`'s own `install_wasm32_wasi_libs`, installed under
+  `./.wasm32-wasi-libs` (`WASM32_WASI_LIBS`), wired into `ci.cr`
   as `--with-wasm32`.
 - **The GC runs.** Boehm GC (`libgc.a` from the same libs) initializes
   and collects normally — confirmed by exercising the parser/checker on
   every example robot repeatedly in one instance, not just a smoke test.
 - **Module size:** 1.7 MB in debug (`crystal build`'s default), 1.3 MB
   with `--no-debug`, **716 KB** with `--release --no-debug` (what
-  `ci.sh --with-wasm32` and the Pages workflow ship). All three round-trip
+  `crystal run ci.cr -- --with-wasm32` and the Pages workflow ship). All three round-trip
   identically; `--release` only shrinks it.
 - **The unasked fourth unknown, and the one that shaped the design:
   exceptions are stubbed out on this target.** Crystal 1.18.2's
@@ -529,10 +531,10 @@ above.
 
 ### Phase 7: GitLab to Fossil migration and housekeeping
 
-- Replace `.gitlab-ci.yml` with `scripts/ci.sh` that any runner (or a
-  developer) can execute: shards install, wasmer 4.4.0 pin, build, spec,
-  format check, example builds. Keep the GitLab file only as long as the
-  mirror exists.
+- Replace `.gitlab-ci.yml` with `ci.cr` (invoked as `crystal run ci.cr --`)
+  that any runner (or a developer) can execute: shards install, wasmer
+  4.4.0 pin, build, spec, format check, example builds. Keep the GitLab
+  file only as long as the mirror exists.
 - README: source links point at the Fossil repository; the contributing
   section describes `fossil clone`, branch, commit and the review flow
   instead of GitLab forks and merge requests. Move `.gitignore` rules into
@@ -563,7 +565,7 @@ operator-precedence variant) is dropped.
 1. Spike: a wasmer-backed `Battle::Robot` whose `env.tick` blocks on the
    scheduler channel; if the runtime tolerates it, WASM robots join the
    field with the same protocol as interpreted ones.
-2. Phase 7 leftovers: the recurring `ci.sh --with-wasmer` regression task
+2. Phase 7 leftovers: the recurring `crystal run ci.cr -- --with-wasmer` regression task
    (coordinator sequences it); dropping `.gitlab-ci.yml` once the GitLab
    mirror is retired; the docs pages inside the Fossil chrome if the raw
    passthrough proves awkward.
@@ -594,13 +596,15 @@ maintainer's decisions. Recorded here verbatim in substance.
    word, merge, rebuild).
 3. **CI.** No Fossil hook or cron; the gate is the task pipeline (agent
    runs the suite, validator checks, trunk-ops re-runs on a merge
-   stand-in). `scripts/ci.sh` is the one command all of them call: shards
-   install, build-docs, shards build, spec, format check, example builds,
-   non-zero on any failure. MAINTAINER: sessions install wasmer 4.4.0 only
-   when the work touches WASM; `ci.sh --with-wasmer` installs it under the
-   checkout if absent and runs the differential specs; plain `ci.sh`
-   reports those specs as pending with the reason. A recurring regression
-   task runs `ci.sh --with-wasmer` on trunk about weekly.
+   stand-in). `ci.cr` (invoked as `crystal run ci.cr --`) is the one
+   command all of them call: shards install, build-docs, shards build,
+   spec, format check, example builds, non-zero on any failure.
+   MAINTAINER: sessions install wasmer 4.4.0 only when the work touches
+   WASM; `crystal run ci.cr -- --with-wasmer` installs it under the
+   checkout if absent and runs the differential specs; plain
+   `crystal run ci.cr` reports those specs as pending with the reason. A
+   recurring regression task runs `crystal run ci.cr -- --with-wasmer` on
+   trunk about weekly.
 4. **Permissions.** Ollama-Codex tiers, not "any named login": identity is
    `FOSSIL_USER`, permission is `FOSSIL_CAPABILITIES`, code maps routes to
    capability letters and the repository's grants decide who holds them.

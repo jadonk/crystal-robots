@@ -1,10 +1,10 @@
 # Kept only while the GitLab mirror exists. The Fossil repository at
 # https://ollama.openbeagle.org/crystal-robots is the source of truth and
-# its review pipeline runs scripts/ci.sh; this file just runs the same.
+# its review pipeline runs ci.cr; this file just runs the same.
 image: $CI_REGISTRY/jkridner/crystal
 ci:
   stage: test
   before_script:
     - sudo apk add curl shards
   script:
-    - scripts/ci.sh --with-wasmer
+    - crystal run ci.cr -- --with-wasmer
