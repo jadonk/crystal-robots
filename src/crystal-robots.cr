@@ -429,7 +429,7 @@ module CrystalRobots
       parser.on "--seed=SEED", "Random seed for the first match (default 1); later matches add 1" do |seed|
         @seed = seed.to_u64
       end
-      parser.on "--badge", "Run one live match, publishing status.json / consuming command.json for the badge-launcher wire contract" do
+      parser.on "--badge", "Run one live match, publishing status.json / consuming command.json for the badge-launcher wire contract. resume cannot clear ERROR: no command does, so an errored robot stays ERROR for the rest of the match" do
         @badge = true
       end
       parser.on "-p PORT", "--port=PORT", "Serve web interface on port PORT" do |port|

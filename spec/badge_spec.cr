@@ -195,6 +195,29 @@ describe CrystalRobots::Badge do
       field.robots.each { |r| r.active.should be_true }
     end
 
+    it "resume on an errored robot leaves it ERROR and status.json says so" do
+      field = field_of("if x\n", IDLE_SRC) # a parse error fails robot-1 in Robot#start
+      field.robots[0].start
+      field.robots[1].active = true
+
+      dir = badge_tmp_dir
+      command_path = File.join(dir, "command.json")
+      File.write(command_path, %({"seq": 1, "command": "resume", "target": "robot-1", "args": {}}))
+
+      session = Badge::Session.new(field,
+        Badge::StatusWriter.new(File.join(dir, "status.json")),
+        Badge::CommandReader.new(command_path))
+      session.apply_pending_command
+
+      field.robots[0].active.should be_false
+      field.robots[0].error.should_not be_nil
+
+      session.publish_status
+      status = JSON.parse(File.read(File.join(dir, "status.json")))
+      status["robots"][0]["state"].should eq "ERROR"
+      status["robots"][0]["error_text"].should_not eq ""
+    end
+
     it "applies a move command's dx/dy to the targeted robot's position" do
       field = field_of(IDLE_SRC, IDLE_SRC)
       field.place(0, 100, 200)

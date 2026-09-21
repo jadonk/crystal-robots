@@ -13,6 +13,12 @@ module CrystalRobots::Badge
   # to resume), `move` nudges position, `calibrate` clears motion state.
   # `select_robot` and `ping` are informational only -- the next status
   # tick already carries a bumped `seq`.
+  #
+  # None of the six commands, including `select_robot`, can clear ERROR:
+  # `resume` skips a robot with `Robot#error` set, and that field has no
+  # public setter, so once a robot's program fails its fiber has already
+  # unwound for good and status.json reports ERROR for the rest of the
+  # match. There is no recovery command.
   class Session
     DEFAULT_TICK = 200.milliseconds # the contract's 5 Hz status cadence
 
@@ -110,6 +116,9 @@ module CrystalRobots::Badge
       when "estop"
         each_target(cmd.target) { |i, r| r.active = false; @estopped << robot_id(i) }
       when "resume"
+        # resume cannot clear ERROR: no command does, so an errored robot
+        # stays ERROR for the rest of the match (Robot#error has no public
+        # setter, and its fiber has already unwound for good).
         each_target(cmd.target) { |i, r| r.active = true unless r.error; @estopped.delete(robot_id(i)) }
       when "move"
         if (target = cmd.target) && (r = robot_for(target))
