@@ -17,18 +17,21 @@
 // none of which a fire-and-forget SMIL animation could offer.
 //
 // Frame buffer layout (little-endian; mirrors `Browser.encode_frames`'s
-// own doc comment in `src/browser.cr` exactly -- keep both in sync):
+// own doc comment in `src/browser.cr`; decoded x/y values are meters):
 //   offset 0: u8  version
 //   offset 1: u8  robotCount
 //   offset 2: u16 missileSlots (per robot)
 //   offset 4: u32 frameCount
 //   offset 8: frameCount frames, each:
 //     u32 cycle
-//     robotCount robot records (12 bytes): i16 x, i16 y, i16 heading,
+//     robotCount robot records (12 bytes): i16 x, i16 y (clicks), i16 heading,
 //       i16 scan, i16 cannon, u8 damage, u8 flags (bit0 active, bit1 fired)
-//     robotCount*missileSlots missile records (6 bytes): i16 x, i16 y,
+//     robotCount*missileSlots missile records (6 bytes): i16 x, i16 y (clicks),
 //       u8 flags (bit0 present, bit1 exploding), u8 padding
-function decodeFrames(buffer) {
+// src/battle/field.cr keeps positions in CROBOTS clicks, 10 per meter.
+const CLICK = 10;
+
+export function decodeFrames(buffer) {
   const v = new DataView(buffer);
   const robotCount = v.getUint8(1);
   const missileSlots = v.getUint16(2, true);
@@ -44,8 +47,8 @@ function decodeFrames(buffer) {
     let p = off + 4;
     const robots = new Array(robotCount);
     for (let r = 0; r < robotCount; r++) {
-      const x = v.getInt16(p, true);
-      const y = v.getInt16(p + 2, true);
+      const x = v.getInt16(p, true) / CLICK;
+      const y = v.getInt16(p + 2, true) / CLICK;
       const heading = v.getInt16(p + 4, true);
       const scan = v.getInt16(p + 6, true);
       const cannon = v.getInt16(p + 8, true);
@@ -56,8 +59,8 @@ function decodeFrames(buffer) {
     }
     const missiles = new Array(missileCount);
     for (let m = 0; m < missileCount; m++) {
-      const x = v.getInt16(p, true);
-      const y = v.getInt16(p + 2, true);
+      const x = v.getInt16(p, true) / CLICK;
+      const y = v.getInt16(p + 2, true) / CLICK;
       const flags = v.getUint8(p + 4);
       missiles[m] = { x, y, present: (flags & 1) !== 0, exploding: (flags & 2) !== 0 };
       p += missileStride;
