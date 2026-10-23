@@ -1,5 +1,6 @@
 // Decodes a native Browser.battle_run frame log with the module used by
 // the battle and editor Fight pages. Exits 0 with {"ok":true} on success.
+// site/package.json marks site/*.js as ES modules so Node of any version imports them as ESM.
 //
 //   node spec/support/battle_playback_check.mjs frame-log.bin
 import assert from "node:assert/strict";
