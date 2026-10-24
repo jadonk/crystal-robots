@@ -27,9 +27,12 @@ describe ".github/workflows/pages.yml" do
 
     steps[2]["run"].as_s.should eq("sudo apt-get update && sudo apt-get install -y lld libyaml-dev")
 
-    steps[3]["run"].as_s.should eq("crystal run ci.cr -- --with-wasm32")
+    steps[3]["run"].as_s.includes?("CHROMIUM_BIN=$(command -v google-chrome || command -v google-chrome-stable || true)").should be_true
+    steps[3]["run"].as_s.includes?("echo \"CHROMIUM_BIN=$CHROMIUM_BIN\" >> \"$GITHUB_ENV\"").should be_true
 
-    steps[4]["uses"].as_s.should eq("actions/upload-pages-artifact@v3")
+    steps[4]["run"].as_s.should eq("crystal run ci.cr -- --with-wasm32")
+
+    steps[5]["uses"].as_s.should eq("actions/upload-pages-artifact@v3")
   end
 
   it "deploys with actions/deploy-pages under the github-pages environment" do

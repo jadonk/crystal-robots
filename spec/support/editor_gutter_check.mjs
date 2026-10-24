@@ -52,13 +52,21 @@ const chrome = spawn(
 let cdpPort;
 const portReady = new Promise((resolve, reject) => {
   let buf = "";
+  const failure = (message) =>
+    new Error(`${message} (binary: ${chromiumBin}; stderr, last 2000 characters:\n${buf.slice(-2000)})`);
   chrome.stderr.on("data", (chunk) => {
     buf += chunk.toString();
     const m = buf.match(/ws:\/\/127\.0\.0\.1:(\d+)\//);
-    if (m) resolve(Number(m[1]));
+    if (m) {
+      clearTimeout(timer);
+      resolve(Number(m[1]));
+    }
   });
-  chrome.on("exit", (code) => reject(new Error(`chromium exited early (${code})`)));
-  setTimeout(() => reject(new Error("timed out waiting for chromium devtools port")), 10000);
+  chrome.on("exit", (code) => {
+    clearTimeout(timer);
+    reject(failure(`chromium exited early (${code})`));
+  });
+  const timer = setTimeout(() => reject(failure("timed out waiting for chromium devtools port")), 30000);
 });
 
 async function cleanup() {
