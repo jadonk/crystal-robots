@@ -5,10 +5,17 @@ require "json"
 # 7a7758839e): the gutter must not soft-wrap independently of the
 # textarea and must keep its scrollTop synced to the textarea's. Runs
 # `spec/support/editor_gutter_check.mjs`, which drives a real headless
-# Chromium over the DevTools protocol -- this machine has one at
-# `chromium`/`chromium-browser`, but a machine without either reports
-# this pending rather than failing the suite.
-CHROMIUM_BIN = Process.find_executable("chromium") || Process.find_executable("chromium-browser")
+# Chromium over the DevTools protocol. CHROMIUM_BIN can select a specific
+# binary; otherwise try chromium, chromium-browser, google-chrome, then
+# google-chrome-stable. A machine without a usable binary reports pending.
+CHROMIUM_BIN = if (configured_bin = ENV["CHROMIUM_BIN"]?) && !configured_bin.empty?
+                 Process.find_executable(configured_bin)
+               else
+                 Process.find_executable("chromium") ||
+                   Process.find_executable("chromium-browser") ||
+                   Process.find_executable("google-chrome") ||
+                   Process.find_executable("google-chrome-stable")
+               end
 
 describe "site/editor gutter (headless)" do
   if bin = CHROMIUM_BIN
@@ -21,6 +28,6 @@ describe "site/editor gutter (headless)" do
       report["ok"].as_bool.should be_true
     end
   else
-    pending "never soft-wraps a line and keeps the gutter's scrollTop synced to the textarea's (no chromium/chromium-browser binary on this machine)"
+    pending "never soft-wraps a line and keeps the gutter's scrollTop synced to the textarea's (no browser found via CHROMIUM_BIN or chromium, chromium-browser, google-chrome, google-chrome-stable)"
   end
 end

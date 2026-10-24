@@ -40,6 +40,14 @@ jobs:
 
       - run: sudo apt-get update && sudo apt-get install -y lld libyaml-dev
 
+      # GitHub's runner image ships Google Chrome as a deb; chromium/chromium-browser
+      # on newer Ubuntu are snap launchers that do not start reliably in Actions.
+      - name: Select Chrome for headless specs
+        run: |
+          CHROMIUM_BIN=$(command -v google-chrome || command -v google-chrome-stable || true)
+          echo "CHROMIUM_BIN=$CHROMIUM_BIN" >> "$GITHUB_ENV"
+          echo "Using browser: $CHROMIUM_BIN"
+
       - run: crystal run ci.cr -- --with-wasm32
 
       - uses: actions/upload-pages-artifact@v3
