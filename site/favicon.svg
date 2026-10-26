@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- crystal-robots: a robot on the battlefield, turret aimed, missile in flight.
+       Colors from src/battle/svg_replay.cr ROBOT_COLORS (blue, orange). -->
+  <rect width="64" height="64" rx="13" fill="#17263a"/>
+  <path d="M27 39 L58 8 L60 26 Z" fill="#4C97FF" opacity=".28"/>
+  <line x1="27" y1="39" x2="45" y2="21" stroke="#edf4ff" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="27" cy="39" r="15" fill="#4C97FF" stroke="#0b1522" stroke-width="3"/>
+  <circle cx="27" cy="39" r="5" fill="#0b1522"/>
+  <circle cx="52" cy="14" r="5.5" fill="#FF8C1A"/>
+</svg>
