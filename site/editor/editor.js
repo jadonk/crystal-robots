@@ -8,7 +8,7 @@
 // and fight the buffer against opponents (`crd_battle_run`, via
 // `battle()`, the same call `../workbench/battle.js` makes). No framework, no CDN,
 // same CSP as the rest of `site/` (no inline script). Phase 6.
-import { battle } from "../wasi-shim.js";
+import { battle } from "../battle-client.js";
 import { createEditorSurface } from "./shared.js";
 import { loadSavedSource, saveSource } from "../robot-store.js";
 import { mountBattlePlayback } from "../battle-playback.js";
@@ -163,6 +163,7 @@ function renderStandings(report) {
     li.textContent = r.active
       ? `${r.name}: ${r.damage}% damage${isWinner ? " — winner" : ""}`
       : `${r.name}: destroyed${r.error ? ` (${r.error})` : ""}`;
+    li.textContent += ` · running ${r.engine === "wasm" ? "as WebAssembly" : "in the interpreter"}`;
     standingsEl.appendChild(li);
   });
   if (!report.winner && report.robots.every((r) => !r.active)) {

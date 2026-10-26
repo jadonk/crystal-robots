@@ -1,4 +1,4 @@
-import { battle } from "../wasi-shim.js";
+import { battle } from "../battle-client.js";
 import { loadModule } from "../load-module.js";
 import { loadSavedSource } from "../robot-store.js";
 import { mountBattlePlayback } from "../battle-playback.js";
@@ -39,7 +39,7 @@ function render(report) {
     pool.fights.forEach((fight) => fights.append(fightButton(fight))); section.append(fights);
     const table = document.createElement("table"); table.append(cell("caption", "Standings"));
     const head = document.createElement("tr"); ["Rank", "Robot", "Points"].forEach((x) => head.append(cell("th", x))); table.append(head);
-    pool.standings.forEach((standing) => { const row = document.createElement("tr"); [standing.rank, standing.name, standing.points].forEach((x) => row.append(cell("td", String(x)))); table.append(row); });
+    pool.standings.forEach((standing) => { const row = document.createElement("tr"); [standing.rank, `${standing.name} · running ${report.engines?.[standing.name] === "wasm" ? "as WebAssembly" : "in the interpreter"}`, standing.points].forEach((x) => row.append(cell("td", String(x)))); table.append(row); });
     section.append(table); $("pools").append(section);
   });
   report.rounds.forEach((round) => {
@@ -60,7 +60,7 @@ async function replayFight(fight) {
   const result = await battle(await moduleReady, robots, fight.seed, report.limit, 600, { maxFrames: 20000 });
   if (result.error || result.trapped) throw new Error(result.error || result.stderr || "Replay failed");
   if (result.winner !== fight.winner) throw new Error(`Replay winner ${result.winner} differs from recorded ${fight.winner}`);
-  $("replay-result").textContent = `Winner: ${result.winner || "draw"} · recorded winner: ${fight.winner || "draw"}`;
+  $("replay-result").textContent = `Winner: ${result.winner || "draw"} · recorded winner: ${fight.winner || "draw"} · ${result.robots.map((r) => `${r.name} running ${r.engine === "wasm" ? "as WebAssembly" : "in the interpreter"}`).join(" · ")}`;
   playback = mountBattlePlayback($("replay"), result, 600);
   $("replay-section").scrollIntoView({ behavior: "smooth", block: "start" });
 }
@@ -72,6 +72,7 @@ function run() {
   $("run").disabled = true; $("results").hidden = true; $("replay-section").hidden = true;
   $("status").textContent = "Starting tournament…";
   const url = new URL(location.href); url.search = new URLSearchParams({ seed: String(parsedSeed), names: chosen.join(",") });
+  if (params.get("engine") === "interpreter") url.searchParams.set("engine", "interpreter");
   if (chosen.includes("Your robot")) url.searchParams.set("source", entry("Your robot").source);
   history.replaceState(null, "", url); $("share").replaceChildren();
   const link = cell("a", "Share this seed and lineup"); link.href = url.href; $("share").append(link);
@@ -82,7 +83,7 @@ function run() {
     if (data.error) { $("status").textContent = data.error; $("run").disabled = false; worker.terminate(); worker = null; }
   };
   worker.onerror = (event) => { $("status").textContent = event.message; $("run").disabled = false; worker.terminate(); worker = null; };
-  worker.postMessage({ robots: chosen.map((name) => ({ name, source: entry(name).source })), seed: parsedSeed, limit: 60000 });
+  worker.postMessage({ robots: chosen.map((name) => ({ name, source: entry(name).source })), seed: parsedSeed, limit: 60000, engine: params.get("engine") === "interpreter" ? "interpreter" : "compiled" });
 }
 $("tournament-form").addEventListener("submit", (event) => { event.preventDefault(); run(); });
 window.addEventListener("unhandledrejection", (event) => { $("status").textContent = event.reason?.message || String(event.reason); });

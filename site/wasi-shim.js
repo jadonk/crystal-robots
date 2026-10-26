@@ -117,7 +117,7 @@ export function makeWasiImports({ onStdout, onStderr } = {}) {
 // A fresh instance of `compiledModule`, started and ready for `crd_*`
 // calls. Every entry point below gets its own instance -- see the module
 // comment in `src/browser.cr` on why a trap must not carry over.
-async function instantiate(compiledModule, onStderr) {
+async function instantiate(compiledModule, onStderr, robotModules = []) {
   // A box, not a plain local: the trap this is here to report typically
   // happens on a *later* call (`crd_run`/`crd_interpret`, below) than
   // `_start`, so the message arrives on stderr after this function has
@@ -129,7 +129,24 @@ async function instantiate(compiledModule, onStderr) {
       if (onStderr) onStderr(s);
     },
   });
-  const instance = await WebAssembly.instantiate(compiledModule, wasi);
+  const robots = [];
+  let field;
+  const host = {
+    robot_new(slot, entrant) {
+      const module = robotModules[entrant];
+      if (!module) return 0;
+      const env = {};
+      for (const name of ["puts", "scan", "cannon", "drive", "damage", "speed", "loc_x", "loc_y", "sleep", "rand", "sqrt", "sin", "cos", "tan", "atan"]) {
+        env[name] = (...args) => field.exports[`crd_host_${name}`](slot, ...args);
+      }
+      try { robots[slot] = new WebAssembly.Instance(module, { env }); return 1; }
+      catch { return 0; }
+    },
+    robot_step(slot) { return robots[slot].exports.step(); },
+    robot_error(slot) { return robots[slot].exports.error_code.value; },
+  };
+  const instance = await WebAssembly.instantiate(compiledModule, { ...wasi, crd_host: host });
+  field = instance;
   wasi.setMemory(instance.exports.memory);
   try {
     instance.exports._start();
@@ -145,8 +162,8 @@ async function instantiate(compiledModule, onStderr) {
 // parsed from `resultPtrFn`/`resultLenFn`) otherwise -- the caller reads
 // any further exports (e.g. the emitted WASM bytes) from `instance` before
 // it goes out of scope.
-async function callEntry(compiledModule, payload, allocFn, entry, resultPtrFn, resultLenFn, onStderr) {
-  const started = await instantiate(compiledModule, onStderr);
+async function callEntry(compiledModule, payload, allocFn, entry, resultPtrFn, resultLenFn, onStderr, robotModules) {
+  const started = await instantiate(compiledModule, onStderr, robotModules);
   if (started.trapped) return { trapped: true, stderr: started.stderrBox.text };
   const { instance, stderrBox } = started;
   const { memory } = instance.exports;
@@ -236,10 +253,31 @@ export async function ast(compiledModule, source, { onStderr } = {}) {
 // malformed (a page bug, not a robot's: an individual robot's
 // parse/check/runtime failure is reported per-robot in `robots[].error`
 // instead).
-export async function battle(compiledModule, robots, seed, limit, cps, { onStderr, maxFrames } = {}) {
-  const payload = JSON.stringify({ robots, seed, limit, cps, max_frames: maxFrames });
+export async function resumable(compiledModule, source, { onStderr } = {}) {
+  const result = await callEntry(compiledModule, source, "crd_alloc", "crd_resumable", "crd_result_ptr", "crd_result_len", onStderr);
+  if (result.trapped) return result;
+  const { instance, report } = result;
+  if (report.wasm_len) {
+    const ptr = instance.exports.crd_wasm_ptr();
+    report.wasm_bytes = instance.exports.memory.buffer.slice(ptr, ptr + report.wasm_len);
+  }
+  return report;
+}
+
+export async function prepareRobotModules(compiledModule, robots, { forceFallback } = {}) {
+  return Promise.all(robots.map(async (robot) => {
+    if (forceFallback?.(robot)) return null;
+    const result = await resumable(compiledModule, robot.source);
+    if (result.trapped || result.error || result.problems?.length || !result.wasm_bytes) return null;
+    try { return await WebAssembly.compile(result.wasm_bytes); }
+    catch { return null; }
+  }));
+}
+
+export async function battle(compiledModule, robots, seed, limit, cps, { onStderr, maxFrames, engine = "interpreter", robotModules } = {}) {
+  const payload = JSON.stringify({ robots, seed, limit, cps, max_frames: maxFrames, engine });
   const result = await callEntry(
-    compiledModule, payload, "crd_battle_alloc", "crd_battle_run", "crd_battle_result_ptr", "crd_battle_result_len", onStderr,
+    compiledModule, payload, "crd_battle_alloc", "crd_battle_run", "crd_battle_result_ptr", "crd_battle_result_len", onStderr, robotModules,
   );
   if (result.trapped) return result;
   const { instance, report } = result;
@@ -251,10 +289,10 @@ export async function battle(compiledModule, robots, seed, limit, cps, { onStder
 
 // Runs pool play and the best-of-3 bracket in one WASM call. Each recorded
 // fight's entrants and seed can be passed to battle() to replay that fight.
-export async function tournament(compiledModule, robots, seed, limit, { onStderr } = {}) {
-  const payload = JSON.stringify({ robots, seed, limit });
+export async function tournament(compiledModule, robots, seed, limit, { onStderr, engine = "interpreter", robotModules } = {}) {
+  const payload = JSON.stringify({ robots, seed, limit, engine });
   const result = await callEntry(
-    compiledModule, payload, "crd_tournament_alloc", "crd_tournament_run", "crd_tournament_result_ptr", "crd_tournament_result_len", onStderr,
+    compiledModule, payload, "crd_tournament_alloc", "crd_tournament_run", "crd_tournament_result_ptr", "crd_tournament_result_len", onStderr, robotModules,
   );
   return result.trapped ? result : result.report;
 }

@@ -146,6 +146,38 @@ module CrystalRobots::Compiler
       @functions.each { |name| type_for(@arity[name]) } # fix the type table before emitting
     end
 
+    # A conservative gate for the browser's non-raising resumable export.
+    # Parser and Checker have already accepted the program at this point.
+    def self.resumable_problem(program : Program) : String?
+      headings = Set(Int32).new
+      program.children(program.root).each do |stmt|
+        headings << program.arg(stmt, 0) if program[stmt].rule == :main
+      end
+      slots = 0
+      program.ast.each_with_index do |node, index|
+        if node.level == 0 && node.type == Type::String && !headings.any? { |head| program.children(head).includes?(index) }
+          return "strings are not supported in WebAssembly"
+        end
+        if node.level == 0 && node.type == Type::Number && program.value(node).to_i32?.nil?
+          return "number is outside the range WebAssembly can use"
+        end
+        # Every allocation made by ResumeCtx#temp is covered here. This
+        # deliberately counts all functions together and repeated locals:
+        # a checked program below the bound cannot overflow any one frame.
+        slots += case node.rule
+                 when :assign                                     then 2
+                 when :opassign                                   then 3
+                 when :mul, :add, :cmp, :eq, :and, :or            then 2
+                 when :neg, :while, :until, :case, :global        then 1
+                 when :call, :call1, :call2, :command1, :command2 then program.children(index).size
+                 else                                                  0
+                 end
+        slots += 1 if node.type.in?(Type::IfHead, Type::ElsifHead, Type::WhenHead, Type::Identifier)
+      end
+      return "too many locals and temporary values for WebAssembly" if slots >= 500
+      nil
+    end
+
     # ---- encoding helpers -------------------------------------------------
 
     # https://en.wikipedia.org/wiki/LEB128

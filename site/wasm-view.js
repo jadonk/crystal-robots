@@ -3,9 +3,9 @@
 const sectionNames = ["custom", "type", "import", "function", "table", "memory", "global", "export", "start", "element", "code", "data"];
 const opNames = new Map(Object.entries({
   0x02: "block", 0x03: "loop", 0x04: "if", 0x05: "else", 0x0b: "end",
-  0x0c: "br", 0x0d: "br_if", 0x0f: "return", 0x10: "call", 0x1a: "drop",
+  0x0c: "br", 0x0d: "br_if", 0x0e: "br_table", 0x0f: "return", 0x10: "call", 0x1a: "drop",
   0x20: "local.get", 0x21: "local.set", 0x22: "local.tee",
-  0x23: "global.get", 0x24: "global.set", 0x41: "i32.const",
+  0x23: "global.get", 0x24: "global.set", 0x28: "i32.load", 0x36: "i32.store", 0x41: "i32.const",
   0x45: "i32.eqz", 0x46: "i32.eq", 0x47: "i32.ne", 0x48: "i32.lt_s",
   0x4a: "i32.gt_s", 0x4c: "i32.le_s", 0x4e: "i32.ge_s",
   0x6a: "i32.add", 0x6b: "i32.sub", 0x6c: "i32.mul", 0x6d: "i32.div_s",
@@ -20,6 +20,7 @@ function reader(bytes, offset = 0) {
     get pos() { return pos; },
     seek(next) { pos = next; },
     byte() { if (pos >= bytes.length) throw new Error("Truncated WebAssembly module"); return bytes[pos++]; },
+    string() { const length = this.unsigned(); const start = pos; pos += length; return new TextDecoder().decode(bytes.subarray(start, pos)); },
     unsigned() {
       let value = 0, shift = 0, byte;
       do { byte = this.byte(); value += (byte & 0x7f) * 2 ** shift; shift += 7; }
@@ -54,7 +55,34 @@ export function decodeWasm(input) {
     const payloadStart = r.pos;
     const end = payloadStart + size;
     if (end > bytes.length) throw new Error("Section extends past end of module");
-    const section = { id, name: sectionNames[id] || `section ${id}`, start, payloadStart, end, size, bodies: [] };
+    const section = { id, name: sectionNames[id] || `section ${id}`, start, payloadStart, end, size, bodies: [], entries: [] };
+    if (id === 5) {
+      const sr = reader(bytes, payloadStart);
+      for (let i = 0, count = sr.unsigned(); i < count; i++) {
+        const flags = sr.unsigned(), minimum = sr.unsigned();
+        const maximum = flags & 1 ? sr.unsigned() : null;
+        section.entries.push(`memory ${i}: at least ${minimum} pages${maximum === null ? "" : `, at most ${maximum} pages`}`);
+      }
+    }
+    if (id === 6) {
+      const sr = reader(bytes, payloadStart);
+      for (let i = 0, count = sr.unsigned(); i < count; i++) {
+        const type = sr.byte(), mutable = sr.byte();
+        const opcode = sr.byte();
+        if (opcode !== 0x41) throw new Error("Unsupported global initializer");
+        const initial = sr.signed();
+        if (sr.byte() !== 0x0b) throw new Error("Unterminated global initializer");
+        section.entries.push(`global ${i}: ${type === 0x7f ? "number" : `type ${type}`}, ${mutable ? "changeable" : "fixed"}, starts at ${initial}`);
+      }
+    }
+    if (id === 7) {
+      const sr = reader(bytes, payloadStart);
+      const kinds = ["function", "table", "memory", "global"];
+      for (let i = 0, count = sr.unsigned(); i < count; i++) {
+        const name = sr.string(), kind = sr.byte(), index = sr.unsigned();
+        section.entries.push(`${name}: ${kinds[kind] || `kind ${kind}`} ${index}`);
+      }
+    }
     if (id === 10) {
       const cr = reader(bytes, payloadStart);
       const count = cr.unsigned();
@@ -76,6 +104,12 @@ export function decodeWasm(input) {
           const mnemonic = opNames.get(opcode) || "unknown";
           let operand = null;
           if (indexes.has(opcode)) operand = cr.unsigned();
+          else if (opcode === 0x0e) {
+            const count = cr.unsigned();
+            const targets = Array.from({ length: count }, () => cr.unsigned());
+            operand = `${targets.join(", ")} · default ${cr.unsigned()}`;
+          }
+          else if (opcode === 0x28 || opcode === 0x36) operand = `align ${cr.unsigned()}, offset ${cr.unsigned()}`;
           else if (opcode === 0x41) operand = cr.signed();
           else if (blocks.has(opcode)) {
             const type = cr.byte();
@@ -114,6 +148,12 @@ export function renderWasm(container, input) {
     raw.className = "wasm-hex";
     raw.textContent = hex(bytes.subarray(section.start, section.end));
     details.append(raw);
+    if (section.entries.length) {
+      const entries = document.createElement("pre");
+      entries.className = "wasm-listing";
+      entries.textContent = section.entries.join("\n");
+      details.append(entries);
+    }
     for (const body of section.bodies) {
       const title = document.createElement("h4");
       title.textContent = `Function body ${body.index + 1} · bytes ${body.start}–${body.end - 1}`;
