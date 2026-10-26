@@ -607,6 +607,18 @@ the module, not just an untouched one; `spec/web_cgi_spec.cr` covers
 `crystal run ci.cr` and `crystal run ci.cr -- --with-wasm32` both green
 (counts in the session report on ticket db7474e899's thread).
 
+### Resumable compiled robots (Slice R1)
+
+Plain WebAssembly calls run to completion: a host cannot suspend one in the
+middle of `run()` and later restore its operand stack. The resumable emitter
+therefore exports `step()` and divides the robot into numbered blocks at every
+cycle charge. A loop selects the saved program counter with `br_table`. Each
+call frame, its local values, expression intermediates, and return destination
+live in the module's linear memory. A charge saves the next block and returns
+one cycle to the battle engine; the next `step()` resumes from that address.
+The ordinary `run()` emitter remains the default. This uses only WebAssembly
+1.0 instructions and the existing robot builtin imports.
+
 ### Phase 7: GitLab to Fossil migration and housekeeping
 
 - Replace `.gitlab-ci.yml` with `ci.cr` (invoked as `crystal run ci.cr --`)

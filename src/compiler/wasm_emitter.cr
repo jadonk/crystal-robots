@@ -76,6 +76,8 @@ module CrystalRobots::Compiler
       Local_tee  = 0x22
       Global_get = 0x23
       Global_set = 0x24
+      I32_load   = 0x28
+      I32_store  = 0x36
       I32_const  = 0x41
       I32_eqz    = 0x45
       I32_eq     = 0x46
@@ -121,16 +123,25 @@ module CrystalRobots::Compiler
 
     getter program : Program
     getter costs : Interpreter::Costs?
+    getter resumable : Bool
 
     # Pass `costs` to emit `env.tick` calls with the interpreter's cycle
     # model; without it the module has no cycle accounting.
-    def initialize(@program : Program, @costs : Interpreter::Costs? = nil)
+    def initialize(@program : Program, @costs : Interpreter::Costs? = nil, @resumable : Bool = false)
+      @costs = Interpreter::Costs.crobots if @resumable && @costs.nil?
       @imports = [] of String
       @functions = [] of String # user functions in definition order
       @arity = {} of String => Int32
       @globals = [] of String
       @extra_arities = [] of Int32
       @uses_division = false
+      @resume_blocks = [] of Bytes
+      @resume_entries = {} of String => Int32
+      @resume_function_ids = {} of String => Int32
+      @resume_return_pc = -1
+      @resume_main_pc = -1
+      @resume_globals = Set(String).new
+      @resume_constants = Set(String).new
       analyze
       @functions.each { |name| type_for(@arity[name]) } # fix the type table before emitting
     end
@@ -221,7 +232,7 @@ module CrystalRobots::Compiler
           @uses_division = true
         end
       end
-      names << "tick" if @costs
+      names << "tick" if @costs && !@resumable
       IMPORTS.each { |(name, _)| @imports << name if names.includes?(name) }
       @program.children(@program.root).each do |stmt|
         case @program[stmt].rule
@@ -330,6 +341,7 @@ module CrystalRobots::Compiler
     end
 
     def to_wasm : Bytes
+      return resumable_wasm if @resumable
       MagicModuleHeader + ModuleVersion + typeSection + importSection + funcSection +
         globalSection + exportSection + codeSection
     end
@@ -381,7 +393,16 @@ module CrystalRobots::Compiler
     # floordiv(a, b): b == 0 ? 0 : a / b rounded toward negative infinity.
     private def floordiv_body : Bytes
       a, b, q = 0, 1, 2
-      code = local_get(b) + op(Opcodes::I32_eqz) + op(Opcodes::If) + Bytes[Valtype::I32.value] +
+      # The resumable path also handles the one signed-division pair that
+      # WebAssembly traps on, while the interpreter wraps it to Int32::MIN.
+      guard = if @resumable
+                local_get(a) + const(Int32::MIN) + op(Opcodes::I32_eq) +
+                  local_get(b) + const(-1) + op(Opcodes::I32_eq) + op(Opcodes::I32_and) +
+                  op(Opcodes::If) + Bytes[BlockVoid] + const(Int32::MIN) + op(Opcodes::Return) + op(Opcodes::End)
+              else
+                Bytes[]
+              end
+      code = guard + local_get(b) + op(Opcodes::I32_eqz) + op(Opcodes::If) + Bytes[Valtype::I32.value] +
              const(0) +
              op(Opcodes::Else) +
              local_get(a) + local_get(b) + op(Opcodes::I32_div_s) + local_set(q) +
@@ -664,3 +685,5 @@ module CrystalRobots::Compiler
     end
   end
 end
+
+require "./wasm_resumable"

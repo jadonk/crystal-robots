@@ -66,6 +66,8 @@ module CrystalRobots::Battle
   private record StepFunction, params : Array(String), body : Array(Int32)
 
   class Robot
+    alias ExternalStep = Proc(Tuple(Symbol, String?))
+    @external_step : ExternalStep? = nil
     @resume : Proc(Nil)? = nil
     @host : RobotHost? = nil
     @initialized = false
@@ -80,6 +82,12 @@ module CrystalRobots::Battle
     @attempt_done : Symbol? = nil
     @attempt_error : String? = nil
     property step_costs : Compiler::Interpreter::Costs = Compiler::Interpreter::Costs.crobots
+
+    # Install a runner whose call advances exactly one charged cycle unit.
+    # Results are {:paused, nil}, {:completed, nil}, or {:error, message}.
+    def external_step=(step : ExternalStep) : Nil
+      @external_step = step
+    end
 
     # Parse and check the program, same gate as `start`; does not spawn
     # anything, and -- unlike `start`, which lets `Parser.new` raise and
@@ -115,8 +123,14 @@ module CrystalRobots::Battle
     def step! : Nil
       return unless @active
       @attempt_done = nil
+      @attempt_error = nil
       @halted = false
-      if (r = @resume)
+      if (external = @external_step)
+        status, message = external.call
+        @cycles += 1 if status == :paused
+        @attempt_done = status unless status == :paused
+        @attempt_error = message if status == :error
+      elsif (r = @resume)
         @resume = nil
         r.call
       else
@@ -132,12 +146,12 @@ module CrystalRobots::Battle
         else
           @restarts += 1
           @cycles += 1
-          @resume = -> { start_attempt }
+          @resume = -> { start_attempt } unless @external_step
         end
       when :completed
         @restarts += 1
         @cycles += 1
-        @resume = -> { start_attempt }
+        @resume = -> { start_attempt } unless @external_step
       else
         # paused mid-attempt; nothing else to do this round
       end

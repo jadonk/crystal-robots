@@ -199,6 +199,7 @@ module CrystalRobots
     @robot_to_compile : String | Nil
     @robot_to_trace : String | Nil
     @ticks = false
+    @resumable = false
     @robots_to_battle : Array(String) | Nil
     @port : UInt32 | Nil
     @outfile : String | Nil
@@ -239,8 +240,8 @@ module CrystalRobots
         source = File.read("#{@robot_to_compile}")
         begin
           parser = Compiler::Parser.new(source)
-          costs = @ticks ? Compiler::Interpreter::Costs.crobots : nil
-          binfile = Compiler::WASM_Emitter.new(parser.program, costs).to_wasm
+          costs = (@ticks || @resumable) ? Compiler::Interpreter::Costs.crobots : nil
+          binfile = Compiler::WASM_Emitter.new(parser.program, costs, resumable: @resumable).to_wasm
         rescue e : Compiler::Parser::Error | Compiler::WASM_Emitter::Unsupported
           STDERR.puts e.message
           return 1
@@ -250,6 +251,7 @@ module CrystalRobots
         else
           File.write("#{@outfile}", binfile)
         end
+        STDERR.puts "Module size: #{binfile.size} bytes" if @resumable
         return 0
       end
 
@@ -416,6 +418,9 @@ module CrystalRobots
       end
       parser.on "--ticks", "With -c: import env.tick and charge CROBOTS cycles, so a host can count or schedule" do
         @ticks = true
+      end
+      parser.on "--resumable", "With -c: export step() for one CROBOTS cycle at a time" do
+        @resumable = true
       end
       parser.on "-o OUTFILE", "--output=OUTFILE", "Write compiled robot to OUTFILE" do |outfile|
         @outfile = outfile

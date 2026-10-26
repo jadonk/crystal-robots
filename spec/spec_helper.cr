@@ -21,6 +21,8 @@ alias C = CrystalRobots::Compiler
     getter puts_out = [] of String
     getter host : CrystalRobots::Compiler::Host
     getter ticks = 0_i64
+    # A stepwise instance outlives load_wasm; keep its store and imports alive.
+    @wasmer_keepalive = [] of Tuple(Wasmer::Engine, Wasmer::Store, Wasmer::Module, Wasmer::ImportObject, Wasmer::Instance)
 
     def initialize(@last_puts = "", @host = CrystalRobots::Compiler::NullHost.new)
     end
@@ -56,7 +58,9 @@ alias C = CrystalRobots::Compiler
       env["tan"] = fn(store, t1) { |a| h.tan(a[0].as_i) }
       env["atan"] = fn(store, t1) { |a| h.atan(a[0].as_i) }
       imports.register("env", env)
-      Wasmer::Instance.new(module_, imports)
+      instance = Wasmer::Instance.new(module_, imports)
+      @wasmer_keepalive << {engine, store, module_, imports, instance}
+      instance
     end
 
     private def fn(store, type, &block : Array(Wasmer::Value) -> Int32) : Wasmer::WithExtern
