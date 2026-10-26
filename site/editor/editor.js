@@ -8,11 +8,10 @@
 // and fight the buffer against opponents (`crd_battle_run`, via
 // `battle()`, the same call `../workbench/battle.js` makes). No framework, no CDN,
 // same CSP as the rest of `site/` (no inline script). Phase 6.
-import { check, battle } from "../wasi-shim.js";
+import { battle } from "../wasi-shim.js";
+import { createEditorSurface } from "./shared.js";
+import { loadSavedSource, saveSource } from "../robot-store.js";
 import { mountBattlePlayback } from "../battle-playback.js";
-
-const DEBOUNCE_MS = 500; // "a short pause" -- one of the plan's defaults,
-// waiting on the wiki user's own answer (docs/PLAN.md, Phase 6)
 
 // Requests the larger of the two frame budgets `Browser.battle_run`
 // accepts (`src/browser.cr`), same as `../workbench/battle.js`'s in-page battle
@@ -98,132 +97,16 @@ function forkSelected() {
   const found = robots.find((r) => r.name === pickerEl.value);
   if (!found) return;
   sourceEl.value = found.source;
+  saveSource(sourceEl.value);
   runCheck();
 }
 
 forkButton.addEventListener("click", forkSelected);
 
-// --- Gutter: one line-number row per source line, synced scroll, and a
-// highlighted row with a hover title for any line a check reported. ---
-
-function syncGutterScroll() {
-  gutterEl.scrollTop = sourceEl.scrollTop;
-}
-
-// The textarea's CSS height is a fixed default (`resize: vertical` lets
-// the user drag it taller or shorter); mirror whatever height it ends up
-// at onto the gutter so the two stay the same number of visible rows tall
-// and `syncGutterScroll` has the same scroll range to work with.
-new ResizeObserver(() => {
-  gutterEl.style.height = `${sourceEl.clientHeight}px`;
-}).observe(sourceEl);
-
-function renderGutter() {
-  const lineCount = Math.max(1, sourceEl.value.split("\n").length);
-  if (gutterEl.children.length !== lineCount) {
-    gutterEl.innerHTML = "";
-    for (let i = 1; i <= lineCount; i++) {
-      const li = document.createElement("li");
-      li.textContent = String(i);
-      gutterEl.appendChild(li);
-    }
-  } else {
-    for (const li of gutterEl.children) {
-      li.classList.remove("error");
-      li.removeAttribute("title");
-    }
-  }
-  syncGutterScroll();
-}
-
-function markErrorLine(line, message) {
-  const li = gutterEl.children[line - 1];
-  if (!li) return;
-  li.classList.add("error");
-  li.title = li.title ? `${li.title}\n${message}` : message;
-}
-
-sourceEl.addEventListener("scroll", syncGutterScroll);
-
-// --- Live check, debounced a short pause after typing stops. ---
-
-let debounceTimer = null;
-sourceEl.addEventListener("input", () => {
-  renderGutter();
-  if (debounceTimer) clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(runCheck, DEBOUNCE_MS);
-});
-
-// Renders a report from `check()` in the same plain words the served
-// `/parse` page uses (`derivation_section` in `src/web/cgi.cr`): "Parse
-// error: ... at line:col", "Problems: ... at line:col" per problem, or
-// "Checks passed: ...".
-async function runCheck() {
-  renderGutter();
-  const compiledModule = await moduleReady;
-  const report = await check(compiledModule, sourceEl.value);
-  if (report.trapped) {
-    // `crd_check` uses the non-raising parse/check path specifically so
-    // this should not happen for an ordinary bad-but-still-typing source
-    // (see `Browser.check`'s module comment); if it does, it is this
-    // page's bug, not the robot's, so it is shown plainly rather than
-    // silently swallowed.
-    problemsEl.className = "bad";
-    problemsEl.textContent = `Could not check this source: ${report.stderr || "(no message)"}`;
-    return;
-  }
-  if (report.error) {
-    markErrorLine(report.error.line, report.error.message);
-    problemsEl.className = "bad";
-    problemsEl.textContent = `Parse error: ${report.error.message}`;
-    return;
-  }
-  if (report.problems.length === 0) {
-    problemsEl.className = "ok";
-    problemsEl.textContent = "Checks passed: every name is defined and every call has the right number of arguments.";
-  } else {
-    problemsEl.className = "bad";
-    report.problems.forEach((p) => markErrorLine(p.line, p.message));
-    problemsEl.textContent = report.problems.map((p) => `${p.message} at ${p.line}:${p.col}`).join("\n");
-  }
-}
-
-// --- Cheat sheet: always visible beside the editor, built from the exact
-// same `RobotAPI::GROUPS`/`ENTRIES` the served pages' panel renders. ---
-
-async function loadCheatSheet() {
-  try {
-    const response = await fetch("../cheat-sheet.json");
-    if (!response.ok) throw new Error(`fetch cheat-sheet.json: ${response.status}`);
-    const sheet = await response.json();
-    cheatEl.innerHTML = "<h2>Cheat sheet</h2>";
-    sheet.groups.forEach((group) => {
-      const div = document.createElement("div");
-      div.className = "group";
-      const h3 = document.createElement("h3");
-      h3.textContent = group;
-      div.appendChild(h3);
-      const ul = document.createElement("ul");
-      sheet.entries
-        .filter((e) => e.group === group)
-        .forEach((e) => {
-          const li = document.createElement("li");
-          const sig = document.createElement("code");
-          sig.textContent = e.signature;
-          li.appendChild(sig);
-          li.appendChild(document.createTextNode(` — ${e.blurb} Returns ${e.returns}. Costs ${sheet.cost} cycles. Example: `));
-          const ex = document.createElement("code");
-          ex.textContent = e.example;
-          li.appendChild(ex);
-          ul.appendChild(li);
-        });
-      div.appendChild(ul);
-      cheatEl.appendChild(div);
-    });
-  } catch (e) {
-    cheatEl.innerHTML = `<h2>Cheat sheet</h2><p>Could not load: ${e.message}</p>`;
-  }
-}
+const sharedEditor = createEditorSurface({ sourceEl, gutterEl, problemsEl, cheatEl, moduleReady });
+const runCheck = sharedEditor.runCheck;
+const renderGutter = sharedEditor.renderGutter;
+sharedEditor.loadCheatSheet();
 
 // --- Fight: the buffer above (slot "yours") against up to three
 // opponents, via the same `crd_battle_run` call `../workbench/battle.js` makes. ---
@@ -342,12 +225,14 @@ async function init() {
   if (robots[0]) {
     const requested = new URLSearchParams(location.search).get("robot");
     pickerEl.value = robots.some((robot) => robot.name === requested) ? requested : robots[0].name;
-    forkSelected();
+    if (!requested && loadSavedSource()) {
+      sourceEl.value = loadSavedSource();
+      runCheck();
+    } else forkSelected();
   } else {
     renderGutter();
   }
   buildFightSlots();
-  loadCheatSheet();
 
   await moduleReady;
   statusEl.textContent = "Ready.";

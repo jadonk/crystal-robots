@@ -12,6 +12,10 @@
 <header class="site-nav" aria-label="Site navigation">
   <a class="brand" href="../">crystal-robots</a>
   <a href="../">Play</a>
+  <a href="../challenge/">Challenge</a>
+  <a href="../tournament/">Tournament</a>
+  <a href="../workbench/">Workbench</a>
+  <a href="../editor/">Editor</a>
   <a href="./" aria-current="page">Manual</a>
   <a href="https://github.com/jadonk/crystal-robots">GitHub</a>
 </header>
@@ -25,6 +29,8 @@
       <li><a href="#api">Robot API</a></li>
       <li><a href="#battlefield">The battlefield</a></li>
       <li><a href="#works">How it works</a></li>
+      <li><a href="#challenge">Challenge</a></li>
+      <li><a href="#tournament">Tournament</a></li>
       <li><a href="#local">Running it yourself</a></li>
       <li><a href="#references">References</a></li>
     </ol></nav>
@@ -108,6 +114,8 @@ end</code></pre>
       <p>The <a href="https://github.com/jadonk/crystal-robots/blob/dev/src/compiler/parser.cr">parser</a> first tokenizes text into glyphs, then makes repeated whole-string reduction passes until one program glyph remains. The <a href="https://github.com/jadonk/crystal-robots/blob/dev/docs/PARSER.md">derivation notes</a> explain the order and precedence. The <a href="https://github.com/jadonk/crystal-robots/blob/dev/src/compiler/checker.cr">checker</a> catches unknown names, wrong call arity, and misplaced control flow. The <a href="https://github.com/jadonk/crystal-robots/blob/dev/src/compiler/interpreter.cr">reference interpreter</a> executes the parsed tree; the <a href="https://github.com/jadonk/crystal-robots/blob/dev/src/compiler/wasm_emitter.cr">WASM emitter</a> turns it into a WebAssembly module.</p>
       <p>The site’s <code>crystal-robots.wasm</code> is itself the <a href="https://github.com/jadonk/crystal-robots/blob/dev/src/browser.cr">compiler and battle entry point</a>, built from Crystal for <code>wasm32-unknown-wasi</code>. In the browser, the <a href="https://github.com/jadonk/crystal-robots/blob/dev/src/battle/step_robot.cr">stepwise robot runner</a> and <a href="https://github.com/jadonk/crystal-robots/blob/dev/src/battle/field.cr">battle engine</a> advance one charged cycle at a time and record the match for replay.</p>
     </section>
+    <section id="challenge"><h2>Challenge</h2><p>The <a href="../challenge/">guided challenge</a> walks you from your first move to a tournament entrant. Each goal runs a real browser battle and shows the deciding replay. Your source and progress are saved in this browser when storage is available.</p></section>
+    <section id="tournament"><h2>Tournament</h2><p>Pick 3 to 8 entrants in the <a href="../tournament/">tournament</a>, choose a seed, and share the link. Pool standings lead to a bracket; select any fight to replay its recorded entrants and seed. Your saved robot appears as an entrant.</p></section>
     <section id="local"><h2>Running it yourself</h2>
       <p>Clone the <a href="https://github.com/jadonk/crystal-robots">repository</a>, then run these commands from its root:</p>
 <pre><code>git clone https://github.com/jadonk/crystal-robots.git
