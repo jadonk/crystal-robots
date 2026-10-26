@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manual · crystal-robots</title>
+<meta name="description" content="Write a robot, learn the language, and understand the crystal-robots battlefield and compiler.">
+<link rel="stylesheet" href="../site.css">
+<script type="module" src="./manual.js"></script>
+</head>
+<body>
+<header class="site-nav" aria-label="Site navigation">
+  <a class="brand" href="../">crystal-robots</a>
+  <a href="../">Play</a>
+  <a href="./" aria-current="page">Manual</a>
+  <a href="https://github.com/jadonk/crystal-robots">GitHub</a>
+</header>
+<div class="site-shell manual-layout">
+  <details class="manual-toc" id="manual-toc" open>
+    <summary>On this page</summary>
+    <nav aria-label="Manual contents"><ol>
+      <li><a href="#intro">What crystal-robots is</a></li>
+      <li><a href="#first">Your first robot</a></li>
+      <li><a href="#language">The language</a></li>
+      <li><a href="#api">Robot API</a></li>
+      <li><a href="#battlefield">The battlefield</a></li>
+      <li><a href="#works">How it works</a></li>
+      <li><a href="#local">Running it yourself</a></li>
+      <li><a href="#references">References</a></li>
+    </ol></nav>
+  </details>
+  <main class="manual-content">
+    <h1>Robot manual</h1>
+    <p class="lede">A field guide to writing programs that fight on a virtual battlefield.</p>
+    <section id="intro"><h2>What crystal-robots is</h2>
+      <p>crystal-robots is a Crystal-flavored take on Tom Poindexter’s <a href="http://tpoindex.github.io/crobots/">CROBOTS</a> (1985). Its WebAssembly compiler grows out of Colin Eberhardt’s <a href="https://github.com/ColinEberhardt/chasm">chasm</a>. Here, the compiler and the battle run entirely in your browser.</p>
+      <p>You write a small robot program, test it against others, and watch the match. The language is a focused subset, so use the forms described below rather than assuming all of Crystal is available.</p>
+    </section>
+    <section id="first"><h2>Your first robot</h2>
+      <p>Paste this complete program into the <a href="../editor/">robot editor</a> and choose Fight:</p>
+<pre><code class="language-crystal-robots">main("Scout") do
+  drive(0, 50)
+  while true
+    range = scan(0, 10)
+    if range > 0
+      cannon(0, range)
+    end
+    sleep
+  end
+end</code></pre>
+      <p><code>main("Scout") do</code> names your robot and opens its program. <code>drive(0, 50)</code> asks it to head east at speed 50. <code>while true</code> repeats the body. <code>scan(0, 10)</code> looks east within ten degrees; it returns the closest robot’s distance, or zero. When the distance is positive, <code>cannon(0, range)</code> fires toward it. <code>sleep</code> spends a turn while motion continues. Each <code>end</code> closes its matching block. Try another angle or speed and watch the replay.</p>
+    </section>
+    <section id="language"><h2>The language</h2>
+      <p>Programs use integer expressions and line endings or semicolons between statements. Comments start with <code>#</code> and run to the end of a line. The only string literal used by this subset is the robot name in <code>main("Name") do … end</code>. A top-level <code>def</code> declares a function; <code>return</code> may give back a value. <code>global(name, init)</code> declares mutable shared state; a top-level assignment also makes an implicit global constant. Function definitions are collected before checking calls, so source order does not matter.</p>
+<pre><code class="language-crystal-robots"># Keep a shared shot count.
+global(shots, 0)
+LIMIT = 3
+
+def double(value)
+  return value * 2
+end
+
+main("Counter") do
+  shots += 1
+  puts double(shots) + LIMIT
+end</code></pre>
+      <p>Numbers are whole, signed integers. Use <code>+ - * / // %</code> for arithmetic, unary <code>-</code>, and <code>== != &lt; &lt;= &gt; &gt;=</code> for comparisons. Both <code>/</code> and <code>//</code> use CROBOTS-style floored integer division; dividing by zero yields zero, including for <code>%</code>. Logical <code>and</code>/<code>or</code> are written <code>&amp;&amp;</code>/<code>||</code> or <code>&amp;</code>/<code>|</code>; <code>^</code> is bitwise integer xor. Both sides of an and/or expression are evaluated; conditions treat zero as false and nonzero as true. <code>true</code> and <code>false</code> are accepted literals. Assign with <code>=</code>, <code>+=</code>, <code>-=</code>, <code>*=</code>, or <code>%=</code>.</p>
+      <p>Control flow includes <code>if</code>/<code>elsif</code>/<code>else</code>, <code>while</code>, <code>until</code>, <code>break</code>, and <code>case</code>/<code>when</code>/<code>else</code>. Parentheses group expressions. This example exercises those forms:</p>
+<pre><code class="language-crystal-robots">main("Decisions") do
+  count = 0
+  while count &lt; 4
+    count += 1
+    if count == 1
+      puts count
+    elsif count == 2
+      puts count * 2
+    else
+      puts count % 2
+    end
+    if count &gt; 3
+      break
+    end
+  end
+  until count == 0
+    count -= 1
+  end
+  case count
+  when 0
+    puts true
+  else
+    puts false
+  end
+end</code></pre>
+      <p>The parser does not implement all Crystal syntax: no floats, arrays, <code>for</code>, <code>next</code>, or unary <code>!</code>. The parser has work budgets of 20,000 reduction passes and 2,000,000 emitted glyphs. For portability, keep a robot below 20 KB of source. The browser editor does not currently enforce that source-size guideline.</p>
+    </section>
+    <section id="api"><h2>Robot API</h2>
+      <p>Calls to sense, move, shoot, calculate, and print are listed below from the same generated data used by the editor. Angles are degrees: zero points east and 90 points north.</p>
+      <div id="api-groups" aria-live="polite"><p>Loading the API reference…</p></div>
+      <noscript><p class="note">Enable JavaScript to load the API reference, or see the <a href="../cheat-sheet.json">raw API data</a>.</p></noscript>
+    </section>
+    <section id="battlefield"><h2>The battlefield</h2>
+      <!-- Numeric rules below come from src/battle/field.cr; cycle charges come from src/compiler/interpreter.cr. -->
+      <p>The field is 1,000 × 1,000 meters <!-- MAX_X, MAX_Y -->. Coordinates begin at the lower left. Positions use 10 clicks per meter <!-- CLICK -->. Motion updates every 15 charged cycles <!-- MOTION_CYCLES -->. Speed is clamped to 0–100 <!-- Field#drive --> and changes by at most 10 per motion update <!-- ACCEL -->. At speed 100, a robot covers 70 clicks, or 7 meters, per update <!-- ROBOT_SPEED, CLICK -->. A heading change only takes effect when current speed is 50 or less <!-- TURN_SPEED -->; if it is faster, the robot brakes first.</p>
+      <p><code>scan(degree, resolution)</code> checks within ± the requested resolution, clamped to 0–10 degrees <!-- RES_LIMIT -->, and reports the closest robot’s distance in meters or zero. <code>cannon</code> can target at most 700 meters <!-- MIS_RANGE -->. Each robot has two missile slots <!-- MIS_ROBOT --> and waits 15 motion updates between shots <!-- RELOAD -->. Missiles fly 500 clicks, or 50 meters, per update <!-- MIS_SPEED, CLICK -->. An explosion deals 10% damage inside 5 meters, 5% inside 20, or 3% inside 40 <!-- DAMAGE -->. Hitting a wall or another robot deals 2% damage <!-- COLLISION -->; robots are eliminated at 100% <!-- Field#move_missiles -->.</p>
+      <p>The reference interpreter charges 1 cycle for a fetch or constant, 1 for an operator, 1 for a store, 2 for a builtin, 3 for a user call, 1 for a branch, and 1 for a statement <!-- Interpreter::Costs.crobots: fetch, operator, store, builtin, call, branch, statement -->. Robots take turns at this cycle granularity. The default match limit is 500,000 cycles <!-- CYCLE_LIMIT -->; a match can end earlier when only one robot remains.</p>
+    </section>
+    <section id="works"><h2>How it works</h2>
+      <p>The <a href="https://github.com/jadonk/crystal-robots/blob/dev/src/compiler/parser.cr">parser</a> first tokenizes text into glyphs, then makes repeated whole-string reduction passes until one program glyph remains. The <a href="https://github.com/jadonk/crystal-robots/blob/dev/docs/PARSER.md">derivation notes</a> explain the order and precedence. The <a href="https://github.com/jadonk/crystal-robots/blob/dev/src/compiler/checker.cr">checker</a> catches unknown names, wrong call arity, and misplaced control flow. The <a href="https://github.com/jadonk/crystal-robots/blob/dev/src/compiler/interpreter.cr">reference interpreter</a> executes the parsed tree; the <a href="https://github.com/jadonk/crystal-robots/blob/dev/src/compiler/wasm_emitter.cr">WASM emitter</a> turns it into a WebAssembly module.</p>
+      <p>The site’s <code>crystal-robots.wasm</code> is itself the <a href="https://github.com/jadonk/crystal-robots/blob/dev/src/browser.cr">compiler and battle entry point</a>, built from Crystal for <code>wasm32-unknown-wasi</code>. In the browser, the <a href="https://github.com/jadonk/crystal-robots/blob/dev/src/battle/step_robot.cr">stepwise robot runner</a> and <a href="https://github.com/jadonk/crystal-robots/blob/dev/src/battle/field.cr">battle engine</a> advance one charged cycle at a time and record the match for replay.</p>
+    </section>
+    <section id="local"><h2>Running it yourself</h2>
+      <p>Clone the <a href="https://github.com/jadonk/crystal-robots">repository</a>, then run these commands from its root:</p>
+<pre><code>git clone https://github.com/jadonk/crystal-robots.git
+cd crystal-robots
+crystal spec
+crystal run ci.cr
+crystal run ci.cr -- --with-wasm32
+crystal run ci.cr -- --with-wasmer</code></pre>
+      <p><code>--with-wasm32</code> builds the browser compiler and generated JSON. <code>--with-wasmer</code> runs optional WebAssembly runtime specs. The CI command also builds <code>bin/crystal-robots</code>. Use <code>bin/crystal-robots -h</code> for help; key flags are <code>-t ROBOT</code> (parser derivation), <code>-i</code> (interpret), <code>-c ROBOT</code> and <code>-o OUTFILE</code> (compile to WASM), <code>--ticks</code> (cycle imports when compiling), <code>-m MATCHES</code>, <code>-l CYCLES</code>, and <code>--seed=SEED</code> for matches. <code>-v</code> prints the version.</p>
+    </section>
+    <section id="references"><h2>References</h2>
+      <ul>
+        <li><a href="http://tpoindex.github.io/crobots/">CROBOTS by Tom Poindexter</a></li>
+        <li><a href="https://github.com/ColinEberhardt/chasm">chasm by Colin Eberhardt</a> and his <a href="https://blog.scottlogic.com/2019/05/17/webassembly-compiler.html">compiler article</a></li>
+        <li><a href="https://crystal-lang.org/">Crystal</a></li>
+        <li><a href="https://webassembly.github.io/spec/core/">WebAssembly specification</a></li>
+        <li><a href="https://wasi.dev/">WASI</a></li>
+        <li><a href="https://wasmer.io/">Wasmer</a></li>
+      </ul>
+    </section>
+  </main>
+</div>
+</body>
+</html>
