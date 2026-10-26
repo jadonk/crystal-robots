@@ -262,7 +262,7 @@ end
 
 step!("crystal spec #{spec_flags.join(" ")}", "crystal", ["spec"] + spec_flags)
 
-step!("crystal tool format --check", "crystal", ["tool", "format", "--check", "src", "spec", "scripts"])
+step!("crystal tool format --check", "crystal", ["tool", "format", "--check", "src", "spec", "scripts", "ci.cr"])
 
 announce("example robots build natively with the prelude")
 FileUtils.mkdir_p(File.join(CHECKOUT, "bin"))

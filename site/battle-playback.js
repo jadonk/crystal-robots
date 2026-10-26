@@ -95,7 +95,7 @@ function frameIndexAt(frames, target) {
 // control. Returns `{ stop }` -- call it before replacing `container`'s
 // contents with the next run's replay, so the previous match's animation
 // loop does not keep running in the background.
-export function mountBattlePlayback(container, report, initialCps) {
+export function mountBattlePlayback(container, report, initialCps, { autoplay = true, onFrame, onEnd } = {}) {
   const { robotCount, missileSlots, frames } = decodeFrames(report.frameBuffer);
   const totalCycles = frames.length ? frames[frames.length - 1].cycle : 0;
 
@@ -126,6 +126,7 @@ export function mountBattlePlayback(container, report, initialCps) {
   container.appendChild(controls);
 
   const svgHost = document.createElement("div");
+  svgHost.className = "battle-svg-host";
   svgHost.innerHTML = report.skeleton;
   container.appendChild(svgHost);
   const svg = svgHost.querySelector("svg");
@@ -196,6 +197,7 @@ export function mountBattlePlayback(container, report, initialCps) {
     if (lastFrameIndex < 0 || index < lastFrameIndex) rebuildTrail(index);
     else if (index > lastFrameIndex) extendTrail(lastFrameIndex, index);
     lastFrameIndex = index;
+    if (onFrame) onFrame(f);
   }
 
   // Continuous (linearly interpolated) attributes, every tick: position
@@ -214,7 +216,8 @@ export function mountBattlePlayback(container, report, initialCps) {
     });
   }
 
-  let playing = frames.length > 1;
+  let playing = autoplay && frames.length > 1;
+  playButton.textContent = playing ? "Pause" : "Play";
   let speed = Math.max(1, Number(speedInput.value) || initialCps || 1);
   let cycle = 0;
   let raf = null;
@@ -240,6 +243,7 @@ export function mountBattlePlayback(container, report, initialCps) {
       if (cycle >= totalCycles) {
         playing = false;
         playButton.textContent = "Play";
+        if (onEnd) onEnd();
       }
     }
     render();

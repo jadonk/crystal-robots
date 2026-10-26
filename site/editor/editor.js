@@ -6,7 +6,7 @@
 // built from `src/web/robot_api.cr`'s `RobotAPI::GROUPS`/`ENTRIES` --
 // the same data the served pages' panel renders, so it can never drift),
 // and fight the buffer against opponents (`crd_battle_run`, via
-// `battle()`, the same call `../battle.js` makes). No framework, no CDN,
+// `battle()`, the same call `../workbench/battle.js` makes). No framework, no CDN,
 // same CSP as the rest of `site/` (no inline script). Phase 6.
 import { check, battle } from "../wasi-shim.js";
 import { mountBattlePlayback } from "../battle-playback.js";
@@ -15,7 +15,7 @@ const DEBOUNCE_MS = 500; // "a short pause" -- one of the plan's defaults,
 // waiting on the wiki user's own answer (docs/PLAN.md, Phase 6)
 
 // Requests the larger of the two frame budgets `Browser.battle_run`
-// accepts (`src/browser.cr`), same as `../battle.js`'s in-page battle
+// accepts (`src/browser.cr`), same as `../workbench/battle.js`'s in-page battle
 // (Phase 6): the fight preview here plays back live too
 // (`mountBattlePlayback`), not a fire-and-forget SMIL animation, so a
 // long fight is worth recording in full rather than downsampled to the
@@ -226,7 +226,7 @@ async function loadCheatSheet() {
 }
 
 // --- Fight: the buffer above (slot "yours") against up to three
-// opponents, via the same `crd_battle_run` call `../battle.js` makes. ---
+// opponents, via the same `crd_battle_run` call `../workbench/battle.js` makes. ---
 
 const MAX_OPPONENTS = 3;
 const slotsEl = document.getElementById("fight-slots");
@@ -340,7 +340,8 @@ fightButton.addEventListener("click", () => {
 async function init() {
   await loadRobots();
   if (robots[0]) {
-    pickerEl.value = robots[0].name;
+    const requested = new URLSearchParams(location.search).get("robot");
+    pickerEl.value = robots.some((robot) => robot.name === requested) ? requested : robots[0].name;
     forkSelected();
   } else {
     renderGutter();

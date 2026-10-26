@@ -46,6 +46,7 @@ module CrystalRobots::Browser
   @@wasm = Bytes.empty
   @@interpret_result = Bytes.empty
   @@check_result = Bytes.empty
+  @@ast_result = Bytes.empty
   @@battle_input = Bytes.empty
   @@battle_result = Bytes.empty
   @@battle_frames = Bytes.empty
@@ -128,6 +129,44 @@ module CrystalRobots::Browser
 
   def check_result_ptr : Pointer(UInt8)
     @@check_result.to_unsafe
+  end
+
+  def ast_result_ptr : Pointer(UInt8)
+    @@ast_result.to_unsafe
+  end
+
+  def ast_result_len : Int32
+    @@ast_result.size
+  end
+
+  # A source-linked tree. Parse errors are data so a partial editor buffer
+  # cannot trap a wasm32 instance.
+  def ast : Int32
+    program = CrystalRobots::Compiler::Program.new(String.new(@@input))
+    err = CrystalRobots::Compiler::Parser.try_parse(program)
+    @@ast_result = if err
+                     {error: {message: err.message, line: err.line, col: err.col}, root: nil}.to_json.to_slice
+                   else
+                     JSON.build do |json|
+                       json.object do
+                         json.field "error", nil
+                         json.field("root") { ast_node(json, program, program.root) }
+                       end
+                     end.to_slice
+                   end
+    @@ast_result.size
+  end
+
+  private def ast_node(json : JSON::Builder, program : CrystalRobots::Compiler::Program, index : Int32) : Nil
+    node = program[index]
+    line, col = program.location(index)
+    json.object do
+      json.field "type", node.type.to_s
+      json.field "text", node.level == 0 ? program.value(index) : node.rule.to_s
+      json.field "line", line
+      json.field "col", col
+      json.field("children") { json.array { program.children(index).each { |child| ast_node(json, program, child) } } }
+    end
   end
 
   def check_result_len : Int32
@@ -507,6 +546,18 @@ end
 
 fun crd_check_result_len : Int32
   CrystalRobots::Browser.check_result_len
+end
+
+fun crd_ast : Int32
+  CrystalRobots::Browser.ast
+end
+
+fun crd_ast_result_ptr : UInt8*
+  CrystalRobots::Browser.ast_result_ptr
+end
+
+fun crd_ast_result_len : Int32
+  CrystalRobots::Browser.ast_result_len
 end
 
 # Allocates `len` bytes and returns their address; the shim writes the

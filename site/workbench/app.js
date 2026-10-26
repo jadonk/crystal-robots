@@ -1,7 +1,7 @@
 // Thin page glue: no framework, no CDN. Everything that talks WASI lives
 // in wasi-shim.js; this file just wires the textarea/button to it and
 // renders the report `crd_run` returns (see `src/browser.cr`).
-import { run } from "./wasi-shim.js";
+import { run } from "../wasi-shim.js";
 
 const source = document.getElementById("source");
 const runButton = document.getElementById("run");
@@ -13,7 +13,7 @@ const wasmEl = document.getElementById("wasm");
 
 async function loadModule() {
   statusEl.textContent = "Loading crystal-robots.wasm…";
-  const response = await fetch("./crystal-robots.wasm");
+  const response = await fetch("../crystal-robots.wasm");
   if (!response.ok) {
     throw new Error(`fetch crystal-robots.wasm: ${response.status}`);
   }

@@ -2,99 +2,51 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>crystal-robots: in-browser compiler</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-  body { font-family: system-ui, sans-serif; max-width: 60rem; margin: 2rem auto; padding: 0 1rem; color: #222; }
-  h1 { font-size: 1.4rem; }
-  p.lede { color: #555; }
-  textarea { width: 100%; height: 12rem; font-family: ui-monospace, monospace; font-size: 0.9rem; box-sizing: border-box; }
-  pre { background: #f4f4f4; padding: 0.75rem; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
-  section { margin-top: 1.5rem; }
-  #status, #battle-status { font-weight: bold; }
-  button { font-size: 1rem; padding: 0.4rem 1rem; margin-top: 0.5rem; }
-  .robot-slot { border: 1px solid #ccc; border-radius: 4px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; }
-  .robot-slot label { display: block; font-weight: bold; margin-bottom: 0.25rem; }
-  .robot-slot select { font-size: 1rem; padding: 0.2rem; }
-  .robot-slot textarea { height: 8rem; margin-top: 0.5rem; }
-  .robot-slot input[type="text"] { font-family: ui-monospace, monospace; margin-top: 0.5rem; padding: 0.2rem; }
-  .battle-controls label { margin-right: 1rem; }
-  .battle-controls input[type="number"] { width: 6rem; }
-  .battle-playback-controls { display: flex; align-items: center; gap: 0.75rem; margin-top: 0.5rem; flex-wrap: wrap; }
-  .battle-playback-controls input[type="number"] { width: 6rem; }
-  .battle-scrubber { flex: 1 1 16rem; min-width: 12rem; }
-  #battle-replay svg { max-width: 100%; height: auto; margin-top: 0.75rem; }
-  #battle-standings { list-style: none; padding: 0; margin: 0.5rem 0 0; }
-  #battle-standings li { padding: 0.15rem 0; }
-  #battle-standings .dead { color: #888; text-decoration: line-through; }
-</style>
+<meta name="theme-color" content="#101b2a">
+<title>crystal-robots · Play</title>
+<link rel="stylesheet" href="./site.css">
 </head>
-<body>
-<h1>crystal-robots: in-browser compiler</h1>
-<p class="lede">
-  The <a href="https://github.com/jadonk/crystal-robots">crystal-robots</a> tokenizer, checker,
-  interpreter and WebAssembly emitter, compiled with Crystal's <code>wasm32-unknown-wasi</code>
-  target and running entirely in this page &mdash; nothing is sent to a server. Paste a robot
-  below (or edit the example) and press Run.
-</p>
-
-<textarea id="source" spellcheck="false"># puts 38 + 2*2
-puts 19
-</textarea>
-<div>
-  <button id="run" disabled>Run</button>
-  <span id="status">Loading&hellip;</span>
-</div>
-
-<section>
-  <h2>Tokens / derivation</h2>
-  <pre id="derivation"></pre>
-</section>
-
-<section>
-  <h2>Checker report</h2>
-  <pre id="problems"></pre>
-</section>
-
-<section>
-  <h2>Interpreter trace</h2>
-  <pre id="interpreter"></pre>
-</section>
-
-<section>
-  <h2>Emitted .wasm</h2>
-  <pre id="wasm"></pre>
-</section>
-
-<section id="battle">
-  <h2>Battle</h2>
-  <p class="lede">
-    Two to four robots on the CROBOTS battlefield &mdash; the same physics and the same
-    tree-walking interpreter <code>bin/crystal-robots</code>'s own matches use, run entirely in
-    this page. Pick from the bundled examples or paste your own for each slot, then press
-    Run Battle. The replay draws the same shapes the served <code>/battle</code> page renders,
-    but plays the match back live at 60 frames per second, with play/pause, an adjustable
-    speed and a scrubber &mdash; every cannon shot and every hit lands on its own frame, however
-    long the match runs.
-  </p>
-
-  <div id="battle-slots"></div>
-
-  <div class="battle-controls">
-    <label>Seed <input type="number" id="battle-seed" value="1" min="0" step="1"></label>
-    <label>Cycle limit <input type="number" id="battle-limit" value="60000" min="15" max="500000" step="1"></label>
-    <label>Initial replay speed, cycles/second (adjustable during playback) <input type="number" id="battle-cps" value="300" min="1" max="20000" step="1"></label>
-  </div>
-  <div>
-    <button id="battle-run" disabled>Run Battle</button>
-    <span id="battle-status">Loading&hellip;</span>
-  </div>
-
-  <div id="battle-replay"></div>
-  <ul id="battle-standings"></ul>
-</section>
-
-<script type="module" src="./app.js"></script>
-<script type="module" src="./battle.js"></script>
+<body class="landing">
+<nav class="site-nav" aria-label="Main navigation">
+  <a class="brand" href="./">crystal-robots</a>
+  <a href="./" aria-current="page">Play</a>
+  <a href="./workbench/">Workbench</a>
+  <a href="./editor/">Editor</a>
+  <a href="./manual/">Manual</a>
+  <a href="https://github.com/jadonk/crystal-robots">GitHub</a>
+</nav>
+<main class="site-shell">
+  <h1 class="landing-headline">Robots you program, compiled to WebAssembly, fighting in your browser.</h1>
+  <section class="arena-section" aria-label="Live battle">
+    <div class="arena-frame"><div id="battle-replay" aria-label="Battle replay"></div><div id="battle-loading" role="status">Preparing the battlefield…</div></div>
+    <div class="arena-meta">
+      <div id="battle-legend" class="battle-legend" aria-label="Choose a robot to inspect"></div>
+      <div class="arena-actions"><button id="rematch" type="button" disabled>Rematch</button><span id="seed-readout"></span></div>
+    </div>
+    <p id="battle-status" class="battle-status" role="status"></p>
+  </section>
+  <section class="layers-section" aria-labelledby="layers-title">
+    <div class="section-heading"><span class="eyebrow">FROM IDEA TO ARENA</span><h2 id="layers-title">Peel back the layers <span id="selected-robot"></span></h2></div>
+    <div class="layer-tabs" role="tablist" aria-label="Robot layers">
+      <button type="button" role="tab" id="tab-source" aria-controls="panel-source" aria-selected="true" data-layer="source"><span>01</span> Source</button>
+      <button type="button" role="tab" id="tab-derivation" aria-controls="panel-derivation" aria-selected="false" data-layer="derivation"><span>02</span> Tokens</button>
+      <button type="button" role="tab" id="tab-ast" aria-controls="panel-ast" aria-selected="false" data-layer="ast"><span>03</span> Syntax tree</button>
+      <button type="button" role="tab" id="tab-wasm" aria-controls="panel-wasm" aria-selected="false" data-layer="wasm"><span>04</span> WebAssembly</button>
+      <button type="button" role="tab" id="tab-engine" aria-controls="panel-engine" aria-selected="false" data-layer="engine"><span>05</span> Engine</button>
+    </div>
+    <div class="layer-panel" id="panel-source" role="tabpanel" aria-labelledby="tab-source"><p>Each robot begins as a small program. Change this one in the editor and send it back into battle. <a id="open-editor" href="./editor/">Open in the editor ↗</a></p><pre id="source-code"></pre></div>
+    <div class="layer-panel" id="panel-derivation" role="tabpanel" aria-labelledby="tab-derivation" hidden><p>Glyphs are compact symbols for tokens and grammar rules; each pass folds part of the string until one program glyph remains.</p><div class="derivation-tools"><button type="button" id="derivation-play">Play passes</button><button type="button" id="derivation-step">Next pass</button><span id="derivation-count"></span></div><pre id="derivation-view"></pre></div>
+    <div class="layer-panel" id="panel-ast" role="tabpanel" aria-labelledby="tab-ast" hidden><p>The final glyph holds a tree of nested expressions and statements. Open a branch to inspect it.</p><div id="ast-view" class="ast-view"></div></div>
+    <div class="layer-panel" id="panel-wasm" role="tabpanel" aria-labelledby="tab-wasm" hidden><p>The compiler emits these exact WebAssembly bytes. Open a section to see its hex; the code section also shows each instruction.</p><div id="wasm-view" class="wasm-view"></div></div>
+    <div class="layer-panel" id="panel-engine" role="tabpanel" aria-labelledby="tab-engine" hidden><p>The engine advances robots one charged cycle at a time, interleaving their work with movement and missile impacts. Read about the <a href="./manual/#battlefield">battlefield</a> and <a href="./manual/#works">how it works</a>.</p><dl id="engine-view" class="engine-stats"></dl></div>
+  </section>
+  <section class="deeper" aria-label="Explore further">
+    <a href="./manual/"><span>01 / LEARN</span><strong>Manual</strong><span>Rules, language, and robot API ↗</span></a>
+    <a href="./editor/"><span>02 / CREATE</span><strong>Editor</strong><span>Fork a robot and test your code ↗</span></a>
+    <a href="./workbench/"><span>03 / EXPLORE</span><strong>Workbench</strong><span>Run code and build a battle ↗</span></a>
+  </section>
+</main>
+<script type="module" src="./landing.js"></script>
 </body>
 </html>
