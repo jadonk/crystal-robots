@@ -758,6 +758,7 @@ module CrystalRobots::Battle
       every = Math.max(1_i64, (@limit // MOTION_CYCLES) // @max_frames)
       updates = 0_i64
       while active.size > 1 && c < @limit
+        @current_cycle = c + (MOTION_CYCLES - movement) + 1
         @robots.each { |r| r.step! if r.active }
         movement -= 1
         if movement == 0

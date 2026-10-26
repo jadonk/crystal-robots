@@ -117,7 +117,7 @@ describe "Browser build (wasm32-unknown-wasi)" do
   # event-guaranteed frame log itself, natively, without needing the
   # compiled wasm32 module.
   wasm32_it "runs a battle identically to the native interpreter engine" do
-    sniper = File.read("examples/sniper.cr")
+    sniper = File.read("examples/sniper.cr").sub("range = scan(dir, 1) # look at a direction", "range = scan(dir, 1) # look at a direction\n      puts range")
     rabbit = File.read("examples/rabbit.cr")
     seed = 3_u64
     limit = 40_000_i64
@@ -132,6 +132,10 @@ describe "Browser build (wasm32-unknown-wasi)" do
     report["cycles"].as_i64.should eq native.cycles
     report["robots"].as_a.map { |r| {r["name"].as_s, r["active"].as_bool, r["damage"].as_i, r["restarts"].as_i} }.should eq(
       native.robots.map { |r| {r.name, r.active, r.damage, r.restarts} }
+    )
+    report["robots"][0]["output"].as_a.should_not be_empty
+    report["robots"].as_a.map { |r| r["output"].as_a }.should eq(
+      native.robots.map { |r| r.output.map_with_index { |line, i| JSON.parse({cycle: r.output_cycles[i], text: line}.to_json) } }
     )
     report["frame_count"].as_i.should eq native.frames.size
     report["robot_count"].as_i.should eq native.robots.size

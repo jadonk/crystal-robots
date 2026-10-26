@@ -130,11 +130,24 @@ export function mountBattlePlayback(container, report, initialCps, { autoplay = 
   svgHost.innerHTML = report.skeleton;
   container.appendChild(svgHost);
   const svg = svgHost.querySelector("svg");
+  const prints = report.robots.flatMap((robot, i) => (robot.output || []).map((line) => ({ ...line, robot: i })));
+  prints.sort((a, b) => a.cycle - b.cycle || a.robot - b.robot);
+  const output = document.createElement("div");
+  output.className = "battle-output";
+  output.setAttribute("aria-label", "What the robots printed");
+  if (prints.length) container.appendChild(output);
 
   const robotEls = [];
   for (let i = 0; i < robotCount; i++) {
+    const group = svg.getElementById(`robot-${i}`);
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.classList.add("battle-print-label");
+    label.setAttribute("visibility", "hidden");
+    label.setAttribute("fill", svg.getElementById(`body-${i}`).getAttribute("fill"));
+    group.appendChild(label);
     robotEls.push({
-      group: svg.getElementById(`robot-${i}`),
+      group,
+      label,
       scan: svg.getElementById(`scan-${i}`),
       body: svg.getElementById(`body-${i}`),
       heading: svg.getElementById(`heading-${i}`),
@@ -213,6 +226,9 @@ export function mountBattlePlayback(container, report, initialCps, { autoplay = 
       const heading = r0.heading + shortestDelta(r0.heading, r1.heading) * t;
       robotEls[i].group.setAttribute("transform", `translate(${x} ${1000 - y})`);
       robotEls[i].heading.setAttribute("transform", `rotate(${-heading})`);
+      robotEls[i].label.setAttribute("x", x > 500 ? "-24" : "24");
+      robotEls[i].label.setAttribute("text-anchor", x > 500 ? "end" : "start");
+      robotEls[i].label.setAttribute("y", y > 915 ? "65" : "-68");
     });
   }
 
@@ -222,6 +238,47 @@ export function mountBattlePlayback(container, report, initialCps, { autoplay = 
   let cycle = 0;
   let raf = null;
   let lastNow = null;
+  let shownPrints = 0;
+
+  function renderPrints() {
+    let upto = 0;
+    while (upto < prints.length && prints[upto].cycle <= cycle) upto++;
+    if (upto < shownPrints) {
+      while (output.children.length > upto) output.lastChild.remove();
+    } else if (upto > shownPrints) {
+      for (let i = shownPrints; i < upto; i++) {
+        const line = document.createElement("div");
+        line.className = "battle-output-line";
+        line.style.color = robotEls[prints[i].robot].body.getAttribute("fill");
+        const name = document.createElement("span");
+        name.className = "battle-output-name";
+        name.textContent = `${report.robots[prints[i].robot].name}: `;
+        line.append(name, prints[i].text);
+        output.appendChild(line);
+      }
+      output.scrollTop = output.scrollHeight;
+    }
+    shownPrints = upto;
+
+    for (let i = 0; i < robotCount; i++) {
+      const lines = report.robots[i].output || [];
+      let lo = 0, hi = lines.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (lines[mid].cycle <= cycle) lo = mid + 1; else hi = mid;
+      }
+      const last = lines[lo - 1];
+      const label = robotEls[i].label;
+      const age = last ? cycle - last.cycle : Infinity;
+      if (age >= initialCps || !last) {
+        label.setAttribute("visibility", "hidden");
+      } else {
+        label.textContent = last.text.length > 48 ? `${last.text.slice(0, 47)}…` : last.text;
+        label.setAttribute("visibility", "visible");
+        label.setAttribute("opacity", String(Math.max(0, 1 - age / initialCps)));
+      }
+    }
+  }
 
   function render() {
     const index = frameIndexAt(frames, cycle);
@@ -231,6 +288,7 @@ export function mountBattlePlayback(container, report, initialCps, { autoplay = 
     const span = hi.cycle - lo.cycle;
     const t = span > 0 ? (cycle - lo.cycle) / span : 0;
     renderContinuous(index, t);
+    if (prints.length) renderPrints();
     scrubber.value = String(Math.round(cycle));
   }
 
@@ -260,6 +318,7 @@ export function mountBattlePlayback(container, report, initialCps, { autoplay = 
   });
   scrubber.addEventListener("input", () => {
     cycle = Number(scrubber.value);
+    render();
   });
 
   render();
