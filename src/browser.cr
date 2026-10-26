@@ -383,7 +383,8 @@ module CrystalRobots::Browser
         io << "\"missile_slots\":" << CrystalRobots::Battle::MIS_ROBOT << ','
         io << "\"winner\":" << field.winner.try(&.name).to_json << ','
         io << "\"robots\":[" << field.robots.map { |r|
-          {name: r.name, active: r.active, damage: r.damage, error: r.error, restarts: r.restarts, cycles: r.cycles}.to_json
+          {name: r.name, active: r.active, damage: r.damage, error: r.error, restarts: r.restarts, cycles: r.cycles,
+           output: r.output.map_with_index { |line, i| {cycle: r.output_cycles[i], text: line} }}.to_json
         }.join(",") << "],"
         io << "\"skeleton\":" << CrystalRobots::Battle.svg_skeleton(field).to_json
         io << '}'

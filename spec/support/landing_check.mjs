@@ -83,6 +83,7 @@ try {
   await viewport(1280);
   await page("Page.navigate", { url: `http://127.0.0.1:${server.address().port}/?seed=1` });
   await waitFor('document.querySelector("#battle-replay svg") !== null');
+  if (await evaluate('document.querySelector("#battle-replay .battle-output") !== null')) throw new Error("A silent battle showed a print box");
   if (!await evaluate('document.querySelector("#seed-readout").textContent.includes("1")')) throw new Error("Seed readout is missing");
   for (const [layer, content] of [["source", "source-code"], ["derivation", "derivation-view"], ["ast", "ast-view"], ["wasm", "wasm-view"], ["engine", "engine-view"]]) {
     await evaluate(`document.getElementById("tab-${layer}").click()`);
@@ -102,8 +103,46 @@ try {
     await evaluate(`document.getElementById("tab-${layer}").click()`);
     await screenshot(`landing-layer-${layer}.png`);
   }
+  const outputCheck = await evaluate(`(async () => {
+    const [{ battle }, { mountBattlePlayback }] = await Promise.all([
+      import("/wasi-shim.js"), import("/battle-playback.js")
+    ]);
+    const module = await WebAssembly.compileStreaming(fetch("/crystal-robots.wasm"));
+    const printer = { name: "Printer", source: 'main("Printer") do\\n  while true\\n    puts "hello"\\n    sleep\\n  end\\nend\\n' };
+    const idle = { name: "Idle", source: 'main("Idle") do\\n  while true\\n    sleep\\n  end\\nend\\n' };
+    const result = await battle(module, [printer, idle], 1, 300, 300, { maxFrames: 200 });
+    if (result.error || result.trapped) throw new Error(result.error || result.stderr);
+    window.checkPlayback?.stop();
+    window.checkPlayback = mountBattlePlayback(document.getElementById("battle-replay"), result, 300, { autoplay: false });
+    const legend = document.querySelectorAll("#battle-legend .legend-robot");
+    legend.forEach((item, i) => {
+      item.style.display = i >= result.robots.length ? "none" : "";
+      if (i < result.robots.length) {
+        item.querySelector("strong").textContent = result.robots[i].name;
+        item.querySelector(".legend-damage").textContent = result.robots[i].damage + "% damage";
+      }
+    });
+    document.getElementById("battle-status").textContent = "Printer says hello during this battle";
+    const scrubber = document.querySelector("#battle-replay .battle-scrubber");
+    scrubber.value = scrubber.max;
+    scrubber.dispatchEvent(new Event("input", { bubbles: true }));
+    const visible = document.querySelectorAll("#battle-replay .battle-output-line").length;
+    const label = document.querySelector("#robot-0 .battle-print-label")?.getAttribute("visibility");
+    scrubber.value = "0";
+    scrubber.dispatchEvent(new Event("input", { bubbles: true }));
+    const hidden = document.querySelectorAll("#battle-replay .battle-output-line").length;
+    scrubber.value = scrubber.max;
+    scrubber.dispatchEvent(new Event("input", { bubbles: true }));
+    return { visible, hidden, label, consoleVisible: !!document.querySelector("#battle-replay .battle-output") };
+  })()`);
+  if (!outputCheck.consoleVisible || outputCheck.visible < 2 || outputCheck.hidden !== 0 || outputCheck.label !== "visible") throw new Error(`Printed lines did not follow the scrubber: ${JSON.stringify(outputCheck)}`);
+  await evaluate('document.getElementById("tab-source").click()');
+  await viewport(1280, 900, "light"); await screenshot("replay-puts-1280-light.png");
+  await viewport(1280, 900, "dark"); await screenshot("replay-puts-1280-dark.png");
+  await viewport(360, 780, "light"); await screenshot("replay-puts-360-light.png");
+  await viewport(360, 780, "dark"); await screenshot("replay-puts-360-dark.png");
   if (errors.length) throw new Error(`Browser errors: ${errors.join(" | ")}`);
-  console.log(JSON.stringify({ ok: true, layers: 5, overflow360: false, browserErrors: 0, screenshots: screenshotDir ? 7 : 0 }));
+  console.log(JSON.stringify({ ok: true, layers: 5, overflow360: false, browserErrors: 0, printedLines: outputCheck.visible, screenshots: screenshotDir ? 11 : 0 }));
 } finally {
   ws?.close(); chrome.kill(); server.close();
   if (chrome.exitCode === null) await new Promise((resolve) => chrome.once("exit", resolve));

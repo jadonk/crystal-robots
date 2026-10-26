@@ -109,6 +109,22 @@ describe CrystalRobots::Battle do
     f.robots[0].output.first.should eq "1"
   end
 
+  it "stamps a printing loop the same way in both engines and caps its lines" do
+    printer = "main(\"Printer\") do\n  while true\n    puts loc_x\n    sleep\n  end\nend\n"
+    fiber_field = field(printer, IDLE, limit: 3_000_i64).run
+    step_field = field(printer, IDLE, limit: 3_000_i64).run_stepwise
+    fiber_robot = fiber_field.robots[0]
+    step_robot = step_field.robots[0]
+    fiber_robot.output.should eq step_robot.output
+    fiber_robot.output_cycles.should eq step_robot.output_cycles
+    fiber_robot.output.size.should eq B::Robot::MAX_OUTPUT
+    fiber_robot.output_cycles.each_with_index do |cycle, i|
+      cycle.should be > 0_i64
+      cycle.should be <= fiber_field.cycles
+      cycle.should be > fiber_robot.output_cycles[i - 1] if i > 0
+    end
+  end
+
   it "does not fill the interpreter's shared puts buffer" do
     CrystalRobots::Compiler::Interpreter.puts_clear
     field("puts 1\n", IDLE, limit: 3000_i64).run

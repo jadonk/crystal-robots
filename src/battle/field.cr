@@ -112,6 +112,7 @@ module CrystalRobots::Battle
     property cannon_dir = 0, fired = false
     getter missiles : Array(Missile)
     getter output = [] of String
+    getter output_cycles = [] of Int64
     getter error : String? = nil
     getter cycles = 0_i64
     getter restarts = 0
@@ -206,7 +207,10 @@ module CrystalRobots::Battle
     end
 
     def note(line : String) : Nil
-      @output << line if @output.size < MAX_OUTPUT
+      if @output.size < MAX_OUTPUT
+        @output << line
+        @output_cycles << @field.current_cycle
+      end
     end
 
     # Mark the robot failed and unwind its fiber.
@@ -271,6 +275,7 @@ module CrystalRobots::Battle
     getter robots = [] of Robot
     getter frames = [] of Frame
     getter cycles = 0_i64
+    getter current_cycle = 0_i64
     getter seed : UInt64
     getter limit : Int64
 
@@ -327,6 +332,7 @@ module CrystalRobots::Battle
       every = Math.max(1_i64, (@limit // MOTION_CYCLES) // @max_frames)
       updates = 0_i64
       while active.size > 1 && c < @limit
+        @current_cycle = c + (MOTION_CYCLES - movement) + 1
         @robots.each { |r| r.cycle if r.active }
         movement -= 1
         if movement == 0

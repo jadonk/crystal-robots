@@ -37,6 +37,16 @@ private def shooter_pair_request(limit : Int64, max_frames : Int32) : String
 end
 
 describe "CrystalRobots::Browser.battle_run" do
+  it "reports each robot's printed lines with cycles and leaves silent robots empty" do
+    printer = "main(\"Printer\") do\n  while true\n    puts 7\n    sleep\n  end\nend\n"
+    request = {robots: [{name: "printer", source: printer}, {name: "idle", source: BROWSER_SPEC_IDLE}], seed: 1_u64, limit: 300_i64}.to_json
+    report, _ = run_battle(request)
+    lines = report["robots"][0]["output"].as_a
+    lines.size.should be > 1
+    lines.all? { |line| line["text"].as_s == "7" && line["cycle"].as_i64 > 0 }.should be_true
+    report["robots"][1]["output"].as_a.should be_empty
+  end
+
   it "reports a frame_count matching the binary log's own header" do
     report, frames = run_battle(idle_pair_request(300_000_i64, 300))
     _version, robot_count, _slots, frame_count = frame_header(frames)

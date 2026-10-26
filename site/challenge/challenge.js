@@ -8,7 +8,7 @@ import { evaluateBattle, evaluateSeries, evaluateTournament } from "./checks.js"
 const $ = (id) => document.getElementById(id);
 const levels = [
   { title: "Move", goal: "Drive somewhere. Finish more than 100 m from where you started while target waits.", hint: "Try drive(0, 50), then keep the program running with while true and sleep." },
-  { title: "Look", goal: "Scan for target and fire a missile. It is fine if this shot misses.", hint: "Sweep angles with scan(angle, 10). When the returned range is positive, call cannon(angle, range)." },
+  { title: "Look", goal: "Scan for target and fire a missile. It is fine if this shot misses.", hint: "Sweep angles with scan(angle, 10). Print the range to see what your robot sees:\nrange = scan(angle, 10)\nputs range\nWhen range is positive, call cannon(angle, range)." },
   { title: "Hit", goal: "Make target take any damage.", hint: "A missile reaches up to 700 m. Sweep the scanner and fire again when the cannon reloads." },
   { title: "Win", goal: "Destroy target before the cycle limit.", hint: "Keep scanning and firing after the first hit. Move closer if target is out of range." },
   { title: "Moving target", goal: "Beat rabbit in at least 2 of 3 seeded fights.", hint: "Rabbit moves but does not shoot. Scan often and keep tracking it." },
