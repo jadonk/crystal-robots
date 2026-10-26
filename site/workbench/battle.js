@@ -13,8 +13,8 @@
 // `bin/crystal-robots` keep their own, much smaller ones. Reuses the
 // module `app.js` already loaded: one `crystal-robots.wasm` compile for
 // the whole page.
-import { battle } from "./wasi-shim.js";
-import { mountBattlePlayback } from "./battle-playback.js";
+import { battle } from "../wasi-shim.js";
+import { mountBattlePlayback } from "../battle-playback.js";
 import { moduleReady } from "./app.js";
 
 const MAX_ROBOTS = 4;
@@ -75,7 +75,7 @@ function createSlot(index) {
 
 async function loadExamples() {
   try {
-    const response = await fetch("./robots.json");
+    const response = await fetch("../robots.json");
     if (response.ok) examples = await response.json();
   } catch {
     examples = [];

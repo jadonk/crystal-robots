@@ -18,6 +18,20 @@ require "../src/browser"
       file.delete
     end
   end
+
+  private def wasm32_ast(source : String) : JSON::Any
+    file = File.tempfile("crd-wasm32-ast", ".cr")
+    begin
+      file.print(source)
+      file.flush
+      output = IO::Memory.new
+      status = Process.run("node", ["spec/support/wasm32_ast_check.mjs", "site/crystal-robots.wasm", file.path], output: output, error: STDERR)
+      raise "ast driver exited #{status.exit_code}" unless status.success?
+      JSON.parse(output.to_s)
+    ensure
+      file.delete
+    end
+  end
 {% end %}
 
 # `site/crystal-robots.wasm` is the browser build of `src/browser.cr`
@@ -30,6 +44,16 @@ require "../src/browser"
 # `site/wasi-shim.js`, and check its report against the native compiler
 # on the same source.
 describe "Browser build (wasm32-unknown-wasi)" do
+  wasm32_it "returns the same AST and parse error as the native export" do
+    [File.read("examples/counter.cr"), "puts {{{"].each do |source|
+      ptr = CrystalRobots::Browser.alloc(source.bytesize)
+      ptr.copy_from(source.to_unsafe, source.bytesize)
+      CrystalRobots::Browser.ast
+      native = JSON.parse(String.new(Bytes.new(CrystalRobots::Browser.ast_result_ptr, CrystalRobots::Browser.ast_result_len)))
+      wasm32_ast(source).should eq native
+    end
+  end
+
   wasm32_it "round-trips examples/test.cr identically to the native CLI" do
     source = File.read("examples/test.cr")
     report = Browser32.run(source)

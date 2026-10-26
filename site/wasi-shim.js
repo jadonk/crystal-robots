@@ -171,7 +171,7 @@ async function callEntry(compiledModule, payload, allocFn, entry, resultPtrFn, r
 // erases the derivation and checker report the first call already got.
 // Returns the merged report, or `{ trapped: true, stderr }` if `crd_run`
 // itself trapped.
-export async function run(compiledModule, source, { onStderr } = {}) {
+export async function run(compiledModule, source, { onStderr, skipInterpret = false } = {}) {
   const first = await callEntry(compiledModule, source, "crd_alloc", "crd_run", "crd_result_ptr", "crd_result_len", onStderr);
   if (first.trapped) return first;
   const { instance, report } = first;
@@ -182,7 +182,7 @@ export async function run(compiledModule, source, { onStderr } = {}) {
     report.wasm_bytes = new Uint8Array(instance.exports.memory.buffer.slice(wp, wp + wl));
   }
 
-  if (report.problems.length === 0) {
+  if (report.problems.length === 0 && !skipInterpret) {
     const second = await callEntry(
       compiledModule, source, "crd_alloc", "crd_interpret", "crd_interpret_result_ptr", "crd_interpret_result_len", onStderr,
     );
@@ -209,13 +209,20 @@ export async function check(compiledModule, source, { onStderr } = {}) {
   return result.report;
 }
 
+export async function ast(compiledModule, source, { onStderr } = {}) {
+  const result = await callEntry(
+    compiledModule, source, "crd_alloc", "crd_ast", "crd_ast_result_ptr", "crd_ast_result_len", onStderr,
+  );
+  return result.trapped ? result : result.report;
+}
+
 // Runs one match entirely in the module: `robots` is 2 to 4
 // `{ name, source }` pairs, `seed`/`limit` the same meaning as
 // `bin/crystal-robots`'s own `--seed`/`-l`. `maxFrames` (an option, like
 // `onStderr`) is the frame-log budget `Field#initialize`'s `max_frames`
 // takes (`src/battle/field.cr`); omit it for `Browser.battle_run`'s own
 // default (`BATTLE_FRAMES_DEFAULT`, two orders of magnitude larger than
-// the served `/battle` page keeps -- `site/battle.js` and
+// the served `/battle` page keeps -- `site/workbench/battle.js` and
 // `site/editor/editor.js` both rely on that default rather than passing
 // one). Returns `{ seed, limit, cycles, frame_count, robot_count,
 // missile_slots, winner, robots, skeleton, frameBuffer }` --
