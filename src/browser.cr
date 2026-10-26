@@ -1,6 +1,7 @@
 require "./compiler"
 require "./battle/step_robot"
 require "./battle/svg_replay"
+require "./tournament/tournament"
 require "json"
 
 # Browser entry points for the `wasm32-unknown-wasi` build (Phase 5b-1):
@@ -48,6 +49,8 @@ module CrystalRobots::Browser
   @@battle_input = Bytes.empty
   @@battle_result = Bytes.empty
   @@battle_frames = Bytes.empty
+  @@tournament_input = Bytes.empty
+  @@tournament_result = Bytes.empty
 
   # Reserves `len` bytes for the next call's source; the shim writes the
   # UTF-8 source into the returned offset before calling `crd_run`.
@@ -350,6 +353,99 @@ module CrystalRobots::Browser
     @@battle_result = json.to_slice
     @@battle_result.size
   end
+
+  # The tournament request uses the same JSON input/output buffer pattern as
+  # battle_run. Validate before Tournament.run: its entrant-count guard raises,
+  # and Crystal 1.18.2 cannot unwind exceptions on wasm32.
+  def tournament_alloc(len : Int32) : Pointer(UInt8)
+    @@tournament_input = Bytes.new(len)
+    @@tournament_input.to_unsafe
+  end
+
+  def tournament_result_ptr : Pointer(UInt8)
+    @@tournament_result.to_unsafe
+  end
+
+  def tournament_result_len : Int32
+    @@tournament_result.size
+  end
+
+  private def tournament_error(message : String) : Int32
+    @@tournament_result = {error: message}.to_json.to_slice
+    @@tournament_result.size
+  end
+
+  # Like battle_run, traps only on a request that is not JSON at all (the
+  # page's own bug; it builds the request with JSON.stringify). Everything a
+  # robot author can get wrong comes back as data.
+  def tournament_run : Int32
+    payload = JSON.parse(String.new(@@tournament_input))
+    request = payload.as_h?
+    return tournament_error("a tournament request must be an object") unless request
+    robots = request["robots"]?.try(&.as_a?)
+    return tournament_error("robots must be an array") unless robots
+    return tournament_error("a tournament needs 3 to 8 robots, got #{robots.size}") unless (3..8).includes?(robots.size)
+
+    raw_seed = request["seed"]?.try(&.as_i64?) || 1_i64
+    return tournament_error("seed must be non-negative") if raw_seed < 0
+    # The engine advances one seed per fight. Keep every recorded seed in
+    # battle_run's signed JSON range so its replay uses the same value.
+    return tournament_error("seed is too large to replay every fight") if raw_seed > Int64::MAX - 256
+    seed = raw_seed.to_u64
+    limit = (request["limit"]?.try(&.as_i64?) || BATTLE_LIMIT_MAX).clamp(BATTLE_LIMIT_MIN, BATTLE_LIMIT_MAX).to_i32
+
+    entries = [] of {String, String}
+    names = Set(String).new
+    robots.each do |robot|
+      fields = robot.as_h?
+      return tournament_error("each robot must have a name and source") unless fields
+      name = fields["name"]?.try(&.as_s?)
+      source = fields["source"]?.try(&.as_s?)
+      return tournament_error("each robot must have a name and source") unless name && source
+      return tournament_error("robot names must be non-empty") if name.strip.empty?
+      return tournament_error("duplicate robot name: #{name}") if names.includes?(name)
+      names << name
+      entries << {name, source}
+    end
+
+    accepted = [] of {String, String}
+    rejected = [] of NamedTuple(name: String, error: String)
+    entries.each do |(name, source)|
+      program = CrystalRobots::Compiler::Program.new(source)
+      if (parse_error = CrystalRobots::Compiler::Parser.try_parse(program))
+        rejected << {name: name, error: parse_error.message.to_s}
+      else
+        problems = CrystalRobots::Compiler::Checker.check(program)
+        if problems.empty?
+          accepted << {name, source}
+        else
+          rejected << {name: name, error: problems.map(&.to_s).join("; ")}
+        end
+      end
+    end
+    if accepted.size < 3
+      @@tournament_result = {error: "a tournament needs at least 3 valid robots, got #{accepted.size}", entrants: accepted.map(&.[0]), rejected: rejected}.to_json.to_slice
+      return @@tournament_result.size
+    end
+
+    sources = accepted.to_h
+    fight = ->(fight_names : Array(String), fight_seed : UInt64, fight_limit : Int32) {
+      fight_entries = fight_names.map { |name| {name, sources[name]} }
+      CrystalRobots::Battle::Field.new(fight_entries, seed: fight_seed, limit: fight_limit.to_i64).run_stepwise.winner.try(&.name)
+    }
+    ladder = CrystalRobots::Tournament.run(accepted.map(&.[0]), seed, limit, fight)
+    @@tournament_result = {
+      entrants:    ladder.entrants,
+      seed:        ladder.seed,
+      limit:       ladder.limit,
+      rejected:    rejected,
+      pools:       ladder.pools.map { |pool| {entrants: pool.entrants, fights: pool.fights.map { |f| {entrants: f.entrants, seed: f.seed, winner: f.winner} }, standings: pool.standings.map { |s| {name: s.name, points: s.points, rank: s.rank} }} },
+      rounds:      ladder.rounds.map { |round| {label: round.label, matches: round.matches.map { |match| {entrants: match.entrants, games: match.games.map { |g| {entrants: g.entrants, seed: g.seed, winner: g.winner} }, winner: match.winner} }} },
+      champion:    ladder.champion,
+      fight_count: ladder.fight_count,
+    }.to_json.to_slice
+    @@tournament_result.size
+  end
 end
 
 # Allocates `len` bytes and returns their address; the shim writes the
@@ -444,4 +540,22 @@ end
 
 fun crd_battle_frames_len : Int32
   CrystalRobots::Browser.battle_frames_len
+end
+
+# The complete pool-and-bracket tournament report for the request written
+# through crd_tournament_alloc.
+fun crd_tournament_alloc(len : Int32) : UInt8*
+  CrystalRobots::Browser.tournament_alloc(len)
+end
+
+fun crd_tournament_run : Int32
+  CrystalRobots::Browser.tournament_run
+end
+
+fun crd_tournament_result_ptr : UInt8*
+  CrystalRobots::Browser.tournament_result_ptr
+end
+
+fun crd_tournament_result_len : Int32
+  CrystalRobots::Browser.tournament_result_len
 end

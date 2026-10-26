@@ -241,3 +241,13 @@ export async function battle(compiledModule, robots, seed, limit, cps, { onStder
   report.frameBuffer = instance.exports.memory.buffer.slice(fp, fp + fl);
   return report;
 }
+
+// Runs pool play and the best-of-3 bracket in one WASM call. Each recorded
+// fight's entrants and seed can be passed to battle() to replay that fight.
+export async function tournament(compiledModule, robots, seed, limit, { onStderr } = {}) {
+  const payload = JSON.stringify({ robots, seed, limit });
+  const result = await callEntry(
+    compiledModule, payload, "crd_tournament_alloc", "crd_tournament_run", "crd_tournament_result_ptr", "crd_tournament_result_len", onStderr,
+  );
+  return result.trapped ? result : result.report;
+}

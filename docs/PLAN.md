@@ -412,6 +412,13 @@ pending with their reason, same contract as the wasmer specs.
    instance (`src/battle/step_robot.cr`), exported as `crd_battle_run`,
    drawn with the served page's own SVG renderer (`Battle.svg_animation`,
    `src/battle/svg_replay.cr`) rather than a second one in JavaScript.
+
+   Slice 1 of browser tournament support exports `crd_tournament_run` with
+   matching request and result buffers. It runs pool play and the best-of-3
+   bracket inside the WASM module using the stepwise battle engine, returning
+   each fight's entrants and seed so a later page can replay it with
+   `crd_battle_run`. Invalid entrants are returned as data before the
+   tournament starts; no server call is needed.
 2. **`-p PORT`.** Starts an `HTTP::Server` using the same router through the
    `Web::HTTP` adapter. Stays in scope, secondary to the browser-hosted
    compiler above.

@@ -2,6 +2,23 @@ require "./spec_helper"
 require "../src/battle/step_robot"
 require "../src/battle/svg_replay"
 require "../src/web/robot_api"
+require "../src/browser"
+
+{% if flag?(:crd_wasm32) %}
+  private def wasm32_tournament(request : String) : JSON::Any
+    file = File.tempfile("crd-wasm32-tournament", ".json")
+    begin
+      file.print(request)
+      file.flush
+      output = IO::Memory.new
+      status = Process.run("node", ["spec/support/wasm32_tournament_check.mjs", "site/crystal-robots.wasm", file.path], output: output, error: STDERR)
+      raise "tournament driver exited #{status.exit_code}" unless status.success?
+      JSON.parse(output.to_s)
+    ensure
+      file.delete
+    end
+  end
+{% end %}
 
 # `site/crystal-robots.wasm` is the browser build of `src/browser.cr`
 # (Phase 5b-1): the tokenizer/parser, checker and WASM emitter (`crd_run`)
@@ -113,6 +130,18 @@ describe "Browser build (wasm32-unknown-wasi)" do
     bad_robot["active"].as_bool.should be_false
     bad_robot["error"].as_s.should contain "Cannot reduce"
     report["winner"].as_s.should eq "idle"
+  end
+
+  wasm32_it "runs the same complete tournament report as native Browser.tournament_run" do
+    robots = %w(sniper rook rabbit counter).map { |name| {name: name, source: File.read("examples/#{name}.cr")} }
+    request = {robots: robots, seed: 3, limit: 3000}.to_json
+    ptr = CrystalRobots::Browser.tournament_alloc(request.bytesize)
+    ptr.copy_from(request.to_unsafe, request.bytesize)
+    CrystalRobots::Browser.tournament_run
+    native = JSON.parse(String.new(Bytes.new(CrystalRobots::Browser.tournament_result_ptr, CrystalRobots::Browser.tournament_result_len)))
+    wasm = wasm32_tournament(request)
+    wasm["trapped"]?.should be_nil
+    wasm.should eq native
   end
 
   # Phase 6: `site/cheat-sheet.json` (`scripts/build_cheat_sheet.cr`, a
