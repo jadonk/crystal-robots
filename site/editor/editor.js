@@ -8,6 +8,7 @@
 // and fight the buffer against opponents (`crd_battle_run`, via
 // `battle()`, the same call `../workbench/battle.js` makes). No framework, no CDN,
 // same CSP as the rest of `site/` (no inline script). Phase 6.
+import { friendlyError } from "../friendly-errors.js";
 import { battle } from "../battle-client.js";
 import { createEditorSurface } from "./shared.js";
 import { loadSavedSource, saveSource } from "../robot-store.js";
@@ -30,7 +31,7 @@ const problemsEl = document.getElementById("problems");
 const cheatEl = document.getElementById("cheat-sheet");
 
 async function loadModule() {
-  statusEl.textContent = "Loading crystal-robots.wasm…";
+  statusEl.textContent = "Getting the browser ready…";
   const response = await fetch("../crystal-robots.wasm");
   if (!response.ok) {
     throw new Error(`fetch crystal-robots.wasm: ${response.status}`);
@@ -163,7 +164,7 @@ function renderStandings(report) {
     li.textContent = r.active
       ? `${r.name}: ${r.damage}% damage${isWinner ? " — winner" : ""}`
       : `${r.name}: destroyed${r.error ? ` (${r.error})` : ""}`;
-    li.textContent += ` · running ${r.engine === "wasm" ? "as WebAssembly" : "in the interpreter"}`;
+
     standingsEl.appendChild(li);
   });
   if (!report.winner && report.robots.every((r) => !r.active)) {
@@ -198,14 +199,14 @@ async function runFight() {
     const result = await battle(compiledModule, contestants, seed, limit, cps, { maxFrames: MAX_FRAMES });
     if (result.trapped) {
       fightStatusEl.textContent = "Fight request failed.";
-      standingsEl.textContent = result.stderr || "(the module aborted with no message)";
+      standingsEl.textContent = friendlyError(result.stderr || "(the fight stopped without a message)");
       return;
     }
     if (result.error) {
       fightStatusEl.textContent = result.error;
       return;
     }
-    fightStatusEl.textContent = `${result.cycles} cycles, ${result.frame_count} frames recorded.`;
+    fightStatusEl.textContent = "Fight recorded. Watch or pause the replay.";
     activePlayback = mountBattlePlayback(replayEl, result, cps);
     renderStandings(result);
   } finally {
@@ -215,7 +216,7 @@ async function runFight() {
 
 fightButton.addEventListener("click", () => {
   runFight().catch((e) => {
-    fightStatusEl.textContent = `Error: ${e.message}`;
+    fightStatusEl.textContent = `Problem: ${friendlyError(e.message)}`;
   });
 });
 
@@ -242,6 +243,6 @@ async function init() {
 }
 
 init().catch((e) => {
-  statusEl.textContent = `Error: ${e.message}`;
-  fightStatusEl.textContent = `Error: ${e.message}`;
+  statusEl.textContent = `Problem: ${friendlyError(e.message)}`;
+  fightStatusEl.textContent = `Problem: ${friendlyError(e.message)}`;
 });

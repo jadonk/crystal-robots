@@ -18,7 +18,7 @@ CHROMIUM_BIN = if (configured_bin = ENV["CHROMIUM_BIN"]?) && !configured_bin.emp
                end
 
 describe "site/editor gutter (headless)" do
-  if bin = CHROMIUM_BIN
+  if (bin = CHROMIUM_BIN) && Process.find_executable("node")
     it "never soft-wraps a line and keeps the gutter's scrollTop synced to the textarea's" do
       output = IO::Memory.new
       errors = IO::Memory.new
@@ -28,6 +28,6 @@ describe "site/editor gutter (headless)" do
       report["ok"].as_bool.should be_true
     end
   else
-    pending "never soft-wraps a line and keeps the gutter's scrollTop synced to the textarea's (no browser found via CHROMIUM_BIN or chromium, chromium-browser, google-chrome, google-chrome-stable)"
+    pending "never soft-wraps a line and keeps the gutter's scrollTop synced to the textarea's (needs node and a browser: CHROMIUM_BIN, chromium, chromium-browser, google-chrome or google-chrome-stable)"
   end
 end

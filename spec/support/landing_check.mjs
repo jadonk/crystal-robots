@@ -83,14 +83,14 @@ try {
   await viewport(1280);
   await page("Page.navigate", { url: `http://127.0.0.1:${server.address().port}/?seed=1` });
   await waitFor('document.querySelector("#battle-replay svg") !== null');
-  if (!await evaluate('[...document.querySelectorAll(".legend-engine")].every((el) => el.textContent === "running as WebAssembly")')) throw new Error("Landing robots did not use WebAssembly");
+  if (!await evaluate('[...document.querySelectorAll(".legend-engine")].every((el) => el.textContent === "compiled to WebAssembly")')) throw new Error("Landing robots did not use WebAssembly");
   if (await evaluate('document.querySelector("#battle-replay .battle-output") !== null')) throw new Error("A silent battle showed a print box");
   if (!await evaluate('document.querySelector("#seed-readout").textContent.includes("1")')) throw new Error("Seed readout is missing");
   for (const [layer, content] of [["source", "source-code"], ["derivation", "derivation-view"], ["ast", "ast-view"], ["wasm", "wasm-view"], ["engine", "engine-view"]]) {
     await evaluate(`document.getElementById("tab-${layer}").click()`);
     await waitFor(`document.getElementById("${content}").textContent.trim().length > 30`);
     if (layer === "wasm" && !await evaluate('document.getElementById("wasm-view").textContent.includes("br_table") && document.getElementById("wasm-view").textContent.includes("step: function")')) throw new Error("Resumable module listing missing");
-    if (layer === "engine" && !await evaluate('document.getElementById("engine-view").textContent.includes("WebAssembly")')) throw new Error("Engine layer missing WebAssembly marker");
+    if (layer === "engine" && !await evaluate('document.getElementById("engine-view").textContent.includes("compiled to WebAssembly")')) throw new Error("Engine layer missing WebAssembly marker");
     if (!await evaluate(`!document.getElementById("panel-${layer}").hidden`)) throw new Error(`${layer} panel hidden`);
   }
   await evaluate('document.getElementById("tab-wasm").click()');
@@ -150,11 +150,14 @@ try {
   await viewport(360, 780, "light"); await screenshot("replay-puts-360-light.png");
   await viewport(360, 780, "dark"); await screenshot("replay-puts-360-dark.png");
   await page("Page.navigate", { url: `http://127.0.0.1:${server.address().port}/?seed=1&engine=interpreter` });
-  await waitFor('[...document.querySelectorAll(".legend-engine")].length === 4 && [...document.querySelectorAll(".legend-engine")].every((el) => el.textContent === "running in the interpreter")');
+  await waitFor('[...document.querySelectorAll(".legend-engine")].length === 4 && [...document.querySelectorAll(".legend-engine")].every((el) => el.textContent === "step-by-step mode")');
   if (errors.length) throw new Error(`Browser errors: ${errors.join(" | ")}`);
   console.log(JSON.stringify({ ok: true, layers: 5, overflow360: false, browserErrors: 0, printedLines: outputCheck.visible, screenshots: screenshotDir ? 15 : 0 }));
 } finally {
   ws?.close(); chrome.kill(); server.close();
   if (chrome.exitCode === null) await new Promise((resolve) => chrome.once("exit", resolve));
-  await rm(profile, { recursive: true, force: true });
+  // Chrome's helper processes can keep writing to the profile briefly after
+  // the main process exits; a leftover temp dir must not fail a passed check.
+  try { await rm(profile, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }); }
+  catch (error) { console.error(`note: could not remove ${profile}: ${error.code || error}`); }
 }

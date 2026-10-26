@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Write a robot, watch it fight, and explore how its instructions work.">
 <meta name="theme-color" content="#101b2a">
-<title>crystal-robots · Play</title>
+<title>Write a robot and watch it fight · crystal-robots</title>
 <link rel="stylesheet" href="./site.css">
 </head>
 <body class="landing">
@@ -19,7 +20,7 @@
   <a href="https://github.com/jadonk/crystal-robots">GitHub</a>
 </nav>
 <main class="site-shell">
-  <h1 class="landing-headline">Robots you program, compiled to WebAssembly, fighting in your browser.</h1>
+  <h1 class="landing-headline">Write a robot. Watch it fight in your browser.</h1>
   <section class="arena-section" aria-label="Live battle">
     <div class="arena-frame"><div id="battle-replay" aria-label="Battle replay"></div><div id="battle-loading" role="status">Preparing the battlefield…</div></div>
     <div class="arena-meta">
@@ -29,24 +30,24 @@
     <p id="battle-status" class="battle-status" role="status"></p>
   </section>
   <section class="layers-section" aria-labelledby="layers-title">
-    <div class="section-heading"><span class="eyebrow">FROM IDEA TO ARENA</span><h2 id="layers-title">Peel back the layers <span id="selected-robot"></span></h2></div>
+    <div class="section-heading"><span class="eyebrow">FROM IDEA TO ARENA</span><h2 id="layers-title">See how your robot works <span id="selected-robot"></span></h2></div>
     <div class="layer-tabs" role="tablist" aria-label="Robot layers">
-      <button type="button" role="tab" id="tab-source" aria-controls="panel-source" aria-selected="true" data-layer="source"><span>01</span> Source</button>
-      <button type="button" role="tab" id="tab-derivation" aria-controls="panel-derivation" aria-selected="false" data-layer="derivation"><span>02</span> Tokens</button>
-      <button type="button" role="tab" id="tab-ast" aria-controls="panel-ast" aria-selected="false" data-layer="ast"><span>03</span> Syntax tree</button>
+      <button type="button" role="tab" id="tab-source" aria-controls="panel-source" aria-selected="true" data-layer="source"><span>01</span> Your code</button>
+      <button type="button" role="tab" id="tab-derivation" aria-controls="panel-derivation" aria-selected="false" data-layer="derivation"><span>02</span> Code pieces</button>
+      <button type="button" role="tab" id="tab-ast" aria-controls="panel-ast" aria-selected="false" data-layer="ast"><span>03</span> Code map</button>
       <button type="button" role="tab" id="tab-wasm" aria-controls="panel-wasm" aria-selected="false" data-layer="wasm"><span>04</span> WebAssembly</button>
-      <button type="button" role="tab" id="tab-engine" aria-controls="panel-engine" aria-selected="false" data-layer="engine"><span>05</span> Engine</button>
+      <button type="button" role="tab" id="tab-engine" aria-controls="panel-engine" aria-selected="false" data-layer="engine"><span>05</span> Battle steps</button>
     </div>
     <div class="layer-panel" id="panel-source" role="tabpanel" aria-labelledby="tab-source"><p>Each robot begins as a small program. Change this one in the editor and send it back into battle. <a id="open-editor" href="./editor/">Open in the editor ↗</a></p><pre id="source-code"></pre></div>
-    <div class="layer-panel" id="panel-derivation" role="tabpanel" aria-labelledby="tab-derivation" hidden><p>Glyphs are compact symbols for tokens and grammar rules; each pass folds part of the string until one program glyph remains.</p><div class="derivation-tools"><button type="button" id="derivation-play">Play passes</button><button type="button" id="derivation-step">Next pass</button><span id="derivation-count"></span></div><pre id="derivation-view"></pre></div>
-    <div class="layer-panel" id="panel-ast" role="tabpanel" aria-labelledby="tab-ast" hidden><p>The final glyph holds a tree of nested expressions and statements. Open a branch to inspect it.</p><div id="ast-view" class="ast-view"></div></div>
-    <div class="layer-panel" id="panel-wasm" role="tabpanel" aria-labelledby="tab-wasm" hidden><p id="wasm-intro">This is the robot program that fights. It can pause after each cycle so every robot gets a turn. Open a section to see its bytes and instructions.</p><div id="wasm-view" class="wasm-view"></div></div>
-    <div class="layer-panel" id="panel-engine" role="tabpanel" aria-labelledby="tab-engine" hidden><p>The engine advances robots one charged cycle at a time, interleaving their work with movement and missile impacts. Read about the <a href="./manual/#battlefield">battlefield</a> and <a href="./manual/#works">how it works</a>.</p><dl id="engine-view" class="engine-stats"></dl></div>
+    <div class="layer-panel" id="panel-derivation" role="tabpanel" aria-labelledby="tab-derivation" hidden><p>The code is split into small pieces. Watch the steps that join them into one set of instructions.</p><div class="derivation-tools"><button type="button" id="derivation-play">Play passes</button><button type="button" id="derivation-step">Next pass</button><span id="derivation-count"></span></div><pre id="derivation-view"></pre></div>
+    <div class="layer-panel" id="panel-ast" role="tabpanel" aria-labelledby="tab-ast" hidden><p>This map shows which instructions belong inside others. Open a branch to explore.</p><div id="ast-view" class="ast-view"></div></div>
+    <div class="layer-panel" id="panel-wasm" role="tabpanel" aria-labelledby="tab-wasm" hidden><p id="wasm-intro">WebAssembly is a fast form of your robot that the browser can run. It pauses so every robot gets a turn. The sections below are parts of that program: “import” means a command it uses from the battle, and “export” means a command it gives back.</p><div id="wasm-view" class="wasm-view"></div></div>
+    <div class="layer-panel" id="panel-engine" role="tabpanel" aria-labelledby="tab-engine" hidden><p>The battle gives robots turns while they move and fire. Read about the <a href="./manual/#battlefield">battlefield</a> and <a href="./manual/#works">how it works</a>.</p><dl id="engine-view" class="engine-stats"></dl></div>
   </section>
   <section class="deeper" aria-label="Explore further">
     <a class="primary-card" href="./challenge/"><span>01 / START HERE</span><strong>Can your robot win the tournament?</strong><span>Seven guided levels, real battles ↗</span></a>
     <a href="./tournament/"><span>02 / COMPETE</span><strong>Tournament</strong><span>Pick opponents and replay every fight ↗</span></a>
-    <a href="./manual/"><span>03 / LEARN</span><strong>Manual</strong><span>Rules, language, and robot API ↗</span></a>
+    <a href="./manual/"><span>03 / LEARN</span><strong>Manual</strong><span>Rules, first robot, and commands ↗</span></a>
     <a href="./editor/"><span>04 / CREATE</span><strong>Editor</strong><span>Fork a robot and test your code ↗</span></a>
     <a href="./workbench/"><span>05 / EXPLORE</span><strong>Workbench</strong><span>Run code and build a battle ↗</span></a>
   </section>

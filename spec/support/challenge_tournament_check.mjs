@@ -77,7 +77,7 @@ try {
   async function screenshot(name) {
     if (!screenshotDir) return;
     await mkdir(screenshotDir, { recursive: true });
-    const { data } = await page("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });
+    const { data } = await page("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
     await writeFile(join(screenshotDir, name), Buffer.from(data, "base64"));
   }
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -85,11 +85,10 @@ try {
   await page("Page.navigate", { url: `${base}/tournament/?seed=1&names=counter,rabbit,rook,target` });
   await waitFor('document.querySelector("#bracket .bracket-match") !== null', 180);
   if (!await evaluate('document.querySelector("#champion").textContent.trim().length > 3')) throw new Error("Champion missing");
-  const recorded = await evaluate('document.querySelector("#pools .fight-link").textContent.split(" · ").at(-1)');
-  await evaluate('document.querySelector("#pools .fight-link").click()');
+  const recorded = await evaluate('document.querySelector("#pools details:first-child .fight-link:last-child").textContent.split(" · ").at(-1)');
+  await evaluate('document.querySelector("#pools details:first-child").open = true; document.querySelector("#pools details:first-child .fight-link:last-child").click()');
   await waitFor('document.querySelector("#replay svg") !== null', 90);
   if (!await evaluate('document.querySelector("#replay-result").textContent.includes("recorded winner")')) throw new Error("Replay winner missing");
-  if (!await evaluate('document.querySelector("#replay-result").textContent.includes("running as WebAssembly")')) throw new Error("Tournament replay did not use WebAssembly");
   const shown = await evaluate('document.querySelector("#replay-result").textContent.match(/Winner: (.*?) ·/)[1]');
   if (shown !== recorded) throw new Error(`Winner mismatch: ${shown} vs ${recorded}`);
   for (const theme of ["light", "dark"]) for (const width of [1280, 360]) {
@@ -104,16 +103,62 @@ try {
   await evaluate('document.getElementById("editor-source").value = `main("Your robot") do\n  drive(0, 50)\n  while true\n    sleep\n  end\nend\n`; document.getElementById("editor-source").dispatchEvent(new Event("input", {bubbles:true})); document.getElementById("check-level").click()');
   await waitFor('document.getElementById("challenge-status").textContent === "Level passed!"', 90);
   if (!await evaluate('document.querySelector("#challenge-replay svg") !== null')) throw new Error("Challenge replay missing");
-  if (!await evaluate('document.getElementById("battle-result").textContent.includes("running as WebAssembly")')) throw new Error("Challenge did not use WebAssembly");
   for (const theme of ["light", "dark"]) for (const width of [1280, 360]) {
     await viewport(width, width === 360 ? 780 : 900, theme);
     if (await evaluate('document.documentElement.scrollWidth > document.documentElement.clientWidth')) throw new Error(`Challenge overflow at ${width}/${theme}`);
     await screenshot(`challenge-${width}-${theme}.png`);
   }
+  await viewport(1280);
+  await page("Page.navigate", { url: `${base}/manual/` });
+  await waitFor('document.querySelector("#api-groups .api-group") !== null', 90);
+  for (const theme of ["light", "dark"]) for (const width of [1280, 360]) {
+    await viewport(width, width === 360 ? 780 : 900, theme);
+    if (await evaluate('document.documentElement.scrollWidth > document.documentElement.clientWidth')) throw new Error(`Manual overflow at ${width}/${theme}`);
+    await evaluate('document.documentElement.style.scrollBehavior = "auto"; window.scrollTo(0, 0)');
+    await screenshot(`manual-top-${width}-${theme}.png`);
+    await evaluate('document.querySelector("#battlefield").scrollIntoView({behavior:"instant",block:"start"})');
+    await screenshot(`manual-battlefield-${width}-${theme}.png`);
+    await evaluate('document.querySelectorAll("#battlefield .manual-diagram")[1].scrollIntoView({behavior:"instant",block:"start"})');
+    await screenshot(`manual-scanner-${width}-${theme}.png`);
+  }
+  await viewport(1280);
+  await page("Page.navigate", { url: `${base}/workbench/` });
+  await waitFor('document.querySelector("#run") && !document.querySelector("#run").disabled', 90);
+  await evaluate('document.querySelector("#source").value = `main("Scout") do\n  drive(0, 50)\n  while true\n    puts loc_x\n    sleep\n  end\nend`; document.querySelector("#run").click()');
+  await waitFor('document.querySelector("#robot-replay svg") !== null', 90);
+  if (!await evaluate('document.querySelector("#robot-result").textContent.includes("Printed:")')) throw new Error("Workbench output missing");
+  await evaluate('document.querySelector("#robot-replay .battle-playback-controls button").click(); const scrubber = document.querySelector("#robot-replay .battle-scrubber"); scrubber.value = scrubber.max; scrubber.dispatchEvent(new Event("input", {bubbles:true}))');
+  const consoleEdge = await evaluate(`(() => {
+    const box = document.querySelector("#robot-replay .battle-output");
+    const top = box.getBoundingClientRect().top + parseFloat(getComputedStyle(box).paddingTop);
+    const first = [...box.children].find((line) => line.getBoundingClientRect().bottom > top);
+    return { top, lineTop: first?.getBoundingClientRect().top, scrollTop: box.scrollTop, text: first?.textContent };
+  })()`);
+  if (consoleEdge.lineTop < consoleEdge.top - 1) throw new Error(`Printed line clips at top: ${JSON.stringify(consoleEdge)}`);
+  if (!await evaluate(`(() => {
+    const svg = document.querySelector("#robot-replay svg").getBoundingClientRect();
+    return [...document.querySelectorAll("#robot-replay svg g[id^=robot-] > text:not(.battle-print-label)")].every((label) => {
+      const box = label.getBoundingClientRect();
+      return box.left >= svg.left - 1 && box.right <= svg.right + 1;
+    });
+  })()`)) throw new Error("A robot name clipped outside the replay");
+  for (const theme of ["light", "dark"]) for (const width of [1280, 360]) {
+    await viewport(width, width === 360 ? 780 : 900, theme);
+    if (await evaluate('document.documentElement.scrollWidth > document.documentElement.clientWidth')) throw new Error(`Workbench overflow at ${width}/${theme}`);
+    await evaluate('document.documentElement.style.scrollBehavior = "auto"; window.scrollTo(0, 0)');
+    await screenshot(`workbench-${width}-${theme}.png`);
+    await evaluate('document.querySelector("#robot-preview").scrollIntoView({behavior:"instant",block:"start"})');
+    await screenshot(`workbench-preview-${width}-${theme}.png`);
+    await evaluate('document.querySelector("#robot-replay .battle-output").scrollIntoView({behavior:"instant",block:"start"})');
+    await screenshot(`workbench-console-${width}-${theme}.png`);
+  }
   if (errors.length) throw new Error(`Browser errors: ${errors.join(" | ")}`);
-  console.log(JSON.stringify({ ok: true, recorded, shown, overflow360: false, browserErrors: 0, screenshots: screenshotDir ? 8 : 0 }));
+  console.log(JSON.stringify({ ok: true, recorded, shown, overflow360: false, browserErrors: 0, screenshots: screenshotDir ? 32 : 0 }));
 } finally {
   ws?.close(); chrome.kill(); server.close();
   if (chrome.exitCode === null) await new Promise((resolve) => chrome.once("exit", resolve));
-  await rm(profile, { recursive: true, force: true });
+  // Chrome's helper processes can keep writing to the profile briefly after
+  // the main process exits; a leftover temp dir must not fail a passed check.
+  try { await rm(profile, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }); }
+  catch (error) { console.error(`note: could not remove ${profile}: ${error.code || error}`); }
 }

@@ -107,7 +107,7 @@ export function mountBattlePlayback(container, report, initialCps, { autoplay = 
   playButton.type = "button";
   playButton.textContent = "Pause";
   const speedLabel = document.createElement("label");
-  speedLabel.append("Speed, cycles/second ");
+  speedLabel.append("Replay speed ");
   const speedInput = document.createElement("input");
   speedInput.type = "number";
   speedInput.min = "1";
@@ -148,6 +148,7 @@ export function mountBattlePlayback(container, report, initialCps, { autoplay = 
     robotEls.push({
       group,
       label,
+      nameLabel: group.querySelector("text:not(.battle-print-label)"),
       scan: svg.getElementById(`scan-${i}`),
       body: svg.getElementById(`body-${i}`),
       heading: svg.getElementById(`heading-${i}`),
@@ -226,8 +227,21 @@ export function mountBattlePlayback(container, report, initialCps, { autoplay = 
       const heading = r0.heading + shortestDelta(r0.heading, r1.heading) * t;
       robotEls[i].group.setAttribute("transform", `translate(${x} ${1000 - y})`);
       robotEls[i].heading.setAttribute("transform", `rotate(${-heading})`);
-      robotEls[i].label.setAttribute("x", x > 500 ? "-24" : "24");
-      robotEls[i].label.setAttribute("text-anchor", x > 500 ? "end" : "start");
+      const nameLabel = robotEls[i].nameLabel;
+      if (nameLabel) {
+        const halfWidth = nameLabel.getComputedTextLength() / 2;
+        const center = Math.max(halfWidth + 10, Math.min(990 - halfWidth, x));
+        nameLabel.setAttribute("x", String(center - x));
+        nameLabel.setAttribute("y", y > 950 ? "42" : "-24");
+      }
+      // The label lives in the translated robot group. Measure its real width
+      // so long printed notes also stay inside the field.
+      const label = robotEls[i].label;
+      const width = label.getComputedTextLength();
+      const toLeft = x + 24 + width > 990 && x - 24 - width >= 10;
+      const anchorX = toLeft ? Math.max(10 + width, x - 24) : Math.min(990 - width, x + 24);
+      label.setAttribute("x", String(anchorX - x));
+      label.setAttribute("text-anchor", "start");
       robotEls[i].label.setAttribute("y", y > 915 ? "65" : "-68");
     });
   }
@@ -239,6 +253,16 @@ export function mountBattlePlayback(container, report, initialCps, { autoplay = 
   let raf = null;
   let lastNow = null;
   let shownPrints = 0;
+
+  function alignPrintedLines() {
+    if (!output.children.length) return;
+    const top = output.getBoundingClientRect().top + parseFloat(getComputedStyle(output).paddingTop);
+    const firstVisible = [...output.children].find((line) => line.getBoundingClientRect().bottom > top);
+    if (firstVisible) {
+      const clipped = top - firstVisible.getBoundingClientRect().top;
+      if (clipped > 0) output.scrollTop = Math.max(0, output.scrollTop - clipped);
+    }
+  }
 
   function renderPrints() {
     let upto = 0;
@@ -257,6 +281,7 @@ export function mountBattlePlayback(container, report, initialCps, { autoplay = 
         output.appendChild(line);
       }
       output.scrollTop = output.scrollHeight;
+      alignPrintedLines();
     }
     shownPrints = upto;
 
@@ -319,6 +344,7 @@ export function mountBattlePlayback(container, report, initialCps, { autoplay = 
   scrubber.addEventListener("input", () => {
     cycle = Number(scrubber.value);
     render();
+    alignPrintedLines();
   });
 
   render();

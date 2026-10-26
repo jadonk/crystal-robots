@@ -12,8 +12,12 @@ turn your code into instructions a machine can understand.
 `crystal-robots` is my exploration of depending on my own programming tools, taking control over a programming
 language itself.
 
-* [Source, docs and the hosted app](https://ollama.openbeagle.org/crystal-robots) (Fossil; the app is under `/ext/crystal-robots`)
-* Mirrors: [GitLab](https://openbeagle.org/jkridner/crystal-robots), [GitHub](https://github.com/jadonk/crystal-robots) (read-only copies of the Fossil repository)
+* [Play, read the manual, and try a challenge](https://jadonk.github.io/crystal-robots/)
+* [Source on GitHub](https://github.com/jadonk/crystal-robots)
+
+## Following along
+
+The project’s story is told [commit by commit on the main branch](https://github.com/jadonk/crystal-robots/commits/main) and in the [project blog](https://jadonk.github.io/crystal-robots/blog/).
 
 ## Installation
 
@@ -38,11 +42,11 @@ bin/crystal-robots -c examples/sniper.cr --ticks -o sniper.wasm # also import en
 GATEWAY_INTERFACE=CGI/1.1 bin/crystal-robots        # serve the web app (Fossil does this for you)
 ```
 
-The primary method for using `crystal-robots` is by using my hosted server. The compiler is built into the web page. You can provide sources for the various robots and watch them battle it out.
+The easiest way to play is the [public site](https://jadonk.github.io/crystal-robots/). The compiler is built into the web page. You can provide sources for the various robots and watch them battle it out.
 
 There are a lot of other methods to battle your `crystal-robots` and each peels back a layer to teach you more about full-stack programming.
 
-### Hosted by Fossil (the primary way)
+### Fossil server for contributors
 
 The web app is a [Fossil CGI extension](https://fossil-scm.org/home/doc/trunk/www/serverext.wiki):
 Fossil serves the repository, the docs and the app, and supplies the login.

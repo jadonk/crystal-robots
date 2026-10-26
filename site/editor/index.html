@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>crystal-robots: robot editor</title>
+<title>Write and test a robot · crystal-robots</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Change a robot, check your code, and test it in a real battle.">
 <link rel="stylesheet" href="../site.css">
 <style>
   body { font-family: system-ui, sans-serif; max-width: 72rem; margin: 2rem auto; padding: 0 1rem; color: var(--ink); background: var(--page); }
@@ -52,11 +53,7 @@
 <body>
 <nav class="site-nav" aria-label="Main navigation"><a class="brand" href="../">crystal-robots</a><a href="../">Play</a><a href="../challenge/">Challenge</a><a href="../tournament/">Tournament</a><a href="../workbench/">Workbench</a><a href="../editor/" aria-current="page">Editor</a><a href="../manual/">Manual</a><a href="https://github.com/jadonk/crystal-robots">GitHub</a></nav>
 <h1>crystal-robots: robot editor</h1>
-<p class="lede">
-  Fork an example or a saved robot, edit it here, and get checked as you type &mdash; the same tokenizer,
-  parser and checker as the <a href="../workbench/">in-browser compiler</a>, running entirely in this page, no server
-  round trip. See <a href="../workbench/">the compiler page</a> for the full tokens/derivation/WASM view of a single run.
-</p>
+<p class="lede">Pick a robot, change its instructions, and see problems as you type. Press Fight to test it against other robots in your browser.</p>
 
 <div class="picker-row">
   <label for="picker">Start from</label>
@@ -81,15 +78,14 @@
 
 <section id="fight">
   <h2>Fight</h2>
-  <p class="lede">Feed the buffer above into the battlefield against up to three opponents &mdash; the same
-    physics and interpreter <code>bin/crystal-robots</code>'s own matches use, run entirely in this page.</p>
+  <p class="lede">Send your robot into a real fight against up to three opponents.</p>
 
   <div id="fight-slots"></div>
 
   <div class="battle-controls">
     <label>Seed <input type="number" id="fight-seed" value="1" min="0" step="1"></label>
-    <label>Cycle limit <input type="number" id="fight-limit" value="60000" min="15" max="500000" step="1"></label>
-    <label>Initial replay speed, cycles/second (adjustable during playback) <input type="number" id="fight-cps" value="300" min="1" max="20000" step="1"></label>
+    <label>Fight length <input type="number" id="fight-limit" value="60000" min="15" max="500000" step="1"></label>
+    <label>Replay speed <input type="number" id="fight-cps" value="300" min="1" max="20000" step="1"></label>
   </div>
   <div>
     <button id="fight-run" disabled>Fight</button>
