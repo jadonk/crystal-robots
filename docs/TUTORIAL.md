@@ -90,7 +90,7 @@ three gated groups every phase report already named).
 2. `c3d286f75f` **C.2 robot motion physics** — `Battle::Field`, ported from CROBOTS's `motion.c`/`main.c`: acceleration, the turn-speed cutoff, wall/robot collision.
 3. `d051dc638d` **C.3 missiles** — firing, flight, explosion-radius damage, ported from `intrins.c`/`motion.c`; a real quirk (a negative-range cannon call "succeeds" without firing) preserved on purpose.
 4. `5b632885d3` **C.4 the scanner and a real Host** — `Field#scan`, `RobotHost`; a real robot's source runs through the interpreter and moves the field's own robot.
-5. `d70d3ea832` **C.5 interleaving robots into real matches** — `Battle::Match`; a raw `Fiber`/`resume`/`yield` loop does not pause the way it looks like it should on this runtime, replaced with a `Channel` round-trip — confirmed by a minimal repro before trusting it.
+5. `d70d3ea82a` **C.5 interleaving robots into real matches** — `Battle::Match`; a raw `Fiber`/`resume`/`yield` loop does not pause the way it looks like it should on this runtime, replaced with a `Channel` round-trip — confirmed by a minimal repro before trusting it.
 6. `dbca0f8529` **C.6 CLI wiring for matches, and a real crash-safety fix** — `-m -l --seed`; a robot's runtime crash used to hang the match scheduler forever, fixed and pinned by a spec.
 
 ### Phase D — the Fossil + CGI web layer
@@ -125,7 +125,7 @@ three gated groups every phase report already named).
 2. `8321d270aa` **W.1 the wasm32 spike** — `src/browser.cr` built for `wasm32-unknown-wasi`; the no-exceptions finding (a `rescue` around a `raise` in the same function still traps) confirmed twice by testing the real module, not the source.
 3. `24da0e6943` **W.2 the static page and WASI shim** — `site/wasi-shim.js` (7 WASI imports, no framework), `site/index.html`, `site/app.js`; verified end to end through a small Node driver.
 4. `175b9029c9` **W.3 the wasm32 spec and the ci.sh flag** — `spec/wasm32_spec.cr` drives the real shim through node; `--with-wasm32` installs the wasm32-wasi-libs sysroot.
-5. `4b179e1971` **W.4 the GitHub Pages deploy workflow** — `.github/workflows/pages.yml`, byte-for-byte trunk's own, triggering on `main`/`dev`.
+5. `4b179e19b7` **W.4 the GitHub Pages deploy workflow** — `.github/workflows/pages.yml`, byte-for-byte trunk's own, triggering on `main`/`dev`.
 6. `38321a2764` **W.5 pin the Pages workflow with Crystal's own YAML** — corrects an earlier wrong claim ("no YAML library available"); `YAML.parse` pins the trigger and step order; documents the `on:` → `true` YAML 1.1 gotcha.
 7. `60538ebc82` **W.6 `ci.cr` replaces `ci.sh`, per maintainer direction** — a direct Crystal port, `scripts/ci.sh` deleted outright; a real `WASMER_DIR`-export bug found and fixed while verifying it.
 
