@@ -1,4 +1,5 @@
 require "./spec_helper"
+require "../src/web/cgi"
 require "../src/battle/field"
 
 # The robots shipped in robots/*.md are published as wiki pages `robot/<name>`.
@@ -10,11 +11,16 @@ describe "robots/*.md" do
     files.size.should be >= 4
   end
 
+  pages = {} of String => String
+  files.each { |f| pages["robot/" + File.basename(f, ".md")] = File.read(f) }
+  wiki = CrystalRobots::Web::WikiRobots.from_pages(pages)
+
   files.each do |file|
     name = File.basename(file, ".md")
     it "#{name} is a well-formed saved robot that plays" do
-      File.read(file).lstrip.starts_with?("```").should be_false
-      src = File.read(file).match(/```[a-z]*\n(.*?)```/m).not_nil![1]
+      wiki.names.should contain name
+      wiki.description(name).should_not be_empty
+      src = wiki.source(name).not_nil!
       program = C::Parser.new(src).program
       C::Checker.check(program).should be_empty
       field = CrystalRobots::Battle::Field.new([{name, src}, {"target", File.read("examples/target.cr")}],

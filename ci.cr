@@ -134,6 +134,9 @@ end
 
 step!("bootstrap build", "shards", ["build"])
 
+step!("build-docs (before the final build, so the binary embeds them)",
+  "bin/crystal-robots", ["build-docs"])
+
 announce("check manifest.uuid")
 # Without it the shipped binary reports "unknown" for --version and
 # /version, which defeats comparing a deploy against trunk, so the release
