@@ -1,0 +1,23 @@
+/* Blog-only additions on top of ../site.css (tokens, nav, manual layout). */
+.blog-content { max-width: 76ch; }
+.blog-content article > section { margin-top: 3rem; }
+.chapter { margin-top: 4rem; scroll-margin-top: 1rem; }
+.chapter > h2 { font-size: 1.8rem; }
+.chapter-number { color: var(--orange); font-weight: 650; }
+.commit { margin-top: 2.5rem; scroll-margin-top: 1rem; }
+.commit h3 { margin-bottom: .2rem; font-size: 1.2rem; }
+.commit-small { margin-top: 1.5rem; }
+.commit-small h3 { font-size: 1.02rem; }
+.commit-meta { margin: 0 0 .8rem; color: var(--muted); font-size: .9rem; }
+.commit-link { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.code-label { margin: 1rem 0 .3rem; color: var(--muted); font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.code-label + pre { margin-top: 0; }
+.tryit { margin: 1rem 0; }
+pre.output { border-left-color: var(--green); }
+.intermission { padding: 1rem 1.25rem; border: 1px solid var(--line); border-radius: .7rem; background: var(--surface); }
+.intermission > h2 { border: 0; }
+@media (max-width: 700px) {
+  .chapter > h2 { font-size: 1.45rem; }
+  .intermission { padding: .75rem; }
+}
+#blog-toc ol { list-style: none; padding-left: 0; }
