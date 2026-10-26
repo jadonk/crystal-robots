@@ -203,3 +203,18 @@ button:disabled { cursor: wait; opacity: .6; }
 }
 
 .legend-engine { flex-basis: 100%; padding-left: 1.2rem; font-size: .72rem; font-weight: 400; opacity: .78; }
+
+.manual-diagram { margin: 1.5rem 0; padding: .8rem; border: 1px solid var(--line); border-radius: .6rem; background: var(--surface); }
+.manual-diagram svg { display: block; width: 100%; max-width: 460px; height: auto; margin: auto; color: var(--ink); }
+.manual-diagram svg text { fill: currentColor; font: 14px system-ui, sans-serif; }
+.manual-diagram svg rect { fill: var(--page); stroke: var(--ink); stroke-width: 2; }
+.manual-diagram svg > circle:not([class]) { fill: var(--accent); }
+.manual-diagram svg > path:not([class]) { fill: none; stroke: var(--accent); stroke-width: 3; }
+.manual-diagram .scan-wedge { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+.manual-diagram .robot-blue { fill: var(--accent); }
+.manual-diagram .robot-orange { fill: var(--orange); }
+.manual-diagram .missile-path { fill: none; stroke: var(--orange); stroke-width: 3; stroke-dasharray: 7 5; }
+.manual-diagram .missile { fill: var(--orange); }
+.manual-diagram figcaption { color: var(--muted); font-size: .9rem; margin-top: .5rem; }
+.battle-output { min-height: 2.8rem; padding-top: .8rem; scroll-padding-top: .8rem; }
+.match-games summary { cursor: pointer; font-size: .85rem; }

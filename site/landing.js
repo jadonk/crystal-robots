@@ -2,6 +2,7 @@ import { run, ast, resumable } from "./wasi-shim.js";
 import { battle } from "./battle-client.js";
 import { mountBattlePlayback } from "./battle-playback.js";
 import { renderWasm } from "./wasm-view.js";
+import { friendlyError } from "./friendly-errors.js";
 
 const names = ["sniper", "rook", "rabbit", "counter"];
 const colors = ["#4C97FF", "#FF8C1A", "#59C059", "#FFAB19"];
@@ -18,7 +19,7 @@ function seedFromURL() {
   return crypto.getRandomValues(new Uint32Array(1))[0];
 }
 function status(message) { $("battle-status").textContent = message; }
-function errorMessage(error) { return error?.message || String(error); }
+function errorMessage(error) { return friendlyError(error?.message || String(error)); }
 
 async function loadModule() {
   const response = await fetch("./crystal-robots.wasm");
@@ -45,7 +46,7 @@ function renderLegend(damages = null) {
     damage.textContent = `${damages?.[index] ?? 0}% damage`;
     const engine = document.createElement("span");
     engine.className = "legend-engine";
-    engine.textContent = report?.robots[index]?.engine === "wasm" ? "running as WebAssembly" : "running in the interpreter";
+    engine.textContent = report?.robots[index]?.engine === "wasm" ? "compiled to WebAssembly" : "step-by-step mode";
     button.append(swatch, label, damage, engine);
     button.addEventListener("click", () => { selected = index; renderLegend(damages); renderSelected(); });
     legend.append(button);
@@ -84,7 +85,7 @@ async function rematch(nextSeed) {
   });
   $("battle-loading").hidden = true;
   $("rematch").disabled = false;
-  status(`${result.cycles.toLocaleString()} cycles recorded · select a robot to inspect its layers`);
+  status(`Fight recorded · choose a robot to explore`);
 }
 
 function showLayer(next) {
@@ -107,8 +108,8 @@ function renderSelected() {
   $("ast-view").textContent = "Loading tree…";
   $("wasm-view").textContent = "Loading bytes…";
   $("wasm-intro").textContent = report?.robots[selected]?.engine === "wasm"
-    ? "This is the robot program that fights. It can pause after each cycle so every robot gets a turn. Open a section to see its bytes and instructions."
-    : "This robot runs in the interpreter. This is the module the compiler can make for it, when supported.";
+    ? "WebAssembly is a fast form of your robot that the browser can run. It pauses so every robot gets a turn. The sections below are parts of that program: “import” means a command it uses from the battle, and “export” means a command it gives back."
+    : "This robot couldn't be compiled, so it fought in step-by-step mode, where the game reads the code one piece at a time.";
   renderEngine();
   if (layer !== "source" && layer !== "engine") loadArtifact(selected);
 }
@@ -117,7 +118,7 @@ function renderEngine() {
   const view = $("engine-view");
   view.replaceChildren();
   if (!robot) { view.textContent = "Running battle…"; return; }
-  for (const [label, value] of [["Running as", robot.engine === "wasm" ? "WebAssembly" : "the interpreter"], ["Cycles used", robot.cycles], ["Damage", `${robot.damage}%`], ["Restarts", robot.restarts], ["Error", robot.error || "None"]]) {
+  for (const [label, value] of [["Running as", robot.engine === "wasm" ? "compiled to WebAssembly" : "step-by-step mode"], ["Turns used", robot.cycles], ["Damage", `${robot.damage}%`], ["Restarts", robot.restarts], ["Error", robot.error || "None"]]) {
     const dt = document.createElement("dt"), dd = document.createElement("dd");
     dt.textContent = label; dd.textContent = String(value); view.append(dt, dd);
   }
@@ -173,7 +174,7 @@ async function loadArtifact(index) {
     renderDerivation();
     $("ast-view").replaceChildren(buildTree(tree.root));
     if (fighting.wasm_bytes) renderWasm($("wasm-view"), fighting.wasm_bytes);
-    else $("wasm-view").textContent = fighting.error || "This robot runs in the interpreter.";
+    else $("wasm-view").textContent = fighting.error || "This robot fought in step-by-step mode, so there is no WebAssembly to show.";
   } catch (error) {
     for (const id of ["derivation-view", "ast-view", "wasm-view"]) $(id).textContent = errorMessage(error);
   }

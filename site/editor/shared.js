@@ -1,4 +1,5 @@
 import { check } from "../wasi-shim.js";
+import { friendlyError } from "../friendly-errors.js";
 import { saveSource } from "../robot-store.js";
 
 export function createEditorSurface({ sourceEl, gutterEl, problemsEl, cheatEl, moduleReady }) {
@@ -29,10 +30,10 @@ export function createEditorSurface({ sourceEl, gutterEl, problemsEl, cheatEl, m
     const report = await check(await moduleReady, sourceEl.value);
     if (report.trapped || report.error || report.problems?.length) {
       problemsEl.className = "bad";
-      if (report.error) { mark(report.error.line, report.error.message); problemsEl.textContent = `Parse error: ${report.error.message}`; }
-      else if (report.trapped) problemsEl.textContent = `Could not check this source: ${report.stderr || "(no message)"}`;
-      else { report.problems.forEach((p) => mark(p.line, p.message)); problemsEl.textContent = report.problems.map((p) => `${p.message} at ${p.line}:${p.col}`).join("\n"); }
-    } else { problemsEl.className = "ok"; problemsEl.textContent = "Checks passed: every name is defined and every call has the right number of arguments."; }
+      if (report.error) { mark(report.error.line, friendlyError(report.error.message)); problemsEl.textContent = `Code problem: ${friendlyError(report.error.message)}`; }
+      else if (report.trapped) problemsEl.textContent = `Could not check this code: ${friendlyError(report.stderr || "(no message)")}`;
+      else { report.problems.forEach((p) => mark(p.line, friendlyError(p.message))); problemsEl.textContent = report.problems.map((p) => `${friendlyError(p.message)} at line ${p.line}, column ${p.col}`).join("\n"); }
+    } else { problemsEl.className = "ok"; problemsEl.textContent = "Ready to fight: names and the numbers passed to commands look right."; }
     return report;
   }
   async function loadCheatSheet() {
@@ -49,7 +50,7 @@ export function createEditorSurface({ sourceEl, gutterEl, problemsEl, cheatEl, m
         sheet.entries.filter((e) => e.group === group).forEach((e) => {
           const li = document.createElement("li");
           const sig = document.createElement("code"); sig.textContent = e.signature; li.append(sig);
-          li.append(document.createTextNode(` — ${e.blurb} Returns ${e.returns}. Costs ${sheet.cost} cycles. Example: `));
+          li.append(document.createTextNode(` — ${e.blurb} Gives back ${e.returns}. Try: `));
           const ex = document.createElement("code"); ex.textContent = e.example; li.append(ex); ul.append(li);
         });
         div.append(ul); cheatEl.append(div);

@@ -2,8 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>crystal-robots: in-browser compiler</title>
+<title>Workbench · Try a robot or a short program · crystal-robots</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Run a short program or watch your robot fight a practice target.">
 <link rel="stylesheet" href="../site.css">
 <style>
   body { font-family: system-ui, sans-serif; max-width: 60rem; margin: 2rem auto; padding: 0 1rem; color: var(--ink); background: var(--page); }
@@ -25,6 +26,7 @@
   .battle-playback-controls input[type="number"] { width: 6rem; }
   .battle-scrubber { flex: 1 1 16rem; min-width: 12rem; }
   #battle-replay svg { max-width: 100%; height: auto; margin-top: 0.75rem; }
+  #robot-result { max-height: 9rem; overflow: auto; }
   #battle-standings { list-style: none; padding: 0; margin: 0.5rem 0 0; }
   #battle-standings li { padding: 0.15rem 0; }
   #battle-standings .dead { color: var(--muted); text-decoration: line-through; }
@@ -32,13 +34,8 @@
 </head>
 <body>
 <nav class="site-nav" aria-label="Main navigation"><a class="brand" href="../">crystal-robots</a><a href="../">Play</a><a href="../challenge/">Challenge</a><a href="../tournament/">Tournament</a><a href="../workbench/" aria-current="page">Workbench</a><a href="../editor/">Editor</a><a href="../manual/">Manual</a><a href="https://github.com/jadonk/crystal-robots">GitHub</a></nav>
-<h1>crystal-robots: in-browser compiler</h1>
-<p class="lede">
-  The <a href="https://github.com/jadonk/crystal-robots">crystal-robots</a> tokenizer, checker,
-  interpreter and WebAssembly emitter, compiled with Crystal's <code>wasm32-unknown-wasi</code>
-  target and running entirely in this page &mdash; nothing is sent to a server. Paste a robot
-  below (or edit the example) and press Run.
-</p>
+<h1>Try your code</h1>
+<p class="lede">Paste a robot and press Run to watch a short fight against target. A program without <code>main(...) do</code> runs on its own and prints its answer below. Everything runs in this browser.</p>
 
 <textarea id="source" spellcheck="false"># puts 38 + 2*2
 puts 19
@@ -49,43 +46,37 @@ puts 19
 </div>
 
 <section>
-  <h2>Tokens / derivation</h2>
+  <h2>How the code is read</h2>
   <pre id="derivation"></pre>
 </section>
 
 <section>
-  <h2>Checker report</h2>
+  <h2>Code check</h2>
   <pre id="problems"></pre>
 </section>
 
 <section>
-  <h2>Interpreter trace</h2>
+  <h2>Program output</h2>
   <pre id="interpreter"></pre>
 </section>
 
 <section>
-  <h2>Emitted .wasm</h2>
+  <h2>Browser program bytes</h2>
   <pre id="wasm"></pre>
 </section>
 
+<section id="robot-preview"><h2>Short fight against target</h2><pre id="robot-result"></pre><div id="robot-replay" class="replay"></div></section>
+
 <section id="battle">
   <h2>Battle</h2>
-  <p class="lede">
-    Two to four robots on the CROBOTS battlefield &mdash; the same physics and the same
-    tree-walking interpreter <code>bin/crystal-robots</code>'s own matches use, run entirely in
-    this page. Pick from the bundled examples or paste your own for each slot, then press
-    Run Battle. The replay draws the same shapes the served <code>/battle</code> page renders,
-    but plays the match back live at 60 frames per second, with play/pause, an adjustable
-    speed and a scrubber &mdash; every cannon shot and every hit lands on its own frame, however
-    long the match runs.
-  </p>
+  <p class="lede">Pick two to four robots and watch them fight. Each battle is recorded so you can pause or replay it.</p>
 
   <div id="battle-slots"></div>
 
   <div class="battle-controls">
     <label>Seed <input type="number" id="battle-seed" value="1" min="0" step="1"></label>
-    <label>Cycle limit <input type="number" id="battle-limit" value="60000" min="15" max="500000" step="1"></label>
-    <label>Initial replay speed, cycles/second (adjustable during playback) <input type="number" id="battle-cps" value="300" min="1" max="20000" step="1"></label>
+    <label>Fight length <input type="number" id="battle-limit" value="60000" min="15" max="500000" step="1"></label>
+    <label>Replay speed <input type="number" id="battle-cps" value="300" min="1" max="20000" step="1"></label>
   </div>
   <div>
     <button id="battle-run" disabled>Run Battle</button>

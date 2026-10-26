@@ -13,6 +13,7 @@
 // `bin/crystal-robots` keep their own, much smaller ones. Reuses the
 // module `app.js` already loaded: one `crystal-robots.wasm` compile for
 // the whole page.
+import { friendlyError } from "../friendly-errors.js";
 import { battle } from "../battle-client.js";
 import { mountBattlePlayback } from "../battle-playback.js";
 import { moduleReady } from "./app.js";
@@ -113,7 +114,7 @@ function renderStandings(report) {
     li.textContent = r.active
       ? `${r.name}: ${r.damage}% damage${isWinner ? " — winner" : ""}`
       : `${r.name}: destroyed${r.error ? ` (${r.error})` : ""}`;
-    li.textContent += ` · running ${r.engine === "wasm" ? "as WebAssembly" : "in the interpreter"}`;
+    li.textContent += ``;
     standingsEl.appendChild(li);
   });
   if (!report.winner && report.robots.every((r) => !r.active)) {
@@ -146,14 +147,14 @@ async function runBattle() {
       // `Browser.battle_run`'s module comment in `src/browser.cr`: a bad
       // robot source is reported per-robot below, never a trap.
       statusEl.textContent = "Battle request failed.";
-      standingsEl.textContent = result.stderr || "(the module aborted with no message)";
+      standingsEl.textContent = result.stderr || "(the battle stopped without a message)";
       return;
     }
     if (result.error) {
-      statusEl.textContent = result.error;
+      statusEl.textContent = friendlyError(result.error);
       return;
     }
-    statusEl.textContent = `${result.cycles} cycles, ${result.frame_count} frames recorded.`;
+    statusEl.textContent = "Battle recorded. Watch or pause the replay.";
     activePlayback = mountBattlePlayback(replayEl, result, cps);
     renderStandings(result);
   } finally {
@@ -163,7 +164,7 @@ async function runBattle() {
 
 runButton.addEventListener("click", () => {
   runBattle().catch((e) => {
-    statusEl.textContent = `Error: ${e.message}`;
+    statusEl.textContent = `Problem: ${friendlyError(e.message)}`;
   });
 });
 
@@ -174,5 +175,5 @@ loadExamples()
     runButton.disabled = false;
   })
   .catch((e) => {
-    statusEl.textContent = `Error: ${e.message}`;
+    statusEl.textContent = `Problem: ${friendlyError(e.message)}`;
   });
