@@ -1,4 +1,4 @@
-import { battle } from "../wasi-shim.js";
+import { battle } from "../battle-client.js";
 import { loadModule } from "../load-module.js";
 import { createEditorSurface } from "../editor/shared.js";
 import { loadSavedSource, saveSource, loadProgress, saveProgress } from "../robot-store.js";
@@ -33,7 +33,7 @@ levels.forEach((item, index) => { const button = document.createElement("button"
 showLevel(Math.min(7, Math.max(1, Number(progress.current) || 1)));
 function showReplay(result, label) {
   if (playback) playback.stop(); $("challenge-replay").hidden = false;
-  $("battle-result").textContent = label; playback = mountBattlePlayback($("replay"), result, 600);
+  $("battle-result").textContent = `${label} · ${result.robots.map((r) => `${r.name} running ${r.engine === "wasm" ? "as WebAssembly" : "in the interpreter"}`).join(" · ")}`; playback = mountBattlePlayback($("replay"), result, 600);
 }
 async function run() {
   $("check-level").disabled = true; $("feedback").textContent = ""; $("challenge-status").textContent = "Checking source…";
@@ -70,7 +70,7 @@ async function run() {
           if (data.error) { worker.terminate(); reject(new Error(data.error)); }
         };
         worker.onerror = (event) => { worker.terminate(); reject(new Error(event.message)); };
-        worker.postMessage({ robots: entrants, seed: 1, limit: 60000 });
+        worker.postMessage({ robots: entrants, seed: 1, limit: 60000, engine: new URLSearchParams(location.search).get("engine") === "interpreter" ? "interpreter" : "compiled" });
       });
       if (report.trapped || report.error) throw new Error(report.error || report.stderr);
       outcome = evaluateTournament(report);

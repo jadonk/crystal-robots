@@ -13,7 +13,7 @@
 // `bin/crystal-robots` keep their own, much smaller ones. Reuses the
 // module `app.js` already loaded: one `crystal-robots.wasm` compile for
 // the whole page.
-import { battle } from "../wasi-shim.js";
+import { battle } from "../battle-client.js";
 import { mountBattlePlayback } from "../battle-playback.js";
 import { moduleReady } from "./app.js";
 
@@ -113,6 +113,7 @@ function renderStandings(report) {
     li.textContent = r.active
       ? `${r.name}: ${r.damage}% damage${isWinner ? " — winner" : ""}`
       : `${r.name}: destroyed${r.error ? ` (${r.error})` : ""}`;
+    li.textContent += ` · running ${r.engine === "wasm" ? "as WebAssembly" : "in the interpreter"}`;
     standingsEl.appendChild(li);
   });
   if (!report.winner && report.robots.every((r) => !r.active)) {

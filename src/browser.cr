@@ -4,6 +4,17 @@ require "./battle/svg_replay"
 require "./tournament/tournament"
 require "json"
 
+{% if flag?(:wasm32) %}
+  # Supplied by site/wasi-shim.js as the `crd_host` import module: one
+  # resumable robot instance per battlefield slot.
+  @[Link(wasm_import_module: "crd_host")]
+  lib LibCRDHost
+    fun robot_new(slot : Int32, entrant : Int32) : Int32
+    fun robot_step(slot : Int32) : Int32
+    fun robot_error(slot : Int32) : Int32
+  end
+{% end %}
+
 # Browser entry points for the `wasm32-unknown-wasi` build (Phase 5b-1):
 # a hand-written JS WASI shim (`site/wasi-shim.js`) calls these to run one
 # pasted robot through the same passes `src/web/cgi.cr`'s parse page runs
@@ -52,6 +63,9 @@ module CrystalRobots::Browser
   @@battle_frames = Bytes.empty
   @@tournament_input = Bytes.empty
   @@tournament_result = Bytes.empty
+  @@compiled_robots = [] of CrystalRobots::Battle::Robot
+  @@compiled_hosts = [] of CrystalRobots::Battle::RobotHost
+  @@tournament_engines = {} of String => String
 
   # Reserves `len` bytes for the next call's source; the shim writes the
   # UTF-8 source into the returned offset before calling `crd_run`.
@@ -205,6 +219,76 @@ module CrystalRobots::Browser
     end
     @@check_result = json.to_slice
     @@check_result.size
+  end
+
+  # The compiler's resumable path must return unsupported source as data on
+  # wasm32, where an exception would trap the entire Crystal instance.
+  def resumable : Int32
+    @@wasm = Bytes.empty
+    program = CrystalRobots::Compiler::Program.new(String.new(@@input))
+    if error = CrystalRobots::Compiler::Parser.try_parse(program)
+      @@result = {error: error.message.to_s, problems: [] of String}.to_json.to_slice
+    else
+      problems = CrystalRobots::Compiler::Checker.check(program).map(&.to_s)
+      unsupported = CrystalRobots::Compiler::WASM_Emitter.resumable_problem(program)
+      if problems.empty? && unsupported.nil?
+        @@wasm = CrystalRobots::Compiler::WASM_Emitter.new(program, CrystalRobots::Compiler::Interpreter::Costs.crobots, resumable: true).to_wasm
+      end
+      @@result = {error: unsupported, problems: problems, wasm_len: @@wasm.size}.to_json.to_slice
+    end
+    @@result.size
+  end
+
+  private def install_compiled(field : CrystalRobots::Battle::Field, engines : Array(String), entrants : Array(Int32)) : Nil
+    @@compiled_robots = field.robots
+    @@compiled_hosts = field.robots.map { |robot| CrystalRobots::Battle::RobotHost.new(robot, field) }
+    {% if flag?(:wasm32) %}
+      field.robots.each_with_index do |robot, slot|
+        next unless engines[slot] == "wasm"
+        if LibCRDHost.robot_new(slot, entrants[slot]) == 0
+          engines[slot] = "interpreter"
+          next
+        end
+        program = CrystalRobots::Compiler::Parser.new(robot.source).program
+        names = program.children(program.root).select { |s| program[s].rule == :def }.map do |s|
+          program.lexeme(program.children(program.arg(s, 0))[1])
+        end
+        robot.external_step = -> : Tuple(Symbol, String?) do
+          case LibCRDHost.robot_step(slot)
+          when 0 then {:paused, nil}
+          when 1 then {:completed, nil}
+          else
+            code = LibCRDHost.robot_error(slot)
+            name = names[code - 1]? || "unknown"
+            {:error, "call depth exceeded #{CrystalRobots::Compiler::Interpreter::MAX_CALL_DEPTH} in #{name}"}
+          end
+        end
+      end
+    {% end %}
+  end
+
+  private def engines_for(entries : Array({String, String}), compiled : Bool) : Array(String)
+    {% unless flag?(:wasm32) %}
+      compiled = false
+    {% end %}
+    entries.map do |(_, source)|
+      if compiled
+        program = CrystalRobots::Compiler::Program.new(source)
+        if CrystalRobots::Compiler::Parser.try_parse(program).nil? &&
+           CrystalRobots::Compiler::Checker.check(program).empty? &&
+           CrystalRobots::Compiler::WASM_Emitter.resumable_problem(program).nil?
+          "wasm"
+        else
+          "interpreter"
+        end
+      else
+        "interpreter"
+      end
+    end
+  end
+
+  def host(slot : Int32) : CrystalRobots::Battle::RobotHost
+    @@compiled_hosts[slot]
   end
 
   # Reserves `len` bytes for the next call's battle request: a JSON object
@@ -372,7 +456,10 @@ module CrystalRobots::Browser
         io << {error: "a battle needs 2 to 4 robots, got #{robots.size}"}.to_json
       else
         entries = robots.map { |r| {r["name"].as_s, r["source"].as_s} }
-        field = CrystalRobots::Battle::Field.new(entries, seed: seed, limit: limit, max_frames: max_frames).run_stepwise
+        field = CrystalRobots::Battle::Field.new(entries, seed: seed, limit: limit, max_frames: max_frames)
+        engines = engines_for(entries, payload["engine"]?.try(&.as_s?) != "interpreter")
+        install_compiled(field, engines, (0...entries.size).to_a) if engines.includes?("wasm")
+        field.run_stepwise
         @@battle_frames = Browser.encode_frames(field)
         io << '{'
         io << "\"seed\":" << seed << ','
@@ -382,8 +469,8 @@ module CrystalRobots::Browser
         io << "\"robot_count\":" << field.robots.size << ','
         io << "\"missile_slots\":" << CrystalRobots::Battle::MIS_ROBOT << ','
         io << "\"winner\":" << field.winner.try(&.name).to_json << ','
-        io << "\"robots\":[" << field.robots.map { |r|
-          {name: r.name, active: r.active, damage: r.damage, error: r.error, restarts: r.restarts, cycles: r.cycles,
+        io << "\"robots\":[" << field.robots.map_with_index { |r, i|
+          {name: r.name, engine: engines[i], active: r.active, damage: r.damage, error: r.error, restarts: r.restarts, cycles: r.cycles,
            output: r.output.map_with_index { |line, i| {cycle: r.output_cycles[i], text: line} }}.to_json
         }.join(",") << "],"
         io << "\"skeleton\":" << CrystalRobots::Battle.svg_skeleton(field).to_json
@@ -468,10 +555,15 @@ module CrystalRobots::Browser
       return @@tournament_result.size
     end
 
+    @@tournament_engines = accepted.to_h { |name, _| {name, "interpreter"} }
     sources = accepted.to_h
     fight = ->(fight_names : Array(String), fight_seed : UInt64, fight_limit : Int32) {
       fight_entries = fight_names.map { |name| {name, sources[name]} }
-      CrystalRobots::Battle::Field.new(fight_entries, seed: fight_seed, limit: fight_limit.to_i64).run_stepwise.winner.try(&.name)
+      field = CrystalRobots::Battle::Field.new(fight_entries, seed: fight_seed, limit: fight_limit.to_i64)
+      engines = engines_for(fight_entries, request["engine"]?.try(&.as_s?) != "interpreter")
+      install_compiled(field, engines, fight_names.map { |name| accepted.index! { |entry| entry[0] == name } }) if engines.includes?("wasm")
+      fight_names.each_with_index { |name, i| @@tournament_engines[name] = engines[i] }
+      field.run_stepwise.winner.try(&.name)
     }
     ladder = CrystalRobots::Tournament.run(accepted.map(&.[0]), seed, limit, fight)
     @@tournament_result = {
@@ -479,6 +571,7 @@ module CrystalRobots::Browser
       seed:        ladder.seed,
       limit:       ladder.limit,
       rejected:    rejected,
+      engines:     @@tournament_engines,
       pools:       ladder.pools.map { |pool| {entrants: pool.entrants, fights: pool.fights.map { |f| {entrants: f.entrants, seed: f.seed, winner: f.winner} }, standings: pool.standings.map { |s| {name: s.name, points: s.points, rank: s.rank} }} },
       rounds:      ladder.rounds.map { |round| {label: round.label, matches: round.matches.map { |match| {entrants: match.entrants, games: match.games.map { |g| {entrants: g.entrants, seed: g.seed, winner: g.winner} }, winner: match.winner} }} },
       champion:    ladder.champion,
@@ -611,3 +704,54 @@ end
 fun crd_tournament_result_len : Int32
   CrystalRobots::Browser.tournament_result_len
 end
+
+fun crd_resumable : Int32
+  CrystalRobots::Browser.resumable
+end
+
+fun crd_host_scan(slot : Int32, degree : Int32, resolution : Int32) : Int32
+  CrystalRobots::Browser.host(slot).scan(degree, resolution)
+end
+
+fun crd_host_cannon(slot : Int32, degree : Int32, range : Int32) : Int32
+  CrystalRobots::Browser.host(slot).cannon(degree, range)
+end
+
+fun crd_host_drive(slot : Int32, degree : Int32, speed : Int32) : Int32
+  CrystalRobots::Browser.host(slot).drive(degree, speed)
+end
+
+fun crd_host_damage(slot : Int32) : Int32
+  CrystalRobots::Browser.host(slot).damage
+end
+
+fun crd_host_speed(slot : Int32) : Int32
+  CrystalRobots::Browser.host(slot).speed
+end
+
+fun crd_host_loc_x(slot : Int32) : Int32
+  CrystalRobots::Browser.host(slot).loc_x
+end
+
+fun crd_host_loc_y(slot : Int32) : Int32
+  CrystalRobots::Browser.host(slot).loc_y
+end
+
+fun crd_host_sleep(slot : Int32) : Int32
+  CrystalRobots::Browser.host(slot).sleep
+end
+
+fun crd_host_rand(slot : Int32, limit : Int32) : Int32
+  CrystalRobots::Browser.host(slot).rand(limit)
+end
+
+fun crd_host_puts(slot : Int32, value : Int32) : Int32
+  CrystalRobots::Browser.host(slot).puts(value)
+  0
+end
+
+{% for name in %w(sqrt sin cos tan atan) %}
+  fun crd_host_{{name.id}}(slot : Int32, value : Int32) : Int32
+    CrystalRobots::Browser.host(slot).{{name.id}}(value)
+  end
+{% end %}

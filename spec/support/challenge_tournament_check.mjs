@@ -89,6 +89,7 @@ try {
   await evaluate('document.querySelector("#pools .fight-link").click()');
   await waitFor('document.querySelector("#replay svg") !== null', 90);
   if (!await evaluate('document.querySelector("#replay-result").textContent.includes("recorded winner")')) throw new Error("Replay winner missing");
+  if (!await evaluate('document.querySelector("#replay-result").textContent.includes("running as WebAssembly")')) throw new Error("Tournament replay did not use WebAssembly");
   const shown = await evaluate('document.querySelector("#replay-result").textContent.match(/Winner: (.*?) ·/)[1]');
   if (shown !== recorded) throw new Error(`Winner mismatch: ${shown} vs ${recorded}`);
   for (const theme of ["light", "dark"]) for (const width of [1280, 360]) {
@@ -103,6 +104,7 @@ try {
   await evaluate('document.getElementById("editor-source").value = `main("Your robot") do\n  drive(0, 50)\n  while true\n    sleep\n  end\nend\n`; document.getElementById("editor-source").dispatchEvent(new Event("input", {bubbles:true})); document.getElementById("check-level").click()');
   await waitFor('document.getElementById("challenge-status").textContent === "Level passed!"', 90);
   if (!await evaluate('document.querySelector("#challenge-replay svg") !== null')) throw new Error("Challenge replay missing");
+  if (!await evaluate('document.getElementById("battle-result").textContent.includes("running as WebAssembly")')) throw new Error("Challenge did not use WebAssembly");
   for (const theme of ["light", "dark"]) for (const width of [1280, 360]) {
     await viewport(width, width === 360 ? 780 : 900, theme);
     if (await evaluate('document.documentElement.scrollWidth > document.documentElement.clientWidth')) throw new Error(`Challenge overflow at ${width}/${theme}`);

@@ -1,4 +1,5 @@
-import { run, ast, battle } from "./wasi-shim.js";
+import { run, ast, resumable } from "./wasi-shim.js";
+import { battle } from "./battle-client.js";
 import { mountBattlePlayback } from "./battle-playback.js";
 import { renderWasm } from "./wasm-view.js";
 
@@ -42,7 +43,10 @@ function renderLegend(damages = null) {
     const damage = document.createElement("span");
     damage.className = "legend-damage";
     damage.textContent = `${damages?.[index] ?? 0}% damage`;
-    button.append(swatch, label, damage);
+    const engine = document.createElement("span");
+    engine.className = "legend-engine";
+    engine.textContent = report?.robots[index]?.engine === "wasm" ? "running as WebAssembly" : "running in the interpreter";
+    button.append(swatch, label, damage, engine);
     button.addEventListener("click", () => { selected = index; renderLegend(damages); renderSelected(); });
     legend.append(button);
   });
@@ -72,6 +76,7 @@ async function rematch(nextSeed) {
   if (result.trapped || result.error) throw new Error(result.stderr || result.error || "Battle failed");
   report = result;
   renderLegend();
+  renderSelected();
   playback = mountBattlePlayback($("battle-replay"), result, 450, {
     autoplay: !reducedMotion.matches,
     onFrame: updateDamage,
@@ -80,7 +85,6 @@ async function rematch(nextSeed) {
   $("battle-loading").hidden = true;
   $("rematch").disabled = false;
   status(`${result.cycles.toLocaleString()} cycles recorded · select a robot to inspect its layers`);
-  renderEngine();
 }
 
 function showLayer(next) {
@@ -102,6 +106,9 @@ function renderSelected() {
   $("derivation-view").textContent = "Loading passes…";
   $("ast-view").textContent = "Loading tree…";
   $("wasm-view").textContent = "Loading bytes…";
+  $("wasm-intro").textContent = report?.robots[selected]?.engine === "wasm"
+    ? "This is the robot program that fights. It can pause after each cycle so every robot gets a turn. Open a section to see its bytes and instructions."
+    : "This robot runs in the interpreter. This is the module the compiler can make for it, when supported.";
   renderEngine();
   if (layer !== "source" && layer !== "engine") loadArtifact(selected);
 }
@@ -110,7 +117,7 @@ function renderEngine() {
   const view = $("engine-view");
   view.replaceChildren();
   if (!robot) { view.textContent = "Running battle…"; return; }
-  for (const [label, value] of [["Cycles used", robot.cycles], ["Damage", `${robot.damage}%`], ["Restarts", robot.restarts], ["Error", robot.error || "None"]]) {
+  for (const [label, value] of [["Running as", robot.engine === "wasm" ? "WebAssembly" : "the interpreter"], ["Cycles used", robot.cycles], ["Damage", `${robot.damage}%`], ["Restarts", robot.restarts], ["Error", robot.error || "None"]]) {
     const dt = document.createElement("dt"), dd = document.createElement("dd");
     dt.textContent = label; dd.textContent = String(value); view.append(dt, dd);
   }
@@ -152,11 +159,12 @@ async function loadArtifact(index) {
   if (!artifacts.has(robot.name)) {
     artifacts.set(robot.name, Promise.all([
       run(compiledModule, robot.source, { skipInterpret: true }),
+      resumable(compiledModule, robot.source),
       ast(compiledModule, robot.source),
     ]));
   }
   try {
-    const [compiler, tree] = await artifacts.get(robot.name);
+    const [compiler, fighting, tree] = await artifacts.get(robot.name);
     if (index !== selected) return;
     if (compiler.trapped) throw new Error(compiler.stderr || "Compiler failed");
     if (tree.trapped || tree.error) throw new Error(tree.stderr || tree.error?.message || "Tree failed");
@@ -164,7 +172,8 @@ async function loadArtifact(index) {
     pass = Math.min(pass, derivationRows.length - 1);
     renderDerivation();
     $("ast-view").replaceChildren(buildTree(tree.root));
-    if (compiler.wasm_bytes) renderWasm($("wasm-view"), compiler.wasm_bytes);
+    if (fighting.wasm_bytes) renderWasm($("wasm-view"), fighting.wasm_bytes);
+    else $("wasm-view").textContent = fighting.error || "This robot runs in the interpreter.";
   } catch (error) {
     for (const id of ["derivation-view", "ast-view", "wasm-view"]) $(id).textContent = errorMessage(error);
   }
