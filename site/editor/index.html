@@ -4,16 +4,17 @@
 <meta charset="utf-8">
 <title>crystal-robots: robot editor</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="../site.css">
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 72rem; margin: 2rem auto; padding: 0 1rem; color: #222; }
+  body { font-family: system-ui, sans-serif; max-width: 72rem; margin: 2rem auto; padding: 0 1rem; color: var(--ink); background: var(--page); }
   h1 { font-size: 1.4rem; }
   h2 { font-size: 1.1rem; }
-  p.lede { color: #555; }
+  p.lede { color: var(--muted); }
   select, button { font-size: 1rem; padding: 0.3rem 0.6rem; }
   #status, #fight-status { font-weight: bold; }
   .layout { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
   .editor-pane { flex: 2 1 28rem; min-width: 20rem; }
-  .cheat-pane { flex: 1 1 18rem; min-width: 16rem; max-height: 32rem; overflow-y: auto; border: 1px solid #ccc; border-radius: 4px; padding: 0.5rem 0.75rem; background: #fafafa; }
+  .cheat-pane { flex: 1 1 18rem; min-width: 16rem; max-height: 32rem; overflow-y: auto; border: 1px solid var(--line); border-radius: 4px; padding: 0.5rem 0.75rem; background: var(--surface); }
   .cheat-pane h2 { margin-top: 0; }
   .cheat-pane .group { margin-bottom: 0.75rem; }
   .cheat-pane .group h3 { font-size: 0.95rem; margin: 0.5rem 0 0.25rem; }
@@ -21,8 +22,8 @@
   .cheat-pane li { margin: 0.35rem 0; font-size: 0.85rem; }
   .cheat-pane code { font-size: 0.85rem; }
   .picker-row { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.5rem; }
-  .code-frame { display: flex; border: 1px solid #999; border-radius: 4px; overflow: hidden; }
-  .gutter { list-style: none; margin: 0; padding: 0.5rem 0.4rem; background: #eee; color: #888; text-align: right;
+  .code-frame { display: flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+  .gutter { list-style: none; margin: 0; padding: 0.5rem 0.4rem; background: var(--surface); color: var(--muted); text-align: right;
             font-family: ui-monospace, monospace; font-size: 0.85rem; line-height: 1.4; overflow: hidden; user-select: none;
             height: 22rem; box-sizing: border-box; }
   .gutter li { white-space: nowrap; }
@@ -31,11 +32,11 @@
                             font-size: 0.85rem; line-height: 1.4; height: 22rem; box-sizing: border-box;
                             white-space: pre; overflow-x: auto; }
   textarea#editor-source:focus { outline: none; }
-  #problems { background: #f4f4f4; padding: 0.5rem 0.75rem; margin-top: 0.5rem; white-space: pre-wrap; word-break: break-word; }
+  #problems { background: var(--surface); padding: 0.5rem 0.75rem; margin-top: 0.5rem; white-space: pre-wrap; word-break: break-word; }
   #problems.ok { color: #2a7a2a; }
   #problems.bad { color: #a00; }
   section { margin-top: 1.5rem; }
-  .robot-slot { border: 1px solid #ccc; border-radius: 4px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; display: inline-block; margin-right: 0.5rem; }
+  .robot-slot { border: 1px solid var(--line); border-radius: 4px; padding: 0.5rem 0.75rem; margin-bottom: 0.5rem; display: inline-block; margin-right: 0.5rem; }
   .robot-slot label { display: block; font-weight: bold; margin-bottom: 0.25rem; font-size: 0.85rem; }
   .battle-controls label { margin-right: 1rem; }
   .battle-controls input[type="number"] { width: 6rem; }
@@ -45,10 +46,11 @@
   #fight-replay svg { max-width: 100%; height: auto; margin-top: 0.75rem; }
   #fight-standings { list-style: none; padding: 0; margin: 0.5rem 0 0; }
   #fight-standings li { padding: 0.15rem 0; }
-  #fight-standings .dead { color: #888; text-decoration: line-through; }
+  #fight-standings .dead { color: var(--muted); text-decoration: line-through; }
 </style>
 </head>
 <body>
+<nav class="site-nav" aria-label="Main navigation"><a class="brand" href="../">crystal-robots</a><a href="../">Play</a><a href="../challenge/">Challenge</a><a href="../tournament/">Tournament</a><a href="../workbench/">Workbench</a><a href="../editor/" aria-current="page">Editor</a><a href="../manual/">Manual</a><a href="https://github.com/jadonk/crystal-robots">GitHub</a></nav>
 <h1>crystal-robots: robot editor</h1>
 <p class="lede">
   Fork an example or a saved robot, edit it here, and get checked as you type &mdash; the same tokenizer,

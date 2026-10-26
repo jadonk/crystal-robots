@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Tournament · crystal-robots</title><link rel="stylesheet" href="../site.css"></head>
+<body><nav class="site-nav" aria-label="Main navigation"><a class="brand" href="../">crystal-robots</a><a href="../">Play</a><a href="../challenge/">Challenge</a><a href="./" aria-current="page">Tournament</a><a href="../workbench/">Workbench</a><a href="../editor/">Editor</a><a href="../manual/">Manual</a><a href="https://github.com/jadonk/crystal-robots">GitHub</a></nav>
+<main class="site-shell activity"><h1>Tournament</h1><p class="lede">Choose 3 to 8 robots. Every pool fight earns a point for its winner; the top robots enter a best of three bracket.</p>
+<form id="tournament-form"><fieldset><legend>Entrants</legend><div id="entrant-picker" class="entrant-picker"></div></fieldset><label>Seed <input id="seed" type="number" min="0" step="1" value="1"></label> <button id="run" type="submit">Run tournament</button></form><p id="status" role="status">Loading robots…</p><p id="share"></p><div id="rejected"></div>
+<section id="results" hidden><h2>Pools</h2><div id="pools"></div><h2>Bracket</h2><div id="bracket" class="bracket"></div><h2>Champion</h2><p id="champion" class="champion"></p></section>
+<section id="replay-section" hidden><h2>Fight replay</h2><p id="replay-result" role="status"></p><div id="replay" class="replay"></div></section></main><script type="module" src="./tournament.js"></script></body></html>
