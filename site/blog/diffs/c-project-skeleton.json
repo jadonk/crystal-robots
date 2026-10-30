@@ -1,0 +1,209 @@
+{
+  "sha": "866c92a727998ca0b74a4ec056afa9c7eb70897f",
+  "subject": "Project skeleton",
+  "summary": "The project gains a command and its first test.",
+  "files": [
+    {
+      "path": ".editorconfig",
+      "added": 9,
+      "removed": 0,
+      "role": "Project setup file."
+    },
+    {
+      "path": ".fossil-settings/ignore-glob",
+      "added": 10,
+      "removed": 0,
+      "role": "Project setup file."
+    },
+    {
+      "path": ".fossil-settings/manifest",
+      "added": 1,
+      "removed": 0,
+      "role": "Project setup file."
+    },
+    {
+      "path": ".gitignore",
+      "added": 11,
+      "removed": 0,
+      "role": "Project setup file."
+    },
+    {
+      "path": "LICENSE",
+      "added": 340,
+      "removed": 0,
+      "role": "Project file."
+    },
+    {
+      "path": "README.md",
+      "added": 43,
+      "removed": 22,
+      "role": "The project introduction."
+    },
+    {
+      "path": "docs/PARSER.md",
+      "added": 173,
+      "removed": 0,
+      "role": "Plans and explanations for the project."
+    },
+    {
+      "path": "docs/PLAN.md",
+      "added": 90,
+      "removed": 0,
+      "role": "Plans and explanations for the project."
+    },
+    {
+      "path": "manifest.uuid",
+      "added": 1,
+      "removed": 0,
+      "role": "A source snapshot identifier."
+    },
+    {
+      "path": "shard.yml",
+      "added": 17,
+      "removed": 0,
+      "role": "Crystal project setup."
+    },
+    {
+      "path": "spec/cli_spec.cr",
+      "added": 9,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 1,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "src/cli.cr",
+      "added": 7,
+      "removed": 0,
+      "role": "Program code runs the command."
+    },
+    {
+      "path": "src/version.cr",
+      "added": 3,
+      "removed": 0,
+      "role": "Program code runs the command."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/cli.cr",
+      "note": "The first command can report the program version.",
+      "before": [],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "require \"./version\"",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "if ARGV.includes?(\"--version\") || ARGV.includes?(\"-v\")",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "  puts \"crystal-robots #{CrystalRobots::VERSION}\"",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "else",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "  puts \"crystal-robots #{CrystalRobots::VERSION}: nothing to do yet\"",
+          "old": null,
+          "new": 6
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 7
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/cli_spec.cr",
+      "note": "A test checks what the command prints.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "require \"./spec_helper\"",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "require \"../src/version\"",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 3
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "describe \"crystal-robots CLI\" do",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "  it \"builds and reports its version\" do",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "    output = `crystal run src/cli.cr -- --version`",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "    output.chomp.should eq \"crystal-robots #{CrystalRobots::VERSION}\"",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 9
+        }
+      ],
+      "after": [],
+      "line_notes": {}
+    }
+  ]
+}

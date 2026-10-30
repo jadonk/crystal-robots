@@ -1,0 +1,397 @@
+{
+  "sha": "7fbce2eda2056d78a3a2c544737460addacb3f90",
+  "subject": "Phase A.10: user-defined functions",
+  "summary": "Robots can define and call functions.",
+  "files": [
+    {
+      "path": "manifest.uuid",
+      "added": 1,
+      "removed": 1,
+      "role": "A source snapshot identifier."
+    },
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 10,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 52,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 14,
+      "removed": 8,
+      "role": "Compiler code reads robot programs or writes instructions."
+    },
+    {
+      "path": "src/compiler/program.cr",
+      "added": 10,
+      "removed": 7,
+      "role": "Compiler code reads robot programs or writes instructions."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 163,
+      "removed": 37,
+      "role": "Compiler code reads robot programs or writes instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/parser.cr",
+      "note": "A robot can name its own function.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "",
+          "old": 21,
+          "new": 20
+        },
+        {
+          "kind": " ",
+          "text": "    # One grammar rule: a regex over glyphs and the glyph it reduces to.",
+          "old": 22,
+          "new": 21
+        },
+        {
+          "kind": " ",
+          "text": "    struct Rule",
+          "old": 23,
+          "new": 22
+        },
+        {
+          "kind": " ",
+          "text": "      getter name : Symbol, regex : Regex, type : Type",
+          "old": 24,
+          "new": 23
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 25,
+          "new": 24
+        },
+        {
+          "kind": " ",
+          "text": "      def initialize(@name : Symbol, @regex : Regex, @type : Type)",
+          "old": 26,
+          "new": 25
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 27,
+          "new": 26
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 28,
+          "new": 27
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 29,
+          "new": 28
+        },
+        {
+          "kind": " ",
+          "text": "    KEYWORDS = {",
+          "old": 30,
+          "new": 29
+        },
+        {
+          "kind": " ",
+          "text": "      \"global\" => Type::GlobalKeyword,",
+          "old": 31,
+          "new": 30
+        },
+        {
+          "kind": " ",
+          "text": "      \"while\" => Type::WhileKeyword, \"until\" => Type::UntilKeyword,",
+          "old": 32,
+          "new": 31
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "      \"end\" => Type::EndKeyword, \"break\" => Type::BreakKeyword,",
+          "old": 33,
+          "new": 32
+        },
+        {
+          "kind": " ",
+          "text": "      \"if\" => Type::IfKeyword, \"elsif\" => Type::ElsifKeyword, \"else\" => Type::ElseKeyword,",
+          "old": 34,
+          "new": 33
+        },
+        {
+          "kind": "+",
+          "text": "      \"def\" => Type::DefKeyword, \"return\" => Type::ReturnKeyword,",
+          "old": null,
+          "new": 34
+        },
+        {
+          "kind": " ",
+          "text": "      \"damage\" => Type::ZeroArgMethod, \"speed\" => Type::ZeroArgMethod, \"loc_x\" => Type::ZeroArgMethod,",
+          "old": 35,
+          "new": 35
+        },
+        {
+          "kind": " ",
+          "text": "      \"loc_y\" => Type::ZeroArgMethod, \"sleep\" => Type::ZeroArgMethod,",
+          "old": 36,
+          "new": 36
+        },
+        {
+          "kind": " ",
+          "text": "      \"puts\" => Type::OneArgMethod, \"rand\" => Type::OneArgMethod, \"sqrt\" => Type::OneArgMethod,",
+          "old": 37,
+          "new": 37
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "      \"sin\" => Type::OneArgMethod, \"cos\" => Type::OneArgMethod, \"tan\" => Type::OneArgMethod,",
+          "old": 38,
+          "new": 38
+        },
+        {
+          "kind": " ",
+          "text": "      \"atan\" => Type::OneArgMethod,",
+          "old": 39,
+          "new": 39
+        },
+        {
+          "kind": " ",
+          "text": "      \"scan\" => Type::TwoArgMethod, \"cannon\" => Type::TwoArgMethod, \"drive\" => Type::TwoArgMethod,",
+          "old": 40,
+          "new": 40
+        },
+        {
+          "kind": " ",
+          "text": "    }",
+          "old": 41,
+          "new": 41
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 42,
+          "new": 42
+        },
+        {
+          "kind": " ",
+          "text": "    OPERATORS = {",
+          "old": 43,
+          "new": 43
+        },
+        {
+          "kind": " ",
+          "text": "      \"//\" => Type::FloorDivOperator, \"==\" => Type::EqOperator, \"!=\" => Type::NeOperator,",
+          "old": 44,
+          "new": 44
+        },
+        {
+          "kind": " ",
+          "text": "      \"<=\" => Type::LeOperator, \">=\" => Type::GeOperator,",
+          "old": 45,
+          "new": 45
+        },
+        {
+          "kind": " ",
+          "text": "      \"+\" => Type::AddOperator, \"-\" => Type::SubOperator, \"*\" => Type::MulOperator,",
+          "old": 46,
+          "new": 46
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "src/compiler/wasm_emitter.cr",
+      "note": "The emitter keeps track of function names.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "      Bytes[type.value] + unsignedLEB128(data.size) + data",
+          "old": 127,
+          "new": 140
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 128,
+          "new": 141
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 129,
+          "new": 142
+        },
+        {
+          "kind": " ",
+          "text": "    # Builtins in import order, with how many `i32` arguments each takes.",
+          "old": 130,
+          "new": 143
+        },
+        {
+          "kind": " ",
+          "text": "    IMPORTS = {",
+          "old": 131,
+          "new": 144
+        },
+        {
+          "kind": " ",
+          "text": "      \"puts\" => 1, \"scan\" => 2, \"cannon\" => 2, \"drive\" => 2,",
+          "old": 132,
+          "new": 145
+        },
+        {
+          "kind": " ",
+          "text": "      \"damage\" => 0, \"speed\" => 0, \"loc_x\" => 0, \"loc_y\" => 0, \"sleep\" => 0,",
+          "old": 133,
+          "new": 146
+        },
+        {
+          "kind": " ",
+          "text": "      \"rand\" => 1, \"sqrt\" => 1, \"sin\" => 1, \"cos\" => 1, \"tan\" => 1, \"atan\" => 1,",
+          "old": 134,
+          "new": 147
+        },
+        {
+          "kind": " ",
+          "text": "    }",
+          "old": 135,
+          "new": 148
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 136,
+          "new": 149
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "    getter program : Program",
+          "old": 137,
+          "new": 150
+        },
+        {
+          "kind": " ",
+          "text": "    getter imports : Array(String)",
+          "old": 138,
+          "new": 151
+        },
+        {
+          "kind": "+",
+          "text": "    getter functions : Array(String)",
+          "old": null,
+          "new": 152
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 139,
+          "new": 153
+        },
+        {
+          "kind": " ",
+          "text": "    def initialize(@program : Program)",
+          "old": 140,
+          "new": 154
+        },
+        {
+          "kind": " ",
+          "text": "      @globals = [] of String",
+          "old": 141,
+          "new": 155
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      @functions = [] of String",
+          "old": null,
+          "new": 156
+        },
+        {
+          "kind": "+",
+          "text": "      @arity = {} of String => Int32",
+          "old": null,
+          "new": 157
+        },
+        {
+          "kind": "+",
+          "text": "      @extra_arities = [] of Int32",
+          "old": null,
+          "new": 158
+        },
+        {
+          "kind": " ",
+          "text": "      @program.children(@program.root).each do |stmt|",
+          "old": 142,
+          "new": 159
+        },
+        {
+          "kind": "-",
+          "text": "        # global(name, init): children are 🌐 ⟮ name ， init ⟯ ⏎",
+          "old": 143,
+          "new": null
+        },
+        {
+          "kind": "-",
+          "text": "        @globals << @program.value(@program.arg(stmt, 2)) if @program[stmt].rule == :global",
+          "old": 144,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "        case @program[stmt].rule",
+          "old": null,
+          "new": 160
+        },
+        {
+          "kind": "+",
+          "text": "        when :global",
+          "old": null,
+          "new": 161
+        },
+        {
+          "kind": "+",
+          "text": "          # global(name, init): children are 🌐 ⟮ name ， init ⟯ ⏎",
+          "old": null,
+          "new": 162
+        },
+        {
+          "kind": "+",
+          "text": "          @globals << @program.value(@program.arg(stmt, 2))",
+          "old": null,
+          "new": 163
+        },
+        {
+          "kind": "+",
+          "text": "        when :def",
+          "old": null,
+          "new": 164
+        },
+        {
+          "kind": "+",
+          "text": "          head = @program.children(stmt)[0]",
+          "old": null,
+          "new": 165
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

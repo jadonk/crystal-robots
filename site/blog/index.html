@@ -29,6 +29,7 @@
     <nav aria-label="Post contents"><ol>
 <li><a href="#intro">Introduction</a></li>
 <li><a href="#follow">Following along</a></li>
+<li><a href="#reading-crystal">Reading Crystal</a></li>
 <li><a href="#phase-a">1. A compiler to WebAssembly</a></li>
 <li><a href="#phase-b">2. The language real robots use</a></li>
 <li><a href="#phase-c">3. The battlefield</a></li>
@@ -57,12 +58,43 @@
 </section>
 <section id="follow">
 <h2>Following along</h2>
+<p>A <em>terminal</em> is a window where you type a command and press Enter to run it. <code>cd</code> moves into a folder. <code>git checkout</code> opens the project as it was at a chosen commit, a saved step in its history.</p>
 <p>Every section below names a commit. Clone the repository, check out that commit, and run the commands under “Try it”. You'll need Crystal 1.18; some steps also use wasmer (installed for you by the CI command from Phase U onward), Node, or the WebAssembly linker from LLVM, and each step says which.</p>
 <pre><code>git clone https://github.com/jadonk/crystal-robots.git
 cd crystal-robots
-git checkout &lt;commit&gt;     # any commit named below
-crystal spec              # every commit builds and passes its own tests</code></pre>
+git checkout &lt;commit&gt;
+crystal spec</code></pre>
+<p class="cmd-note"><code>git clone</code> — Copies the project from GitHub into a new folder.</p>
+<p class="cmd-note"><code>cd</code> — Moves into that folder.</p>
+<p class="cmd-note"><code>git checkout</code> — Opens the saved step named in a section below.</p>
+<p class="cmd-note"><code>crystal spec</code> — Runs every test in the spec/ folder.</p>
+
 <p>Every commit on this line builds and passes its tests; that was the rule for each one, and the output under “What you'll see” is real: copied from the run recorded in that commit's message, or, for the few commits that recorded none, produced by running the commands for this post. It is lightly trimmed (“...” marks a cut) and never edited. Commit hashes link to GitHub.</p>
+</section>
+<section id="reading-crystal" class="crystal-primer">
+<h2>Reading Crystal</h2>
+<p>Crystal is the language used to build this project. These small shapes are enough to follow the changes below. A <em>spec</em> is a test: a small program that checks an expected result.</p>
+<div id="crystal-require"><h3>Bring in a file: <code>require</code></h3><pre><code>require "./compiler/parser"</code></pre><p>Use code written in another file.</p></div>
+<div id="crystal-def"><h3>Name an action: <code>def … end</code></h3><pre><code>def double(n)
+  n + n
+end</code></pre><p>Give a group of steps a name so it can be used again.</p></div>
+<div id="crystal-class"><h3>Group code: <code>class</code> and <code>module</code></h3><pre><code>module Compiler
+  class Parser
+  end
+end</code></pre><p>A module groups related names; a class describes an object that can hold data and actions.</p></div>
+<div id="crystal-instance"><h3>Keep a value: <code>@name</code></h3><pre><code>@program = program</code></pre><p>The <code>@</code> keeps a value with one object for later use.</p></div>
+<div id="crystal-type"><h3>Say what kind of value: <code>: Int32</code></h3><pre><code>def add(n : Int32) : Int32</code></pre><p><code>Int32</code> means a whole number stored in 32 bits; the marks say what kind comes in and goes out.</p></div>
+<div id="crystal-block"><h3>Repeat steps for each item: <code>do |x| … end</code></h3><pre><code>numbers.each do |x|
+  puts x
+end</code></pre><p>Run the indented steps once for each item, calling the current item <code>x</code>.</p></div>
+<div id="crystal-interpolation"><h3>Put a value in text: <code>#{x}</code></h3><pre><code>puts "robot #{name}"</code></pre><p>Crystal replaces <code>#{name}</code> with the current value of <code>name</code>.</p></div>
+<div id="crystal-symbol"><h3>Use a label: <code>:name</code></h3><pre><code>mode = :trace</code></pre><p>A symbol is a short, fixed label used to choose a case or name a rule.</p></div>
+<div id="crystal-spec"><h3>Check a result: <code>describe</code>, <code>it</code>, <code>should</code></h3><pre><code>describe "addition" do
+  it "adds" do
+    (2 + 3).should eq(5)
+  end
+end</code></pre><p>These group a test, name what it checks, and say what answer is expected.</p></div>
+<div id="crystal-bytes"><h3>Write bytes: <code>Bytes[…]</code></h3><pre><code>Bytes[0x00, 0x61]</code></pre><p>Bytes are small numbers written directly into a file; <code>0x</code> marks a number written in base 16.</p></div>
 </section>
 <section class="chapter" id="phase-a">
 <h2><span class="chapter-number">Chapter 1 · </span>Phase A: a compiler to WebAssembly</h2>
@@ -72,13 +104,14 @@ crystal spec              # every commit builds and passes its own tests</code><
 <h3>Initial commit</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/69c75a5077f8722738fde3a3b1acd6bd0b5d388c" data-subject="Initial commit">69c75a5</a></p>
 <p>The repository starts the way most do: a README and an intention. It names the three things this whole project leans on, CROBOTS, the Crystal language and chasm, and says what it is for: “a great way to learn about programming with a simple Ruby-like syntax. Write programs to battle it out with other programs on a virtual battlefield. Then, learn about how programming languages turn your code into instructions a machine can understand.” Everything below is an attempt to keep that second promise as carefully as the first.</p>
-
+<div class="diff-view" data-diff="c-initial-commit"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/69c75a5077f8722738fde3a3b1acd6bd0b5d388c">See the whole change on GitHub</a>.</p></div>
 </section>
 <section class="commit" id="c-project-skeleton">
 <h3>Project skeleton</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/866c92a727998ca0b74a4ec056afa9c7eb70897f" data-subject="Project skeleton">866c92a</a></p>
 <p>A Crystal project is a <em>shard</em>: a <code>shard.yml</code> that names it, a <code>src/</code> directory, a <code>spec/</code> directory for tests, and a <code>bin/</code> that <code>shards build</code> fills. This commit is that and almost nothing else. The program it builds knows exactly one thing, its own version.</p>
 <p>It is a squash of an earlier, messier start. The goal from here on is that every commit is small enough to read in one sitting, builds, and passes its own tests, so the skeleton is the one place where history was folded down to get a clean starting line.</p>
+<div class="diff-view" data-diff="c-project-skeleton"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/866c92a727998ca0b74a4ec056afa9c7eb70897f">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git clone https://github.com/jadonk/crystal-robots.git
@@ -86,6 +119,12 @@ cd crystal-robots
 git checkout 866c92a
 shards build
 bin/crystal-robots --version</code></pre>
+<p class="cmd-note"><code>git clone https://github.com/jadonk/crystal-robots.git</code> — Copies the project from GitHub into a new folder.</p>
+<p class="cmd-note"><code>cd crystal-robots</code> — Moves into the project folder.</p>
+<p class="cmd-note"><code>git checkout 866c92a</code> — Opens this saved step of the project.</p>
+<p class="cmd-note"><code>shards build</code> — Builds the command program into bin/.</p>
+<p class="cmd-note"><code>bin/crystal-robots --version</code> — Prints the program version.</p>
+
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>Dependencies are satisfied
 Building: crystal-robots
@@ -97,20 +136,19 @@ crystal-robots 0.0.1</code></pre>
 <h3>Phase A.2: emit the minimal WASM module</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/9206c10adf1fb5c40022d3d02be90e1f89a3956f" data-subject="Phase A.2: emit the minimal WASM module">9206c10</a></p>
 <p>Colin Eberhardt's chasm post starts where every WebAssembly compiler has to start: with the smallest file a WebAssembly runtime will accept. A WebAssembly <em>module</em> is the unit a browser or runtime loads, the way a <code>.exe</code> or a shared library is on a desktop. The smallest valid one is eight bytes: the four-byte “magic number” <code>\0asm</code> that says what kind of file this is, then a four-byte version number, 1.</p>
-<p class="code-label">src/compiler/wasm_emitter.cr</p>
-<pre><code>MagicModuleHeader = Bytes[0x00, 'a'.ord, 's'.ord, 'm'.ord]
-ModuleVersion     = Bytes[0x01, 0x00, 0x00, 0x00]
-
-def self.minimal_module : Bytes
-  MagicModuleHeader + ModuleVersion
-end</code></pre>
 <p>No functions, no imports, nothing to run. But it is real, and a spec checks the exact bytes, which is the habit this whole history keeps: say what the output must be, then make it so.</p>
+<div class="diff-view" data-diff="c-a-2"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/9206c10adf1fb5c40022d3d02be90e1f89a3956f">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 9206c10
 crystal spec
 shards build
 bin/crystal-robots</code></pre>
+<p class="cmd-note"><code>git checkout 9206c10</code> — Opens this saved step of the project.</p>
+<p class="cmd-note"><code>crystal spec</code> — Runs every test in spec/.</p>
+<p class="cmd-note"><code>shards build</code> — Builds the command program into bin/.</p>
+<p class="cmd-note"><code>bin/crystal-robots</code> — Runs the program to show its current message.</p>
+
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>..
 
@@ -126,19 +164,18 @@ crystal-robots 0.0.1: nothing to do yet</code></pre>
 <h3>Phase A.3: a hand-assembled add function</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/27a3ab69a15db8233a457de1fc7278315209a6cd" data-subject="Phase A.3: a hand-assembled add function">27a3ab6</a></p>
 <p>Before writing a compiler, it helps to write by hand what the compiler will eventually write for you. This commit assembles a module containing one function, <code>add</code>, which takes two 32-bit integers and returns their sum. A module is a list of <em>sections</em>: a type section describes the function's signature <code>(i32, i32) -&gt; i32</code>, a function section declares that function 0 has that type, an export section gives it the name <code>add</code> so the outside world can call it, and a code section holds its body.</p>
-<p class="code-label">src/compiler/wasm_emitter.cr</p>
-<pre><code>body = Bytes[0] +                       # no locals beyond the parameters
-       Bytes[Opcodes::Local_get.value, 0] +
-       Bytes[Opcodes::Local_get.value, 1] +
-       Bytes[Opcodes::I32_add.value] +
-       Bytes[Opcodes::End.value]</code></pre>
 <p>That body is four instructions, and it shows the most important idea in WebAssembly: it is a <em>stack machine</em>. <code>local.get 0</code> pushes the first argument onto a stack, <code>local.get 1</code> pushes the second, <code>i32.add</code> pops both and pushes their sum, and whatever is left on the stack at <code>end</code> is the return value. Every program this compiler ever produces will be built from that same push-and-pop pattern.</p>
 <p>To actually run the module, the specs use wasmer, a WebAssembly runtime with a Crystal binding (pinned at 4.4.0). Not every machine has wasmer's library installed, so the wasmer specs are opt-in: <code>crystal spec -Dwasmer</code> runs them, and plain <code>crystal spec</code> reports them as <em>pending</em> rather than silently skipping them. That pattern repeats for every optional tool from here on.</p>
+<div class="diff-view" data-diff="c-a-3"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/27a3ab69a15db8233a457de1fc7278315209a6cd">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 27a3ab6
 crystal spec
 crystal spec -Dwasmer</code></pre>
+<p class="cmd-note"><code>git checkout 27a3ab6</code> — Opens this saved step of the project.</p>
+<p class="cmd-note"><code>crystal spec</code> — Runs every test in spec/.</p>
+<p class="cmd-note"><code>crystal spec -Dwasmer</code> — Runs every test in spec/, including WebAssembly tests with wasmer.</p>
+
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>..*
 
@@ -159,20 +196,20 @@ Finished in 1.08 seconds
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/0b60f750ac7e0dc7428a2ad2f534977ec1b1e1ab" data-subject="Phase A.4: the multipass tokenizer and a real compiler for `puts NUMBER`">0b60f75</a></p>
 <p>This is where crystal-robots stops following chasm closely. chasm has a classic compiler front end: a <em>tokenizer</em> that chops source text into words (“tokens”), then a <em>parser</em> that assembles those tokens into a tree. crystal-robots uses a different idea, worked out in <code>docs/PARSER.md</code>: a <em>multipass tokenizer</em>.</p>
 <p>Pass 0 turns the source into a string of single-character symbols, called glyphs here: a number becomes <code>№</code>, the word <code>puts</code> becomes <code>∊</code>, a line break becomes <code>⏎</code>. Every later pass looks for the first rule in a list (<code>GRAMMAR</code>) that matches somewhere in that string and replaces every match with a single new glyph that stands for the bigger piece. The program is understood when the whole string has collapsed to one glyph, <code>⏹</code>, the program. Three rules are enough for a program made of <code>puts 42</code> lines:</p>
-<p class="code-label">src/compiler/parser.cr</p>
-<pre><code>GRAMMAR = [
-  Rule.new(:command1, /∊№/, Type::Expression),   # puts NUMBER is an expression
-  Rule.new(:exprstmt, /😑⏎/, Type::Statement), # an expression and a line break is a statement
-  Rule.new(:program, /\A❢+\z/, Type::Program),     # nothing but statements is a program
-]</code></pre>
 <p>The appeal is that you can <em>watch</em> it work. <code>-t</code> prints the string after every pass, so the whole parse is a short list of lines you can read top to bottom. (The maintainer's own note in this commit is worth repeating: the lexing pass and the grammar passes ended up in two different loops, and a single loop would be easier for a new programmer to hold in their head. That tension, simple to explain versus simple to implement, comes back throughout.)</p>
 <p>The emitter, the part that writes WebAssembly, now walks the result instead of hand-assembling bytes. For each <code>puts</code> it emits three instructions: push the number, call an <em>import</em> named <code>env.puts</code> (a function the host provides, in this case the spec), and drop the result. <code>puts</code> returns its argument instead of nothing, partly to dodge a crash in the wasmer binding on imports with no result, and partly because later, when robots call builtins like <code>scan</code> for their value, every builtin will return something anyway.</p>
+<div class="diff-view" data-diff="c-a-4"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/0b60f750ac7e0dc7428a2ad2f534977ec1b1e1ab">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 0b60f75
 crystal spec -Dwasmer
 shards build
 bin/crystal-robots -t examples/hello.cr</code></pre>
+<p class="cmd-note"><code>git checkout 0b60f75</code> — Opens this saved step of the project.</p>
+<p class="cmd-note"><code>crystal spec -Dwasmer</code> — Runs every test in spec/, including WebAssembly tests with wasmer.</p>
+<p class="cmd-note"><code>shards build</code> — Builds the command program into bin/.</p>
+<p class="cmd-note"><code>bin/crystal-robots -t examples/hello.cr</code> — Shows how the parser reads the example program, step by step.</p>
+
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>.........
 
@@ -192,10 +229,14 @@ Building: crystal-robots
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/613e89546dd16011a99a8766ef64d131cbcddc01" data-subject="Phase A.5: binary expressions">613e895</a></p>
 <p>Arithmetic: <code>+ - * / // %</code>, parentheses and unary minus. The interesting part is <em>precedence</em>, the rule that <code>2 + 3 * 4</code> is 14, not 20. In a pass-based parser, precedence falls out of rule order and a few guards: the multiply rule only fires when it cannot steal an operand from a tighter operator, add only fires after multiply is done, and parentheses reduce before either. Both are <em>left associative</em>, so <code>10 - 3 - 2</code> means <code>(10 - 3) - 2</code>.</p>
 <p>One shortcut is taken on purpose and written down: for now <code>/</code> and <code>//</code> both truncate toward zero, which is what WebAssembly's <code>i32.div_s</code> does. CROBOTS's own rules (division that rounds down, and dividing by zero gives zero rather than crashing) wait until a robot can actually divide by something that might be zero.</p>
+<div class="diff-view" data-diff="c-a-5"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/613e89546dd16011a99a8766ef64d131cbcddc01">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 613e895
 crystal spec -Dwasmer</code></pre>
+<p class="cmd-note"><code>git checkout 613e895</code> — Opens this saved step of the project.</p>
+<p class="cmd-note"><code>crystal spec -Dwasmer</code> — Runs every test in spec/, including WebAssembly tests with wasmer.</p>
+
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...............
 
@@ -209,10 +250,14 @@ Finished in 2.37 seconds
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/2ae5e0565e578395ca7634b9a22d80d81e3c3f70" data-subject="Phase A.6: global variables and assignment">2ae5e05</a></p>
 <p>Robots need memory between turns, so the language gets variables. A CROBOTS-style robot declares its long-lived state up front with <code>global(name, initial value)</code>; plain assignment with <code>=</code> changes it. In WebAssembly, each one becomes a <em>global</em>, a named slot the module keeps for as long as it runs. Assignment compiles to <code>global.set</code> followed by <code>global.get</code>, so the assigned value is also left on the stack, which is what lets <code>a = b = 3</code> work later.</p>
 <p>The grammar rule for assignment only fires once the right-hand side is a complete expression followed by a line break. That kind of lookahead, “only match if what follows is X”, is how the pass-based parser avoids grabbing half an expression too early.</p>
+<div class="diff-view" data-diff="c-a-6"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/2ae5e0565e578395ca7634b9a22d80d81e3c3f70">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 2ae5e05
 crystal spec -v -Dwasmer</code></pre>
+<p class="cmd-note"><code>git checkout 2ae5e05</code> — Opens this saved step of the project.</p>
+<p class="cmd-note"><code>crystal spec -v -Dwasmer</code> — Runs every test in spec/ with full names shown.</p>
+
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   declares a global and reads it back
@@ -227,19 +272,15 @@ Finished in 2.27 seconds
 <h3>Phase A.7: comparisons and while/until loops</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/2033e63457ac3662e091736738cb3f40d27ee933" data-subject="Phase A.7: comparisons and while/until loops">2033e63</a></p>
 <p>Comparisons (<code>== != &lt; &gt; &lt;= &gt;=</code>) and the first loops: <code>while</code>, <code>until</code> and <code>break</code>. WebAssembly has no <code>while</code> instruction. It has structured blocks and branches: <code>block</code> marks a place you can jump <em>out</em> of, <code>loop</code> marks a place you can jump <em>back</em> to, and <code>br_if</code> jumps when the top of the stack is non-zero. So a <code>while</code> loop becomes:</p>
-<p class="code-label">src/compiler/wasm_emitter.cr</p>
-<pre><code>code = op(Opcodes::Block) + Bytes[BlockVoid]      # exit target
-code += op(Opcodes::Loop) + Bytes[BlockVoid]      # repeat target
-code += expression(cond)
-code += op(Opcodes::I32_eqz) if while_true        # while: leave when false
-code += op(Opcodes::Br_if) + unsignedLEB128(ctx.depth - exit)
-body_of(stmt).each { |s| code += statement(s, ctx) }
-code += op(Opcodes::Br) + unsignedLEB128(0)       # back to the top</code></pre>
 <p>Branch targets are counted outward from where you are, which is why the emitter tracks a “depth” and a stack of loops: <code>break</code> has to know how many blocks out its loop's exit is. The number itself is written in <em>LEB128</em>, the variable-length encoding WebAssembly uses for every integer in the file: small numbers take one byte, bigger ones take more.</p>
+<div class="diff-view" data-diff="c-a-7"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/2033e63457ac3662e091736738cb3f40d27ee933">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 2033e63
 crystal spec -v -Dwasmer</code></pre>
+<p class="cmd-note"><code>git checkout 2033e63</code> — Opens this saved step of the project.</p>
+<p class="cmd-note"><code>crystal spec -v -Dwasmer</code> — Runs every test in spec/ with full names shown.</p>
+
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   counts up in a while loop
@@ -255,10 +296,14 @@ Finished in 2.31 seconds
 <h3>Phase A.8: if / elsif / else</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/6a15aea1bbe1aede715667e8e00885fdb52bc67b" data-subject="Phase A.8: if / elsif / else">6a15aea</a></p>
 <p>Branching. In the glyph grammar, an <code>if</code> block only matches once every branch's body has already collapsed to statements, the same “headers first, bodies next, whole blocks last” shape the loops use. The emitter turns a chain of <code>if</code>/<code>elsif</code>/<code>else</code> into nested WebAssembly <code>if</code>/<code>else</code> blocks. The spec that proves it is a fizzbuzz-style counter mixing a loop and every kind of branch.</p>
+<div class="diff-view" data-diff="c-a-8"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/6a15aea1bbe1aede715667e8e00885fdb52bc67b">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 6a15aea
 crystal spec -v -Dwasmer</code></pre>
+<p class="cmd-note"><code>git checkout 6a15aea</code> — Opens this saved step of the project.</p>
+<p class="cmd-note"><code>crystal spec -v -Dwasmer</code> — Runs every test in spec/ with full names shown.</p>
+
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   takes the if branch
@@ -276,10 +321,14 @@ Finished in 2.46 seconds
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/abf7f9b50e57939d9d2a035cf3108e5f338ae486" data-subject="Phase A.9: the CROBOTS builtins as host imports">abf7f9b</a></p>
 <p>A robot's whole job is calling a small set of built-in functions: <code>scan</code> to look for enemies, <code>cannon</code> to shoot, <code>drive</code> to move, <code>damage</code>, <code>speed</code>, <code>loc_x</code> and <code>loc_y</code> to sense itself, plus math helpers. None of those can be written in the robot language itself. They belong to whatever is running the robot: a test, an interpreter, eventually a battlefield.</p>
 <p>So each builtin becomes a WebAssembly import: the module says “I need a function called <code>env.scan</code> that takes two numbers and returns one”, and the host supplies it. Every builtin is typed by how many numbers it takes (zero, one or two) and returns one. A module only imports the builtins its program actually calls, in a fixed order, so two programs that use the same builtins get identical import sections. There is no battlefield yet, so the spec's stand-in host returns fixed made-up numbers for the sensors and just adds up the arguments of the actions.</p>
+<div class="diff-view" data-diff="c-a-9"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/abf7f9b50e57939d9d2a035cf3108e5f338ae486">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout abf7f9b
 crystal spec -v -Dwasmer</code></pre>
+<p class="cmd-note"><code>git checkout abf7f9b</code> — Opens this saved step of the project.</p>
+<p class="cmd-note"><code>crystal spec -v -Dwasmer</code> — Runs every test in spec/ with full names shown.</p>
+
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   calls a zero-argument builtin
@@ -297,14 +346,15 @@ Finished in 2.45 seconds
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/7fbce2eda2056d78a3a2c544737460addacb3f90" data-subject="Phase A.10: user-defined functions">7fbce2e</a></p>
 <p><code>def</code>, calls with arguments, and <code>return</code>. Each <code>def</code> compiles to its own WebAssembly function; parameters become locals, and a name assigned inside a function that is not a global becomes another local.</p>
 <p>Writing the recursion test turned up a real ambiguity in the glyph grammar. Inside <code>n * fact(n - 1)</code>, the multiply rule saw <code>fact</code> as an ordinary value and grabbed it before the call rule ever got to see the whole <code>fact(n - 1)</code>. The fix is one line in the definition of “a value”: a name immediately followed by an opening parenthesis is never a value, because it is always a call waiting to be reduced.</p>
-<p class="code-label">src/compiler/parser.cr (diff)</p>
-<pre><code>-    V = "[№𝑥😑]"
-+    V = "(?:[№😑]|𝑥(?!⟮))"</code></pre>
 <p><code>№</code> is a number, <code>😑</code> an already-reduced expression, <code>𝑥</code> a name and <code>⟮</code> an opening parenthesis; <code>(?!⟮)</code> means “not followed by an opening parenthesis”. The spec now computes <code>fact(5) == 120</code>.</p>
+<div class="diff-view" data-diff="c-a-10"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/7fbce2eda2056d78a3a2c544737460addacb3f90">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 7fbce2e
 crystal spec -v -Dwasmer</code></pre>
+<p class="cmd-note"><code>git checkout 7fbce2e</code> — Opens this saved step of the project.</p>
+<p class="cmd-note"><code>crystal spec -v -Dwasmer</code> — Runs every test in spec/ with full names shown.</p>
+
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   returns explicitly, short-circuiting the rest of the function
@@ -320,10 +370,14 @@ Finished in 2.42 seconds
 <h3>Phase A.11: main("Name") do ... end, the entry point</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/2631ebd6d9b16e38cfce89f46779de693a6f9093" data-subject="Phase A.11: main(&quot;Name&quot;) do ... end, the entry point">2631ebd</a></p>
 <p>Every robot has a name and a starting point: <code>main("Sniper") do ... end</code>. This adds the one string the language allows (the robot's name) and the rule that the main block runs last, after every global declaration and other top-level statement, wherever it appears in the file. The spec checks the ordering directly: a <code>puts</code> before <code>main</code>, one inside it and one after it print in the order before, after, main.</p>
+<div class="diff-view" data-diff="c-a-11"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/2631ebd6d9b16e38cfce89f46779de693a6f9093">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 2631ebd
 crystal spec -v -Dwasmer</code></pre>
+<p class="cmd-note"><code>git checkout 2631ebd</code> — Opens this saved step of the project.</p>
+<p class="cmd-note"><code>crystal spec -v -Dwasmer</code> — Runs every test in spec/ with full names shown.</p>
+
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   runs the main block after every other top-level statement
@@ -338,10 +392,14 @@ Finished in 2.46 seconds
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/4f5d440303e2ab798b5ab0099c46816616a0e747" data-subject="Phase A.12: the checker">4f5d440</a></p>
 <p>Some programs are grammatically fine but mean nothing: using a variable that was never set, calling <code>scan</code> with three numbers, <code>break</code> outside a loop, two functions with the same name. Catching those is the job of a <em>checker</em>, which runs after parsing and before compiling. It collects every problem it finds, each with a line and column, instead of stopping at the first, and it reads all the function names first so a robot can call a function defined further down the file.</p>
 <p>For beginners this is the most important part of the compiler, because it is the part that talks to them. Every later surface, from the command line to the browser editor's live underlining, shows these same messages.</p>
+<div class="diff-view" data-diff="c-a-12"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/4f5d440303e2ab798b5ab0099c46816616a0e747">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 4f5d440
 crystal spec -v -Dwasmer</code></pre>
+<p class="cmd-note"><code>git checkout 4f5d440</code> — Opens this saved step of the project.</p>
+<p class="cmd-note"><code>crystal spec -v -Dwasmer</code> — Runs every test in spec/ with full names shown.</p>
+
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>CrystalRobots::Compiler::Checker
   finds nothing wrong with a clean program
@@ -365,15 +423,14 @@ Finished in 2.42 seconds
 <p>An <em>interpreter</em> runs a program directly from its tree, one node at a time, instead of turning it into machine code first. crystal-robots gets one here for a very practical reason: having two independent ways to run the same program lets each check the other.</p>
 <p>Every builtin goes through a <code>Host</code>, an interface that something else implements. <code>NullHost</code> is a stand-in with the same made-up behavior the WebAssembly specs' host already has. <code>break</code> and <code>return</code> are implemented with Crystal exceptions inside the interpreter, which is simple and works well natively. (Remember that choice; it matters again in the browser.)</p>
 <p>The payoff is <code>spec/differential_spec.cr</code>: three programs covering arithmetic, globals, every loop and branch, functions, recursion and builtins run through both the interpreter and the compiled WebAssembly, and must print exactly the same thing. Two separately written readings of the same tree agreeing is a stronger signal than either one's own tests.</p>
-<p class="code-label">spec/differential_spec.cr</p>
-<pre><code># The interpreter and the WASM emitter are two independent readings of
-# the same AST. ... for any robot that does not divide, the two engines
-# must print identical output -- otherwise one of them has a bug the
-# other does not.</code></pre>
+<div class="diff-view" data-diff="c-a-13"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/f0e79e11431c48fb5c68164f2a71b1d7c1cf7f89">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout f0e79e1
 crystal spec -v -Dwasmer</code></pre>
+<p class="cmd-note"><code>git checkout f0e79e1</code> — Opens this saved step of the project.</p>
+<p class="cmd-note"><code>crystal spec -v -Dwasmer</code> — Runs every test in spec/ with full names shown.</p>
+
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>the interpreter and the WASM emitter
   agree on arithmetic and comparisons
@@ -389,11 +446,16 @@ Finished in 2.36 seconds
 <h3>Phase A.14: CLI wiring and a disassembler debugging aid</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/2b0d9c487e2aab5289bc3ab78a2d90196acd9d0b" data-subject="Phase A.14: CLI wiring and a disassembler debugging aid">2b0d9c4</a></p>
 <p>Phase A closes by giving people a real tool. <code>bin/crystal-robots</code> grows options: <code>-t</code> traces the parse, <code>-k</code> runs the checker alone, <code>-c -o FILE</code> writes a WebAssembly file, <code>-i</code> runs a program in the interpreter, and <code>-d</code> prints a readable dump of the compiled instructions. A small <em>disassembler</em> (a program that turns machine code back into readable instructions) decodes exactly the shapes this compiler emits, so you can inspect its output without installing other WebAssembly tools. Compiling and interpreting both run the checker first and refuse a program that has problems.</p>
+<div class="diff-view" data-diff="c-a-14"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/2b0d9c487e2aab5289bc3ab78a2d90196acd9d0b">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 2b0d9c4
 shards build
 bin/crystal-robots --help</code></pre>
+<p class="cmd-note"><code>git checkout 2b0d9c4</code> — Opens this saved step of the project.</p>
+<p class="cmd-note"><code>shards build</code> — Builds the command program into bin/.</p>
+<p class="cmd-note"><code>bin/crystal-robots --help</code> — Lists the command options and their meanings.</p>
+
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>Usage: crystal-robots [options] FILE
     -v, --version                    Print the version
@@ -411,7 +473,7 @@ bin/crystal-robots --help</code></pre>
 <h3>docs: mark Phase A done in the tutorial plan</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/2038dc793cb7bd793e65e440ba296eb1237cdb51" data-subject="docs: mark Phase A done in the tutorial plan">2038dc7</a></p>
 <p>Bookkeeping: the plan notes that Phase A is complete.</p>
-
+<div class="diff-view" data-diff="c-docs-mark-phase-a-done-in-the-tutorial-p"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/2038dc793cb7bd793e65e440ba296eb1237cdb51">See the whole change on GitHub</a>.</p></div>
 </section>
 </section>
 <section class="chapter" id="phase-b">
@@ -1360,5 +1422,6 @@ crystal run ci.cr -- --with-wasmer</code></pre>
     </article>
   </main>
 </div>
+<script type="module" src="./diff-view.js"></script>
 </body>
 </html>

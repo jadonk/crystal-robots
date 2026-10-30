@@ -1,0 +1,451 @@
+{
+  "sha": "0b60f750ac7e0dc7428a2ad2f534977ec1b1e1ab",
+  "subject": "Phase A.4: the multipass tokenizer and a real compiler for `puts NUMBER`",
+  "summary": "A parser and emitter turn puts into runnable instructions.",
+  "files": [
+    {
+      "path": "examples/hello.cr",
+      "added": 1,
+      "removed": 0,
+      "role": "Example robot programs to try."
+    },
+    {
+      "path": "manifest.uuid",
+      "added": 1,
+      "removed": 1,
+      "role": "A source snapshot identifier."
+    },
+    {
+      "path": "spec/cli_spec.cr",
+      "added": 6,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 29,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 24,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 7,
+      "removed": 6,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "src/cli.cr",
+      "added": 6,
+      "removed": 0,
+      "role": "Program code runs the command."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 128,
+      "removed": 0,
+      "role": "Compiler code reads robot programs or writes instructions."
+    },
+    {
+      "path": "src/compiler/program.cr",
+      "added": 132,
+      "removed": 0,
+      "role": "Compiler code reads robot programs or writes instructions."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 109,
+      "removed": 21,
+      "role": "Compiler code reads robot programs or writes instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/parser.cr",
+      "note": "Each pass replaces recognized text with one symbol.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "    # drops the match (whitespace); `:word` looks the lexeme up in",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": "+",
+          "text": "    # `KEYWORDS`.",
+          "old": null,
+          "new": 30
+        },
+        {
+          "kind": "+",
+          "text": "    LEXICAL = [",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": "+",
+          "text": "      {/\\A[ \\t\\r]+/, :skip},",
+          "old": null,
+          "new": 32
+        },
+        {
+          "kind": "+",
+          "text": "      {/\\A(\\n|;)+/, :newline},",
+          "old": null,
+          "new": 33
+        },
+        {
+          "kind": "+",
+          "text": "      {/\\A[0-9]+/, :number},",
+          "old": null,
+          "new": 34
+        },
+        {
+          "kind": "+",
+          "text": "      {/\\A[A-Za-z_][A-Za-z0-9_]*/, :word},",
+          "old": null,
+          "new": 35
+        },
+        {
+          "kind": "+",
+          "text": "    ]",
+          "old": null,
+          "new": 36
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 37
+        },
+        {
+          "kind": "+",
+          "text": "    # Grammar rules in priority order. Each pass applies the FIRST rule in",
+          "old": null,
+          "new": 38
+        },
+        {
+          "kind": "+",
+          "text": "    # this list that matches anywhere, to every non-overlapping match.",
+          "old": null,
+          "new": 39
+        },
+        {
+          "kind": "+",
+          "text": "    GRAMMAR = [",
+          "old": null,
+          "new": 40
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "      Rule.new(:command1, /∊№/, Type::Expression),",
+          "old": null,
+          "new": 41
+        },
+        {
+          "kind": "+",
+          "text": "      Rule.new(:exprstmt, /😑⏎/, Type::Statement),",
+          "old": null,
+          "new": 42
+        },
+        {
+          "kind": "+",
+          "text": "      Rule.new(:program, /\\A❢+\\z/, Type::Program),",
+          "old": null,
+          "new": 43
+        },
+        {
+          "kind": "+",
+          "text": "    ]",
+          "old": null,
+          "new": 44
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 45
+        },
+        {
+          "kind": "+",
+          "text": "    property program : Program",
+          "old": null,
+          "new": 46
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 47
+        },
+        {
+          "kind": "+",
+          "text": "    # Parse `src` completely. Raises `Parser::Error` when the text cannot",
+          "old": null,
+          "new": 48
+        },
+        {
+          "kind": "+",
+          "text": "    # be reduced to a program.",
+          "old": null,
+          "new": 49
+        },
+        {
+          "kind": "+",
+          "text": "    def initialize(src : String = \"\")",
+          "old": null,
+          "new": 50
+        },
+        {
+          "kind": "+",
+          "text": "      @program = Program.new(src)",
+          "old": null,
+          "new": 51
+        },
+        {
+          "kind": "+",
+          "text": "      Parser.parse(@program)",
+          "old": null,
+          "new": 52
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 53
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 54
+        },
+        {
+          "kind": "+",
+          "text": "    def self.parse(p : Program) : Program",
+          "old": null,
+          "new": 55
+        },
+        {
+          "kind": "+",
+          "text": "      lex(p)",
+          "old": null,
+          "new": 56
+        },
+        {
+          "kind": "+",
+          "text": "      while reduce_once(p)",
+          "old": null,
+          "new": 57
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 58
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "src/compiler/wasm_emitter.cr",
+      "note": "The emitter writes a number as a WebAssembly instruction.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 15,
+          "new": 25
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 16,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "    # https://webassembly.github.io/spec/core/binary/types.html",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "    enum Valtype : UInt8",
+          "old": null,
+          "new": 28
+        },
+        {
+          "kind": "+",
+          "text": "      I32 = 0x7f",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 30
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": " ",
+          "text": "    # https://webassembly.github.io/spec/core/binary/instructions.html",
+          "old": 17,
+          "new": 32
+        },
+        {
+          "kind": " ",
+          "text": "    enum Opcodes : UInt8",
+          "old": 18,
+          "new": 33
+        },
+        {
+          "kind": " ",
+          "text": "      End       = 0x0b",
+          "old": 19,
+          "new": 34
+        },
+        {
+          "kind": "-",
+          "text": "      Local_get = 0x20",
+          "old": 20,
+          "new": null
+        },
+        {
+          "kind": "-",
+          "text": "      I32_add   = 0x6a",
+          "old": 21,
+          "new": null
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "      Call      = 0x10",
+          "old": null,
+          "new": 35
+        },
+        {
+          "kind": "+",
+          "text": "      Drop      = 0x1a",
+          "old": null,
+          "new": 36
+        },
+        {
+          "kind": "+",
+          "text": "      I32_const = 0x41",
+          "old": null,
+          "new": 37
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 38
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 39
+        },
+        {
+          "kind": "+",
+          "text": "    enum ExportType : UInt8",
+          "old": null,
+          "new": 40
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      Func = 0x00",
+          "old": null,
+          "new": 41
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 22,
+          "new": 42
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 23,
+          "new": 43
+        },
+        {
+          "kind": " ",
+          "text": "    FunctionType      = 0x60",
+          "old": 24,
+          "new": 44
+        },
+        {
+          "kind": " ",
+          "text": "    MagicModuleHeader = Bytes[0x00, 'a'.ord, 's'.ord, 'm'.ord]",
+          "old": 25,
+          "new": 45
+        },
+        {
+          "kind": " ",
+          "text": "    ModuleVersion     = Bytes[0x01, 0x00, 0x00, 0x00]",
+          "old": 26,
+          "new": 46
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 27,
+          "new": 47
+        },
+        {
+          "kind": " ",
+          "text": "    def self.minimal_module : Bytes",
+          "old": 28,
+          "new": 48
+        },
+        {
+          "kind": " ",
+          "text": "      MagicModuleHeader + ModuleVersion",
+          "old": 29,
+          "new": 49
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 30,
+          "new": 50
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 31,
+          "new": 51
+        },
+        {
+          "kind": " ",
+          "text": "    # https://en.wikipedia.org/wiki/LEB128",
+          "old": 32,
+          "new": 52
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

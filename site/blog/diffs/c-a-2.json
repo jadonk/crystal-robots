@@ -1,0 +1,206 @@
+{
+  "sha": "9206c10adf1fb5c40022d3d02be90e1f89a3956f",
+  "subject": "Phase A.2: emit the minimal WASM module",
+  "summary": "The emitter writes the smallest valid WebAssembly file.",
+  "files": [
+    {
+      "path": "manifest.uuid",
+      "added": 1,
+      "removed": 1,
+      "role": "A source snapshot identifier."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 10,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 16,
+      "removed": 0,
+      "role": "Compiler code reads robot programs or writes instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/wasm_emitter.cr",
+      "note": "These first eight bytes identify a WebAssembly file. [[Bytes|#crystal-bytes]] lists numbers that go straight into a file.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "# The WebAssembly emitter. Every module starts with the same 8 bytes: a",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "# 4-byte magic number spelling `\\0asm` and a 4-byte version. Nothing else",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "# is required for a module to be valid — it just has no imports, functions",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "# or exports.",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "#",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "# https://webassembly.github.io/spec/core/binary/modules.html#binary-module",
+          "old": null,
+          "new": 6
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "module CrystalRobots::Compiler",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "  class WASM_Emitter",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "    MagicModuleHeader = Bytes[0x00, 'a'.ord, 's'.ord, 'm'.ord]",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "    ModuleVersion     = Bytes[0x01, 0x00, 0x00, 0x00]",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "    def self.minimal_module : Bytes",
+          "old": null,
+          "new": 12
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      MagicModuleHeader + ModuleVersion",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 16
+        }
+      ],
+      "line_notes": {
+        "MagicModuleHeader =": "These bytes tell a runner that this is a WebAssembly file."
+      }
+    },
+    {
+      "file": "spec/wasm_emitter_spec.cr",
+      "note": "The test compares the bytes with the expected header.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "require \"./spec_helper\"",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "require \"../src/compiler/wasm_emitter\"",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "alias W = CrystalRobots::Compiler::WASM_Emitter",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 5
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "describe W do",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "  it \"is the 8-byte magic header and version, nothing else\" do",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "    W.minimal_module.should eq Bytes[0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00]",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 10
+        }
+      ],
+      "after": [],
+      "line_notes": {}
+    }
+  ]
+}

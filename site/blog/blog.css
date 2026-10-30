@@ -21,3 +21,38 @@ pre.output { border-left-color: var(--green); }
   .intermission { padding: .75rem; }
 }
 #blog-toc ol { list-style: none; padding-left: 0; }
+
+/* Selected changes in chapter 1. Code scrolls inside its own box. */
+.diff-view { min-width: 0; margin: 1.2rem 0; }
+.diff-summary { font-weight: 650; }
+.diff-files-heading { margin: .7rem 0 .2rem; font-weight: 650; }
+.diff-files { margin: 0 0 1rem; padding-left: 1.3rem; font-size: .85rem; }
+.diff-files li { margin: .2rem 0; overflow-wrap: anywhere; }
+.diff-count { color: var(--muted); white-space: nowrap; }
+.diff-excerpt { margin: 1.2rem 0; min-width: 0; }
+.diff-note { margin: 0 0 .35rem; }
+.diff-file { margin: 0; padding: .35rem .6rem; background: var(--accent-soft); font: 600 .85rem/1.4 ui-monospace, monospace; overflow-wrap: anywhere; }
+.diff-scroll { max-width: 100%; overflow-x: auto; border: 1px solid var(--line); background: var(--surface); }
+.diff-table { width: max-content; min-width: 100%; border-collapse: collapse; font: .8rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.diff-table td { padding: .05rem .35rem; vertical-align: top; }
+.diff-table tbody[hidden] { display: none; }
+.diff-number { min-width: 2.5rem; color: var(--muted); text-align: right; user-select: none; border-right: 1px solid var(--line); }
+.diff-code { white-space: pre; }
+.diff-mark { display: inline-block; width: 1.4em; font-weight: 800; }
+.diff-add { background: color-mix(in srgb, var(--green) 13%, var(--surface)); }
+.diff-remove { background: color-mix(in srgb, var(--orange) 14%, var(--surface)); }
+.diff-callout td { white-space: normal; max-width: 65ch; padding: .4rem .7rem; border-left: 3px solid var(--accent); background: var(--accent-soft); font: .85rem/1.5 system-ui, sans-serif; }
+.diff-toggle { margin-top: .4rem; padding: .3rem .6rem; color: var(--accent); background: var(--surface); border: 1px solid var(--line); border-radius: .3rem; font: inherit; cursor: pointer; }
+.diff-whole { display: inline-block; margin-top: .3rem; }
+.syntax-comment { color: var(--muted); font-style: italic; }
+.syntax-string { color: var(--green); }
+.syntax-number, .syntax-symbol { color: var(--orange); }
+.syntax-keyword { color: var(--accent); font-weight: 600; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.cmd-note { margin: .2rem 0 .65rem; color: var(--muted); font-size: .9rem; }
+.crystal-primer > div { margin: 1rem 0; }
+.crystal-primer h3 { margin-bottom: .2rem; }
+.crystal-primer pre { margin: .2rem 0; }
+.crystal-primer p { margin: .25rem 0; }
+@media (max-width: 700px) { .diff-table { font-size: .75rem; } .diff-number { min-width: 2rem; } }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }.diff-file { max-width: none; }

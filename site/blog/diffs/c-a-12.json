@@ -1,0 +1,411 @@
+{
+  "sha": "4f5d440303e2ab798b5ab0099c46816616a0e747",
+  "subject": "Phase A.12: the checker",
+  "summary": "The checker reports mistakes with source locations.",
+  "files": [
+    {
+      "path": "manifest.uuid",
+      "added": 1,
+      "removed": 1,
+      "role": "A source snapshot identifier."
+    },
+    {
+      "path": "spec/checker_spec.cr",
+      "added": 55,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 1,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "src/compiler/checker.cr",
+      "added": 170,
+      "removed": 0,
+      "role": "Compiler code reads robot programs or writes instructions."
+    },
+    {
+      "path": "src/compiler/program.cr",
+      "added": 19,
+      "removed": 0,
+      "role": "Compiler code reads robot programs or writes instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/checker.cr",
+      "note": "Each problem carries a message and a place in the source.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "require \"./program\"",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "require \"./parser\"",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "# The semantic pass, run after the parser and before the emitter or the",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "# interpreter: syntax alone cannot tell an undefined variable, a call with",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "# the wrong number of arguments, a `return` outside a function, a `break`",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "# outside a loop, or two `def`s with the same name, from a program that",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "# means something. `Checker.check(program)` collects every such problem",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "# it finds, each with its source location, instead of stopping at the",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "# first one.",
+          "old": null,
+          "new": 10
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "module CrystalRobots::Compiler",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "  class Checker",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "    struct Issue",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "      getter message : String, line : Int32, col : Int32",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "      def initialize(@message : String, @line : Int32, @col : Int32)",
+          "old": null,
+          "new": 16
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "      def to_s(io : IO) : Nil",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "        io << message << \" at \" << line << ':' << col",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "    # Per-statement checking context: the names in scope as locals (a",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "    # function's parameters and anything assigned anywhere in its body,",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "    # empty at the top level and inside `main`), and whether `return`",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "    # and `break` are currently valid.",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "    private record Scope, locals : Set(String), in_function : Bool, in_loop : Bool",
+          "old": null,
+          "new": 28
+        }
+      ],
+      "line_notes": {
+        "getter message : String, line : Int32, col : Int32": "The checker keeps the message and the source position together."
+      }
+    },
+    {
+      "file": "spec/checker_spec.cr",
+      "note": "Tests show the problems the checker should report.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "require \"./spec_helper\"",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "alias Checker = CrystalRobots::Compiler::Checker",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "private def issues(source : String) : Array(String)",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "  program = CrystalRobots::Compiler::Parser.new(source).program",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "  Checker.check(program).map(&.message)",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "describe Checker do",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "  it \"finds nothing wrong with a clean program\" do",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "    issues(\"global(count, 0)\\nputs count\\n\").should be_empty",
+          "old": null,
+          "new": 12
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "  it \"flags an undefined variable\" do",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "    issues(\"puts mystery\\n\").should eq [\"undefined variable mystery\"]",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 18
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "  it \"flags an undefined function\" do",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "    issues(\"puts go(1)\\n\").should eq [\"undefined function go\"]",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "  it \"flags a call with the wrong number of arguments\" do",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "    issues(\"def go(a, b)\\na + b\\nend\\nputs go(1)\\n\").should eq [\"go takes 2 arguments, given 1\"]",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "  it \"flags return outside of a function\" do",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "    issues(\"return\\n\").should eq [\"return outside of a function\"]",
+          "old": null,
+          "new": 28
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 30
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

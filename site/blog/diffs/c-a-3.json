@@ -1,0 +1,200 @@
+{
+  "sha": "27a3ab69a15db8233a457de1fc7278315209a6cd",
+  "subject": "Phase A.3: a hand-assembled add function",
+  "summary": "A hand-built function adds two numbers.",
+  "files": [
+    {
+      "path": "manifest.uuid",
+      "added": 1,
+      "removed": 1,
+      "role": "A source snapshot identifier."
+    },
+    {
+      "path": "shard.lock",
+      "added": 6,
+      "removed": 0,
+      "role": "Pinned library versions."
+    },
+    {
+      "path": "shard.yml",
+      "added": 5,
+      "removed": 0,
+      "role": "Crystal project setup."
+    },
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 27,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 6,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 63,
+      "removed": 4,
+      "role": "Compiler code reads robot programs or writes instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/wasm_emitter.cr",
+      "note": "The function takes two numbers from the stack and adds them.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 52
+        },
+        {
+          "kind": "+",
+          "text": "    def self.createSection(type : Section, data : Bytes) : Bytes",
+          "old": null,
+          "new": 53
+        },
+        {
+          "kind": "+",
+          "text": "      Bytes[type.value] + unsignedLEB128(data.size) + data",
+          "old": null,
+          "new": 54
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 55
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 56
+        },
+        {
+          "kind": "+",
+          "text": "    # One function, `(i32, i32) -> i32`, exported as `add`, that adds its",
+          "old": null,
+          "new": 57
+        },
+        {
+          "kind": "+",
+          "text": "    # two parameters. Hand-assembled: there is no compiler yet, only the",
+          "old": null,
+          "new": 58
+        },
+        {
+          "kind": "+",
+          "text": "    # binary encoding rules a compiler will eventually target.",
+          "old": null,
+          "new": 59
+        },
+        {
+          "kind": "+",
+          "text": "    def self.add_module : Bytes",
+          "old": null,
+          "new": 60
+        },
+        {
+          "kind": "+",
+          "text": "      type_section = createSection(Section::Type,",
+          "old": null,
+          "new": 61
+        },
+        {
+          "kind": "+",
+          "text": "        encodeVector([Bytes[FunctionType, 2, 0x7f, 0x7f, 1, 0x7f]])) # (i32, i32) -> i32",
+          "old": null,
+          "new": 62
+        },
+        {
+          "kind": "+",
+          "text": "      func_section = createSection(Section::Func, encodeVector([Bytes[0]]))",
+          "old": null,
+          "new": 63
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "      export_section = createSection(Section::Export,",
+          "old": null,
+          "new": 64
+        },
+        {
+          "kind": "+",
+          "text": "        encodeVector([encodeString(\"add\") + Bytes[0x00, 0]])) # func export, function index 0",
+          "old": null,
+          "new": 65
+        },
+        {
+          "kind": "+",
+          "text": "      body = Bytes[0] +                                       # no locals beyond the parameters",
+          "old": null,
+          "new": 66
+        },
+        {
+          "kind": "+",
+          "text": "             Bytes[Opcodes::Local_get.value, 0] +",
+          "old": null,
+          "new": 67
+        },
+        {
+          "kind": "+",
+          "text": "             Bytes[Opcodes::Local_get.value, 1] +",
+          "old": null,
+          "new": 68
+        },
+        {
+          "kind": "+",
+          "text": "             Bytes[Opcodes::I32_add.value] +",
+          "old": null,
+          "new": 69
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "             Bytes[Opcodes::End.value]",
+          "old": null,
+          "new": 70
+        },
+        {
+          "kind": "+",
+          "text": "      code_section = createSection(Section::Code, encodeVector([unsignedLEB128(body.size) + body]))",
+          "old": null,
+          "new": 71
+        },
+        {
+          "kind": "+",
+          "text": "      minimal_module + type_section + func_section + export_section + code_section",
+          "old": null,
+          "new": 72
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 73
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 15,
+          "new": 74
+        },
+        {
+          "kind": " ",
+          "text": "end",
+          "old": 16,
+          "new": 75
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

@@ -1,0 +1,433 @@
+{
+  "sha": "abf7f9b50e57939d9d2a035cf3108e5f338ae486",
+  "subject": "Phase A.9: the CROBOTS builtins as host imports",
+  "summary": "Robot sensing and actions become host calls.",
+  "files": [
+    {
+      "path": "manifest.uuid",
+      "added": 1,
+      "removed": 1,
+      "role": "A source snapshot identifier."
+    },
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 6,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 30,
+      "removed": 7,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 17,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 13,
+      "removed": 3,
+      "role": "Compiler code reads robot programs or writes instructions."
+    },
+    {
+      "path": "src/compiler/program.cr",
+      "added": 11,
+      "removed": 1,
+      "role": "Compiler code reads robot programs or writes instructions."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 45,
+      "removed": 14,
+      "role": "Compiler code reads robot programs or writes instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/wasm_emitter.cr",
+      "note": "The table lists robot actions and how many numbers they take.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    def self.encodeVector(entries : Array(Bytes)) : Bytes",
+          "old": 116,
+          "new": 118
+        },
+        {
+          "kind": " ",
+          "text": "      unsignedLEB128(entries.size) + entries.reduce(Bytes[]) { |a, b| a + b }",
+          "old": 117,
+          "new": 119
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 118,
+          "new": 120
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 119,
+          "new": 121
+        },
+        {
+          "kind": " ",
+          "text": "    def self.encodeString(string : String) : Bytes",
+          "old": 120,
+          "new": 122
+        },
+        {
+          "kind": " ",
+          "text": "      unsignedLEB128(string.bytesize) + string.to_slice",
+          "old": 121,
+          "new": 123
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 122,
+          "new": 124
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 123,
+          "new": 125
+        },
+        {
+          "kind": " ",
+          "text": "    def self.createSection(type : Section, data : Bytes) : Bytes",
+          "old": 124,
+          "new": 126
+        },
+        {
+          "kind": " ",
+          "text": "      Bytes[type.value] + unsignedLEB128(data.size) + data",
+          "old": 125,
+          "new": 127
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 126,
+          "new": 128
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 127,
+          "new": 129
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "    # Builtins in import order, with how many `i32` arguments each takes.",
+          "old": null,
+          "new": 130
+        },
+        {
+          "kind": "+",
+          "text": "    IMPORTS = {",
+          "old": null,
+          "new": 131
+        },
+        {
+          "kind": "+",
+          "text": "      \"puts\" => 1, \"scan\" => 2, \"cannon\" => 2, \"drive\" => 2,",
+          "old": null,
+          "new": 132
+        },
+        {
+          "kind": "+",
+          "text": "      \"damage\" => 0, \"speed\" => 0, \"loc_x\" => 0, \"loc_y\" => 0, \"sleep\" => 0,",
+          "old": null,
+          "new": 133
+        },
+        {
+          "kind": "+",
+          "text": "      \"rand\" => 1, \"sqrt\" => 1, \"sin\" => 1, \"cos\" => 1, \"tan\" => 1, \"atan\" => 1,",
+          "old": null,
+          "new": 134
+        },
+        {
+          "kind": "+",
+          "text": "    }",
+          "old": null,
+          "new": 135
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 136
+        },
+        {
+          "kind": " ",
+          "text": "    getter program : Program",
+          "old": 128,
+          "new": 137
+        },
+        {
+          "kind": "+",
+          "text": "    getter imports : Array(String)",
+          "old": null,
+          "new": 138
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 129,
+          "new": 139
+        },
+        {
+          "kind": " ",
+          "text": "    def initialize(@program : Program)",
+          "old": 130,
+          "new": 140
+        },
+        {
+          "kind": " ",
+          "text": "      @globals = [] of String",
+          "old": 131,
+          "new": 141
+        },
+        {
+          "kind": " ",
+          "text": "      @program.children(@program.root).each do |stmt|",
+          "old": 132,
+          "new": 142
+        },
+        {
+          "kind": " ",
+          "text": "        # global(name, init): children are 🌐 ⟮ name ， init ⟯ ⏎",
+          "old": 133,
+          "new": 143
+        },
+        {
+          "kind": " ",
+          "text": "        @globals << @program.value(@program.arg(stmt, 2)) if @program[stmt].rule == :global",
+          "old": 134,
+          "new": 144
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 135,
+          "new": 145
+        },
+        {
+          "kind": "+",
+          "text": "      used = Set(String).new",
+          "old": null,
+          "new": 146
+        },
+        {
+          "kind": "+",
+          "text": "      @program.ast.each do |n|",
+          "old": null,
+          "new": 147
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "src/compiler/parser.cr",
+      "note": "The parser recognizes builtins that read the robot state.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    # One grammar rule: a regex over glyphs and the glyph it reduces to.",
+          "old": 20,
+          "new": 22
+        },
+        {
+          "kind": " ",
+          "text": "    struct Rule",
+          "old": 21,
+          "new": 23
+        },
+        {
+          "kind": " ",
+          "text": "      getter name : Symbol, regex : Regex, type : Type",
+          "old": 22,
+          "new": 24
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 23,
+          "new": 25
+        },
+        {
+          "kind": " ",
+          "text": "      def initialize(@name : Symbol, @regex : Regex, @type : Type)",
+          "old": 24,
+          "new": 26
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 25,
+          "new": 27
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 26,
+          "new": 28
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 27,
+          "new": 29
+        },
+        {
+          "kind": " ",
+          "text": "    KEYWORDS = {",
+          "old": 28,
+          "new": 30
+        },
+        {
+          "kind": "-",
+          "text": "      \"puts\" => Type::OneArgMethod, \"global\" => Type::GlobalKeyword,",
+          "old": 29,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "      \"global\" => Type::GlobalKeyword,",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": " ",
+          "text": "      \"while\" => Type::WhileKeyword, \"until\" => Type::UntilKeyword,",
+          "old": 30,
+          "new": 32
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "      \"end\" => Type::EndKeyword, \"break\" => Type::BreakKeyword,",
+          "old": 31,
+          "new": 33
+        },
+        {
+          "kind": " ",
+          "text": "      \"if\" => Type::IfKeyword, \"elsif\" => Type::ElsifKeyword, \"else\" => Type::ElseKeyword,",
+          "old": 32,
+          "new": 34
+        },
+        {
+          "kind": "+",
+          "text": "      \"damage\" => Type::ZeroArgMethod, \"speed\" => Type::ZeroArgMethod, \"loc_x\" => Type::ZeroArgMethod,",
+          "old": null,
+          "new": 35
+        },
+        {
+          "kind": "+",
+          "text": "      \"loc_y\" => Type::ZeroArgMethod, \"sleep\" => Type::ZeroArgMethod,",
+          "old": null,
+          "new": 36
+        },
+        {
+          "kind": "+",
+          "text": "      \"puts\" => Type::OneArgMethod, \"rand\" => Type::OneArgMethod, \"sqrt\" => Type::OneArgMethod,",
+          "old": null,
+          "new": 37
+        },
+        {
+          "kind": "+",
+          "text": "      \"sin\" => Type::OneArgMethod, \"cos\" => Type::OneArgMethod, \"tan\" => Type::OneArgMethod,",
+          "old": null,
+          "new": 38
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      \"atan\" => Type::OneArgMethod,",
+          "old": null,
+          "new": 39
+        },
+        {
+          "kind": "+",
+          "text": "      \"scan\" => Type::TwoArgMethod, \"cannon\" => Type::TwoArgMethod, \"drive\" => Type::TwoArgMethod,",
+          "old": null,
+          "new": 40
+        },
+        {
+          "kind": " ",
+          "text": "    }",
+          "old": 33,
+          "new": 41
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 34,
+          "new": 42
+        },
+        {
+          "kind": " ",
+          "text": "    OPERATORS = {",
+          "old": 35,
+          "new": 43
+        },
+        {
+          "kind": " ",
+          "text": "      \"//\" => Type::FloorDivOperator, \"==\" => Type::EqOperator, \"!=\" => Type::NeOperator,",
+          "old": 36,
+          "new": 44
+        },
+        {
+          "kind": " ",
+          "text": "      \"<=\" => Type::LeOperator, \">=\" => Type::GeOperator,",
+          "old": 37,
+          "new": 45
+        },
+        {
+          "kind": " ",
+          "text": "      \"+\" => Type::AddOperator, \"-\" => Type::SubOperator, \"*\" => Type::MulOperator,",
+          "old": 38,
+          "new": 46
+        },
+        {
+          "kind": " ",
+          "text": "      \"/\" => Type::DivOperator, \"%\" => Type::ModOperator, \"=\" => Type::Assign,",
+          "old": 39,
+          "new": 47
+        },
+        {
+          "kind": " ",
+          "text": "      \"<\" => Type::LtOperator, \">\" => Type::GtOperator,",
+          "old": 40,
+          "new": 48
+        },
+        {
+          "kind": " ",
+          "text": "      \"(\" => Type::OpenParen, \")\" => Type::CloseParen, \",\" => Type::Comma,",
+          "old": 41,
+          "new": 49
+        },
+        {
+          "kind": " ",
+          "text": "    }",
+          "old": 42,
+          "new": 50
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

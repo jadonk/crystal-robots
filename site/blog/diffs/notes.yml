@@ -1,0 +1,306 @@
+{
+  "roles": {
+    "spec/": "Tests say what the program should do.",
+    "src/compiler/": "Compiler code reads robot programs or writes instructions.",
+    "src/": "Program code runs the command.",
+    "examples/": "Example robot programs to try.",
+    "docs/": "Plans and explanations for the project.",
+    "README.md": "The project introduction.",
+    "shard.yml": "Crystal project setup.",
+    "shard.lock": "Pinned library versions.",
+    "manifest.uuid": "A source snapshot identifier.",
+    ".": "Project setup file."
+  },
+  "commits": {
+    "c-initial-commit": {
+      "summary": "The project begins with its learning goal.",
+      "excerpts": [
+        {
+          "file": "README.md",
+          "anchor": "A great way to learn about programming with a simple Ruby-like syntax. Write programs to battle",
+          "before": 2,
+          "after": 3,
+          "note": "The first page states the goal: learn by making robots and looking inside the program."
+        }
+      ]
+    },
+    "c-project-skeleton": {
+      "summary": "The project gains a command and its first test.",
+      "excerpts": [
+        {
+          "file": "src/cli.cr",
+          "anchor": "if ARGV.includes?(\"--version\") || ARGV.includes?(\"-v\")",
+          "before": 2,
+          "after": 3,
+          "note": "The first command can report the program version."
+        },
+        {
+          "file": "spec/cli_spec.cr",
+          "anchor": "output = `crystal run src/cli.cr -- --version`",
+          "before": 2,
+          "after": 3,
+          "note": "A test checks what the command prints."
+        }
+      ]
+    },
+    "c-a-2": {
+      "summary": "The emitter writes the smallest valid WebAssembly file.",
+      "excerpts": [
+        {
+          "file": "src/compiler/wasm_emitter.cr",
+          "anchor": "MagicModuleHeader = Bytes[0x00, 'a'.ord, 's'.ord, 'm'.ord]",
+          "before": 2,
+          "after": 3,
+          "note": "These first eight bytes identify a WebAssembly file. [[Bytes|#crystal-bytes]] lists numbers that go straight into a file.",
+          "line_notes": {
+            "MagicModuleHeader =": "These bytes tell a runner that this is a WebAssembly file."
+          }
+        },
+        {
+          "file": "spec/wasm_emitter_spec.cr",
+          "anchor": "W.minimal_module.should eq Bytes[0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00]",
+          "before": 2,
+          "after": 3,
+          "note": "The test compares the bytes with the expected header."
+        }
+      ]
+    },
+    "c-a-3": {
+      "summary": "A hand-built function adds two numbers.",
+      "excerpts": [
+        {
+          "file": "src/compiler/wasm_emitter.cr",
+          "anchor": "body = Bytes[0] +                                       # no locals beyond the parameters",
+          "before": 2,
+          "after": 3,
+          "note": "The function takes two numbers from the stack and adds them."
+        }
+      ]
+    },
+    "c-a-4": {
+      "summary": "A parser and emitter turn puts into runnable instructions.",
+      "excerpts": [
+        {
+          "file": "src/compiler/parser.cr",
+          "anchor": "Rule.new(:program, /\\A❢+\\z/, Type::Program),",
+          "before": 2,
+          "after": 3,
+          "note": "Each pass replaces recognized text with one symbol."
+        },
+        {
+          "file": "src/compiler/wasm_emitter.cr",
+          "anchor": "I32_const = 0x41",
+          "before": 2,
+          "after": 3,
+          "note": "The emitter writes a number as a WebAssembly instruction."
+        }
+      ]
+    },
+    "c-a-5": {
+      "summary": "The language gains arithmetic and precedence.",
+      "excerpts": [
+        {
+          "file": "src/compiler/parser.cr",
+          "anchor": "MULOPS = \"⊗／⊘％\"",
+          "before": 2,
+          "after": 3,
+          "note": "Multiplication is grouped before addition."
+        },
+        {
+          "file": "src/compiler/wasm_emitter.cr",
+          "anchor": "I32_mul   = 0x6c",
+          "before": 2,
+          "after": 3,
+          "note": "The emitter gains arithmetic instructions."
+        }
+      ]
+    },
+    "c-a-6": {
+      "summary": "Programs can keep and change global values.",
+      "excerpts": [
+        {
+          "file": "src/compiler/parser.cr",
+          "anchor": "Rule.new(:assign, /𝑥＝#{V}(?=⏎)/, Type::Expression),",
+          "before": 2,
+          "after": 3,
+          "note": "An assignment gives a variable a new value."
+        },
+        {
+          "file": "src/compiler/wasm_emitter.cr",
+          "anchor": "Global_set = 0x24",
+          "before": 2,
+          "after": 3,
+          "note": "WebAssembly stores that value in a global slot."
+        }
+      ]
+    },
+    "c-a-7": {
+      "summary": "Programs can compare values and repeat work.",
+      "excerpts": [
+        {
+          "file": "src/compiler/parser.cr",
+          "anchor": "\"while\" => Type::WhileKeyword, \"until\" => Type::UntilKeyword,",
+          "before": 2,
+          "after": 3,
+          "note": "The parser learns loop words."
+        },
+        {
+          "file": "src/compiler/wasm_emitter.cr",
+          "anchor": "Br_if      = 0x0d",
+          "before": 2,
+          "after": 3,
+          "note": "A conditional branch decides whether the loop repeats."
+        }
+      ]
+    },
+    "c-a-8": {
+      "summary": "Programs can choose among branches.",
+      "excerpts": [
+        {
+          "file": "src/compiler/parser.cr",
+          "anchor": "\"if\" => Type::IfKeyword, \"elsif\" => Type::ElsifKeyword, \"else\" => Type::ElseKeyword,",
+          "before": 2,
+          "after": 3,
+          "note": "The parser recognizes branches."
+        },
+        {
+          "file": "src/compiler/wasm_emitter.cr",
+          "anchor": "private def if_statement(stmt : Int32, ctx : Ctx) : Bytes",
+          "before": 2,
+          "after": 3,
+          "note": "The emitter chooses which branch to run."
+        }
+      ]
+    },
+    "c-a-9": {
+      "summary": "Robot sensing and actions become host calls.",
+      "excerpts": [
+        {
+          "file": "src/compiler/wasm_emitter.cr",
+          "anchor": "\"puts\" => 1, \"scan\" => 2, \"cannon\" => 2, \"drive\" => 2,",
+          "before": 2,
+          "after": 3,
+          "note": "The table lists robot actions and how many numbers they take."
+        },
+        {
+          "file": "src/compiler/parser.cr",
+          "anchor": "\"damage\" => Type::ZeroArgMethod, \"speed\" => Type::ZeroArgMethod, \"loc_x\" => Type::ZeroArgMethod,",
+          "before": 2,
+          "after": 3,
+          "note": "The parser recognizes builtins that read the robot state."
+        }
+      ]
+    },
+    "c-a-10": {
+      "summary": "Robots can define and call functions.",
+      "excerpts": [
+        {
+          "file": "src/compiler/parser.cr",
+          "anchor": "\"def\" => Type::DefKeyword, \"return\" => Type::ReturnKeyword,",
+          "before": 2,
+          "after": 3,
+          "note": "A robot can name its own function."
+        },
+        {
+          "file": "src/compiler/wasm_emitter.cr",
+          "anchor": "getter functions : Array(String)",
+          "before": 2,
+          "after": 3,
+          "note": "The emitter keeps track of function names."
+        }
+      ]
+    },
+    "c-a-11": {
+      "summary": "A named main block starts the robot.",
+      "excerpts": [
+        {
+          "file": "src/compiler/parser.cr",
+          "anchor": "\"main\" => Type::MainKeyword, \"do\" => Type::DoKeyword,",
+          "before": 2,
+          "after": 3,
+          "note": "The parser recognizes the robot entry block."
+        },
+        {
+          "file": "src/compiler/wasm_emitter.cr",
+          "anchor": "when :main",
+          "before": 2,
+          "after": 3,
+          "note": "The main block runs after other top-level statements."
+        }
+      ]
+    },
+    "c-a-12": {
+      "summary": "The checker reports mistakes with source locations.",
+      "excerpts": [
+        {
+          "file": "src/compiler/checker.cr",
+          "anchor": "struct Issue",
+          "before": 2,
+          "after": 3,
+          "note": "Each problem carries a message and a place in the source.",
+          "line_notes": {
+            "getter message : String, line : Int32, col : Int32": "The checker keeps the message and the source position together."
+          }
+        },
+        {
+          "file": "spec/checker_spec.cr",
+          "anchor": "it \"flags an undefined variable\" do",
+          "before": 2,
+          "after": 3,
+          "note": "Tests show the problems the checker should report."
+        }
+      ]
+    },
+    "c-a-13": {
+      "summary": "An interpreter runs beside the WebAssembly emitter.",
+      "excerpts": [
+        {
+          "file": "src/compiler/interpreter.cr",
+          "anchor": "abstract class Host",
+          "before": 2,
+          "after": 3,
+          "note": "A host supplies the robot actions while the interpreter runs."
+        },
+        {
+          "file": "spec/differential_spec.cr",
+          "anchor": "wasmer_it \"agree on #{name}\" do",
+          "before": 2,
+          "after": 3,
+          "note": "The same robot runs through both engines for comparison."
+        }
+      ]
+    },
+    "c-a-14": {
+      "summary": "The command gains practical modes and a readable instruction dump.",
+      "excerpts": [
+        {
+          "file": "src/cli.cr",
+          "anchor": "parser = OptionParser.new do |p|",
+          "before": 2,
+          "after": 3,
+          "note": "Command options now select tracing, checking, compiling, or running."
+        },
+        {
+          "file": "src/compiler/disassembler.cr",
+          "anchor": "class Disassembler",
+          "before": 2,
+          "after": 3,
+          "note": "The disassembler turns emitted bytes into readable instructions."
+        }
+      ]
+    },
+    "c-docs-mark-phase-a-done-in-the-tutorial-p": {
+      "summary": "The tutorial plan records Phase A as done.",
+      "excerpts": [
+        {
+          "file": "docs/PLAN.md",
+          "anchor": "**Status 2026-09-17: Phase A done**, commits A.1 through A.14 below, all on",
+          "before": 2,
+          "after": 3,
+          "note": "The plan records that the first compiler chapter is complete.",
+          "context_before": 3
+        }
+      ]
+    }
+  }
+}

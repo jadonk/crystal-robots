@@ -1,0 +1,427 @@
+{
+  "sha": "613e89546dd16011a99a8766ef64d131cbcddc01",
+  "subject": "Phase A.5: binary expressions",
+  "summary": "The language gains arithmetic and precedence.",
+  "files": [
+    {
+      "path": "manifest.uuid",
+      "added": 1,
+      "removed": 1,
+      "role": "A source snapshot identifier."
+    },
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 7,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 20,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 40,
+      "removed": 5,
+      "role": "Compiler code reads robot programs or writes instructions."
+    },
+    {
+      "path": "src/compiler/program.cr",
+      "added": 10,
+      "removed": 0,
+      "role": "Compiler code reads robot programs or writes instructions."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 52,
+      "removed": 13,
+      "role": "Compiler code reads robot programs or writes instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/parser.cr",
+      "note": "Multiplication is grouped before addition.",
+      "before": [
+        {
+          "kind": "-",
+          "text": "    # `KEYWORDS`.",
+          "old": 30,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "    # `KEYWORDS`; `:operator` looks it up in `OPERATORS`.",
+          "old": null,
+          "new": 40
+        },
+        {
+          "kind": " ",
+          "text": "    LEXICAL = [",
+          "old": 31,
+          "new": 41
+        },
+        {
+          "kind": " ",
+          "text": "      {/\\A[ \\t\\r]+/, :skip},",
+          "old": 32,
+          "new": 42
+        },
+        {
+          "kind": " ",
+          "text": "      {/\\A(\\n|;)+/, :newline},",
+          "old": 33,
+          "new": 43
+        },
+        {
+          "kind": " ",
+          "text": "      {/\\A[0-9]+/, :number},",
+          "old": 34,
+          "new": 44
+        },
+        {
+          "kind": "+",
+          "text": "      {/\\A(\\/\\/|[-+*\\/%()])/, :operator},",
+          "old": null,
+          "new": 45
+        },
+        {
+          "kind": " ",
+          "text": "      {/\\A[A-Za-z_][A-Za-z0-9_]*/, :word},",
+          "old": 35,
+          "new": 46
+        },
+        {
+          "kind": " ",
+          "text": "    ]",
+          "old": 36,
+          "new": 47
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 37,
+          "new": 48
+        },
+        {
+          "kind": "+",
+          "text": "    # Anything that is already a value: a number or a reduced expression.",
+          "old": null,
+          "new": 49
+        },
+        {
+          "kind": "+",
+          "text": "    V = \"[№😑]\"",
+          "old": null,
+          "new": 50
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 51
+        },
+        {
+          "kind": "+",
+          "text": "    # Infix operator glyphs by precedence level, tightest first.",
+          "old": null,
+          "new": 52
+        },
+        {
+          "kind": "+",
+          "text": "    MULOPS = \"⊗／⊘％\"",
+          "old": null,
+          "new": 53
+        },
+        {
+          "kind": "+",
+          "text": "    ADDOPS = \"⊕⊖\"",
+          "old": null,
+          "new": 54
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 55
+        },
+        {
+          "kind": "+",
+          "text": "    # An infix rule at level L reduces `V op V` only when the left operand",
+          "old": null,
+          "new": 56
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    # is not preceded by an operator of level <= L (that operand belongs to",
+          "old": null,
+          "new": 57
+        },
+        {
+          "kind": "+",
+          "text": "    # the earlier operator, giving left associativity) and the right",
+          "old": null,
+          "new": 58
+        },
+        {
+          "kind": "+",
+          "text": "    # operand is not followed by an operator of a tighter level (that",
+          "old": null,
+          "new": 59
+        },
+        {
+          "kind": "+",
+          "text": "    # operand belongs to the tighter operator instead). See docs/PARSER.md",
+          "old": null,
+          "new": 60
+        },
+        {
+          "kind": "+",
+          "text": "    # section 2 for the full reasoning.",
+          "old": null,
+          "new": 61
+        },
+        {
+          "kind": "+",
+          "text": "    def self.infix(ops : String, higher : String) : Regex",
+          "old": null,
+          "new": 62
+        },
+        {
+          "kind": "+",
+          "text": "      ahead = higher.empty? ? \"\" : \"(?![#{higher}])\"",
+          "old": null,
+          "new": 63
+        },
+        {
+          "kind": "+",
+          "text": "      Regex.new(\"(?<![#{higher}#{ops}])#{V}[#{ops}]#{V}#{ahead}\")",
+          "old": null,
+          "new": 64
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 65
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 66
+        },
+        {
+          "kind": " ",
+          "text": "    # Grammar rules in priority order. Each pass applies the FIRST rule in",
+          "old": 38,
+          "new": 67
+        },
+        {
+          "kind": " ",
+          "text": "    # this list that matches anywhere, to every non-overlapping match.",
+          "old": 39,
+          "new": 68
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "src/compiler/wasm_emitter.cr",
+      "note": "The emitter gains arithmetic instructions.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "",
+          "old": 26,
+          "new": 26
+        },
+        {
+          "kind": " ",
+          "text": "    # https://webassembly.github.io/spec/core/binary/types.html",
+          "old": 27,
+          "new": 27
+        },
+        {
+          "kind": " ",
+          "text": "    enum Valtype : UInt8",
+          "old": 28,
+          "new": 28
+        },
+        {
+          "kind": " ",
+          "text": "      I32 = 0x7f",
+          "old": 29,
+          "new": 29
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 30,
+          "new": 30
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 31,
+          "new": 31
+        },
+        {
+          "kind": " ",
+          "text": "    # https://webassembly.github.io/spec/core/binary/instructions.html",
+          "old": 32,
+          "new": 32
+        },
+        {
+          "kind": " ",
+          "text": "    enum Opcodes : UInt8",
+          "old": 33,
+          "new": 33
+        },
+        {
+          "kind": " ",
+          "text": "      End       = 0x0b",
+          "old": 34,
+          "new": 34
+        },
+        {
+          "kind": " ",
+          "text": "      Call      = 0x10",
+          "old": 35,
+          "new": 35
+        },
+        {
+          "kind": " ",
+          "text": "      Drop      = 0x1a",
+          "old": 36,
+          "new": 36
+        },
+        {
+          "kind": " ",
+          "text": "      I32_const = 0x41",
+          "old": 37,
+          "new": 37
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "      I32_add   = 0x6a",
+          "old": null,
+          "new": 38
+        },
+        {
+          "kind": "+",
+          "text": "      I32_sub   = 0x6b",
+          "old": null,
+          "new": 39
+        },
+        {
+          "kind": "+",
+          "text": "      I32_mul   = 0x6c",
+          "old": null,
+          "new": 40
+        },
+        {
+          "kind": "+",
+          "text": "      I32_div_s = 0x6d",
+          "old": null,
+          "new": 41
+        },
+        {
+          "kind": "+",
+          "text": "      I32_rem_s = 0x6f",
+          "old": null,
+          "new": 42
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 43
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 44
+        },
+        {
+          "kind": "+",
+          "text": "    class Unsupported < Exception",
+          "old": null,
+          "new": 45
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 38,
+          "new": 46
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 39,
+          "new": 47
+        },
+        {
+          "kind": " ",
+          "text": "    enum ExportType : UInt8",
+          "old": 40,
+          "new": 48
+        },
+        {
+          "kind": " ",
+          "text": "      Func = 0x00",
+          "old": 41,
+          "new": 49
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 42,
+          "new": 50
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 43,
+          "new": 51
+        },
+        {
+          "kind": " ",
+          "text": "    FunctionType      = 0x60",
+          "old": 44,
+          "new": 52
+        },
+        {
+          "kind": " ",
+          "text": "    MagicModuleHeader = Bytes[0x00, 'a'.ord, 's'.ord, 'm'.ord]",
+          "old": 45,
+          "new": 53
+        },
+        {
+          "kind": " ",
+          "text": "    ModuleVersion     = Bytes[0x01, 0x00, 0x00, 0x00]",
+          "old": 46,
+          "new": 54
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 47,
+          "new": 55
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

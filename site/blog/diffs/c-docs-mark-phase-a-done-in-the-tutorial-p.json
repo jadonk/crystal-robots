@@ -1,0 +1,158 @@
+{
+  "sha": "2038dc793cb7bd793e65e440ba296eb1237cdb51",
+  "subject": "docs: mark Phase A done in the tutorial plan",
+  "summary": "The tutorial plan records Phase A as done.",
+  "files": [
+    {
+      "path": "docs/PLAN.md",
+      "added": 12,
+      "removed": 2,
+      "role": "Plans and explanations for the project."
+    },
+    {
+      "path": "manifest.uuid",
+      "added": 1,
+      "removed": 1,
+      "role": "A source snapshot identifier."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "docs/PLAN.md",
+      "note": "The plan records that the first compiler chapter is complete.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "described in [docs/PARSER.md](PARSER.md): every pass rewrites a string of",
+          "old": 10,
+          "new": 10
+        },
+        {
+          "kind": " ",
+          "text": "reserved Unicode glyphs with a regex grammar rule, so `Program#derivation`",
+          "old": 11,
+          "new": 11
+        },
+        {
+          "kind": " ",
+          "text": "prints the whole parse as one line per pass. That design document is written",
+          "old": 12,
+          "new": 12
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "first, as the target; the commits below build up to it one rule at a time.",
+          "old": 13,
+          "new": 13
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 14,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "**Status 2026-09-17: Phase A done**, commits A.1 through A.14 below, all on",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "the `session/bab6654802593d134c4c380d63e96c01a10e052943f93399d6829382eb005b93`",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "branch pending review and merge. `crystal spec -Dwasmer` is green end to",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "end (66 examples); the differential spec (`spec/differential_spec.cr`)",
+          "old": null,
+          "new": 18
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "runs three robots through both the interpreter and wasmer and checks",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "identical `puts` output. Phases B through E are next.",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": " ",
+          "text": "## Phase A — the compiler and WASM emitter (mirrors the chasm blog post)",
+          "old": 15,
+          "new": 22
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 16,
+          "new": 23
+        },
+        {
+          "kind": " ",
+          "text": "1. **Project skeleton** — `shard.yml`, a `crystal-robots` CLI that only",
+          "old": 17,
+          "new": 24
+        },
+        {
+          "kind": " ",
+          "text": "   prints its version, `spec/spec_helper.cr`. `crystal spec` and",
+          "old": 18,
+          "new": 25
+        },
+        {
+          "kind": " ",
+          "text": "   `crystal run src/cli.cr -- --version` both work.",
+          "old": 19,
+          "new": 26
+        },
+        {
+          "kind": " ",
+          "text": "2. **Emit the minimal WASM module** — the 8-byte magic header and version,",
+          "old": 20,
+          "new": 27
+        },
+        {
+          "kind": " ",
+          "text": "   nothing else. Spec runs it through wasmer and checks it instantiates.",
+          "old": 21,
+          "new": 28
+        },
+        {
+          "kind": " ",
+          "text": "3. **A hardcoded `add` function** — one exported function, opcodes written",
+          "old": 22,
+          "new": 29
+        },
+        {
+          "kind": " ",
+          "text": "   by hand, no compiler yet. Spec calls `add(1, 2)` through wasmer and",
+          "old": 23,
+          "new": 30
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

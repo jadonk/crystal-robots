@@ -1,0 +1,337 @@
+{
+  "sha": "f0e79e11431c48fb5c68164f2a71b1d7c1cf7f89",
+  "subject": "Phase A.13: the reference interpreter",
+  "summary": "An interpreter runs beside the WebAssembly emitter.",
+  "files": [
+    {
+      "path": "manifest.uuid",
+      "added": 1,
+      "removed": 1,
+      "role": "A source snapshot identifier."
+    },
+    {
+      "path": "spec/differential_spec.cr",
+      "added": 66,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "spec/interpreter_spec.cr",
+      "added": 56,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 11,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "src/compiler/interpreter.cr",
+      "added": 311,
+      "removed": 0,
+      "role": "Compiler code reads robot programs or writes instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/interpreter.cr",
+      "note": "A host supplies the robot actions while the interpreter runs.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "require \"./program\"",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "require \"./parser\"",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "# A tree-walking reference interpreter over the same AST `WASM_Emitter`",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "# compiles, integer-only, sharing its truncating `/ // %` for now (see",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "# `WASM_Emitter`'s comment on the same point). Every builtin goes through",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "# `Host`, the seam a real battlefield will implement later; `NullHost` is",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "# a deterministic stand-in with the same behavior the WASM specs bind",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "# their own stand-in host to, so the two engines can be run against each",
+          "old": null,
+          "new": 9
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "# other on the same robot and checked for the same output.",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "module CrystalRobots::Compiler",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "  abstract class Host",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "    abstract def puts(n : Int32) : Int32",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "    abstract def scan(angle : Int32, resolution : Int32) : Int32",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "    abstract def cannon(angle : Int32, range : Int32) : Int32",
+          "old": null,
+          "new": 15
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    abstract def drive(heading : Int32, speed : Int32) : Int32",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "    abstract def damage : Int32",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "    abstract def speed : Int32",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "    abstract def loc_x : Int32",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "    abstract def loc_y : Int32",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "    abstract def sleep : Int32",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "    abstract def rand(n : Int32) : Int32",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "    abstract def sqrt(n : Int32) : Int32",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "    abstract def sin(n : Int32) : Int32",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "    abstract def cos(n : Int32) : Int32",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "    abstract def tan(n : Int32) : Int32",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "    abstract def atan(n : Int32) : Int32",
+          "old": null,
+          "new": 27
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/differential_spec.cr",
+      "note": "The same robot runs through both engines for comparison.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "    cannon angle, r",
+          "old": null,
+          "new": 48
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 49
+        },
+        {
+          "kind": "+",
+          "text": "    main(\"Test\") do",
+          "old": null,
+          "new": 50
+        },
+        {
+          "kind": "+",
+          "text": "    puts fact(5)",
+          "old": null,
+          "new": 51
+        },
+        {
+          "kind": "+",
+          "text": "    puts fire(10, 20)",
+          "old": null,
+          "new": 52
+        },
+        {
+          "kind": "+",
+          "text": "    puts shots",
+          "old": null,
+          "new": 53
+        },
+        {
+          "kind": "+",
+          "text": "    puts damage",
+          "old": null,
+          "new": 54
+        },
+        {
+          "kind": "+",
+          "text": "    puts sqrt 16",
+          "old": null,
+          "new": 55
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 56
+        },
+        {
+          "kind": "+",
+          "text": "    ROBOT",
+          "old": null,
+          "new": 57
+        },
+        {
+          "kind": "+",
+          "text": "}",
+          "old": null,
+          "new": 58
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 59
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "describe \"the interpreter and the WASM emitter\" do",
+          "old": null,
+          "new": 60
+        },
+        {
+          "kind": "+",
+          "text": "  ROBOTS.each do |name, source|",
+          "old": null,
+          "new": 61
+        },
+        {
+          "kind": "+",
+          "text": "    wasmer_it \"agree on #{name}\" do",
+          "old": null,
+          "new": 62
+        },
+        {
+          "kind": "+",
+          "text": "      interpret_puts(source).should eq run_puts(source)",
+          "old": null,
+          "new": 63
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 64
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 65
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 66
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

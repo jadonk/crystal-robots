@@ -1,0 +1,427 @@
+{
+  "sha": "2631ebd6d9b16e38cfce89f46779de693a6f9093",
+  "subject": "Phase A.11: main(\"Name\") do ... end, the entry point",
+  "summary": "A named main block starts the robot.",
+  "files": [
+    {
+      "path": "manifest.uuid",
+      "added": 1,
+      "removed": 1,
+      "role": "A source snapshot identifier."
+    },
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 4,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 15,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 10,
+      "removed": 4,
+      "role": "Compiler code reads robot programs or writes instructions."
+    },
+    {
+      "path": "src/compiler/program.cr",
+      "added": 4,
+      "removed": 0,
+      "role": "Compiler code reads robot programs or writes instructions."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 13,
+      "removed": 2,
+      "role": "Compiler code reads robot programs or writes instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/parser.cr",
+      "note": "The parser recognizes the robot entry block.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    # One grammar rule: a regex over glyphs and the glyph it reduces to.",
+          "old": 21,
+          "new": 21
+        },
+        {
+          "kind": " ",
+          "text": "    struct Rule",
+          "old": 22,
+          "new": 22
+        },
+        {
+          "kind": " ",
+          "text": "      getter name : Symbol, regex : Regex, type : Type",
+          "old": 23,
+          "new": 23
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 24,
+          "new": 24
+        },
+        {
+          "kind": " ",
+          "text": "      def initialize(@name : Symbol, @regex : Regex, @type : Type)",
+          "old": 25,
+          "new": 25
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 26,
+          "new": 26
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 27,
+          "new": 27
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 28,
+          "new": 28
+        },
+        {
+          "kind": " ",
+          "text": "    KEYWORDS = {",
+          "old": 29,
+          "new": 29
+        },
+        {
+          "kind": " ",
+          "text": "      \"global\" => Type::GlobalKeyword,",
+          "old": 30,
+          "new": 30
+        },
+        {
+          "kind": " ",
+          "text": "      \"while\" => Type::WhileKeyword, \"until\" => Type::UntilKeyword,",
+          "old": 31,
+          "new": 31
+        },
+        {
+          "kind": " ",
+          "text": "      \"end\" => Type::EndKeyword, \"break\" => Type::BreakKeyword,",
+          "old": 32,
+          "new": 32
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "      \"if\" => Type::IfKeyword, \"elsif\" => Type::ElsifKeyword, \"else\" => Type::ElseKeyword,",
+          "old": 33,
+          "new": 33
+        },
+        {
+          "kind": " ",
+          "text": "      \"def\" => Type::DefKeyword, \"return\" => Type::ReturnKeyword,",
+          "old": 34,
+          "new": 34
+        },
+        {
+          "kind": "+",
+          "text": "      \"main\" => Type::MainKeyword, \"do\" => Type::DoKeyword,",
+          "old": null,
+          "new": 35
+        },
+        {
+          "kind": " ",
+          "text": "      \"damage\" => Type::ZeroArgMethod, \"speed\" => Type::ZeroArgMethod, \"loc_x\" => Type::ZeroArgMethod,",
+          "old": 35,
+          "new": 36
+        },
+        {
+          "kind": " ",
+          "text": "      \"loc_y\" => Type::ZeroArgMethod, \"sleep\" => Type::ZeroArgMethod,",
+          "old": 36,
+          "new": 37
+        },
+        {
+          "kind": " ",
+          "text": "      \"puts\" => Type::OneArgMethod, \"rand\" => Type::OneArgMethod, \"sqrt\" => Type::OneArgMethod,",
+          "old": 37,
+          "new": 38
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "      \"sin\" => Type::OneArgMethod, \"cos\" => Type::OneArgMethod, \"tan\" => Type::OneArgMethod,",
+          "old": 38,
+          "new": 39
+        },
+        {
+          "kind": " ",
+          "text": "      \"atan\" => Type::OneArgMethod,",
+          "old": 39,
+          "new": 40
+        },
+        {
+          "kind": " ",
+          "text": "      \"scan\" => Type::TwoArgMethod, \"cannon\" => Type::TwoArgMethod, \"drive\" => Type::TwoArgMethod,",
+          "old": 40,
+          "new": 41
+        },
+        {
+          "kind": " ",
+          "text": "    }",
+          "old": 41,
+          "new": 42
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 42,
+          "new": 43
+        },
+        {
+          "kind": " ",
+          "text": "    OPERATORS = {",
+          "old": 43,
+          "new": 44
+        },
+        {
+          "kind": " ",
+          "text": "      \"//\" => Type::FloorDivOperator, \"==\" => Type::EqOperator, \"!=\" => Type::NeOperator,",
+          "old": 44,
+          "new": 45
+        },
+        {
+          "kind": " ",
+          "text": "      \"<=\" => Type::LeOperator, \">=\" => Type::GeOperator,",
+          "old": 45,
+          "new": 46
+        },
+        {
+          "kind": " ",
+          "text": "      \"+\" => Type::AddOperator, \"-\" => Type::SubOperator, \"*\" => Type::MulOperator,",
+          "old": 46,
+          "new": 47
+        },
+        {
+          "kind": " ",
+          "text": "      \"/\" => Type::DivOperator, \"%\" => Type::ModOperator, \"=\" => Type::Assign,",
+          "old": 47,
+          "new": 48
+        },
+        {
+          "kind": " ",
+          "text": "      \"<\" => Type::LtOperator, \">\" => Type::GtOperator,",
+          "old": 48,
+          "new": 49
+        },
+        {
+          "kind": " ",
+          "text": "      \"(\" => Type::OpenParen, \")\" => Type::CloseParen, \",\" => Type::Comma,",
+          "old": 49,
+          "new": 50
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "src/compiler/wasm_emitter.cr",
+      "note": "The main block runs after other top-level statements.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "      count == 0 ? Bytes[0] : Bytes[1] + WASM_Emitter.unsignedLEB128(count) + Bytes[Valtype::I32.value]",
+          "old": 459,
+          "new": 459
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 460,
+          "new": 460
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 461,
+          "new": 461
+        },
+        {
+          "kind": "-",
+          "text": "    # `run`: one `statement` per top-level statement, `def`s excluded.",
+          "old": 462,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "    # `run`: every top-level statement except `def` (compiled separately)",
+          "old": null,
+          "new": 462
+        },
+        {
+          "kind": "+",
+          "text": "    # and `main` (deferred: its body runs last, as the entry point).",
+          "old": null,
+          "new": 463
+        },
+        {
+          "kind": " ",
+          "text": "    private def run_body : Bytes",
+          "old": 463,
+          "new": 464
+        },
+        {
+          "kind": " ",
+          "text": "      ctx = Ctx.new",
+          "old": 464,
+          "new": 465
+        },
+        {
+          "kind": "+",
+          "text": "      main_stmts = [] of Int32",
+          "old": null,
+          "new": 466
+        },
+        {
+          "kind": " ",
+          "text": "      code = Bytes[]",
+          "old": 465,
+          "new": 467
+        },
+        {
+          "kind": "-",
+          "text": "      body_of(@program.root).each { |stmt| code += statement(stmt, ctx) }",
+          "old": 466,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "      body_of(@program.root).each do |stmt|",
+          "old": null,
+          "new": 468
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "        case @program[stmt].rule",
+          "old": null,
+          "new": 469
+        },
+        {
+          "kind": "+",
+          "text": "        when :def",
+          "old": null,
+          "new": 470
+        },
+        {
+          "kind": "+",
+          "text": "        when :main",
+          "old": null,
+          "new": 471
+        },
+        {
+          "kind": "+",
+          "text": "          main_stmts = body_of(stmt)",
+          "old": null,
+          "new": 472
+        },
+        {
+          "kind": "+",
+          "text": "        else",
+          "old": null,
+          "new": 473
+        },
+        {
+          "kind": "+",
+          "text": "          code += statement(stmt, ctx)",
+          "old": null,
+          "new": 474
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "        end",
+          "old": null,
+          "new": 475
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 476
+        },
+        {
+          "kind": "+",
+          "text": "      main_stmts.each { |s| code += statement(s, ctx) }",
+          "old": null,
+          "new": 477
+        },
+        {
+          "kind": " ",
+          "text": "      code += op(Opcodes::End)",
+          "old": 467,
+          "new": 478
+        },
+        {
+          "kind": " ",
+          "text": "      locals_decl(ctx.locals.size) + code",
+          "old": 468,
+          "new": 479
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 469,
+          "new": 480
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 470,
+          "new": 481
+        },
+        {
+          "kind": " ",
+          "text": "    # One WASM function per `def`: its parameters seed `ctx.locals`, a",
+          "old": 471,
+          "new": 482
+        },
+        {
+          "kind": " ",
+          "text": "    # further local (`ctx.ret`) holds the implicit return value, and the",
+          "old": 472,
+          "new": 483
+        },
+        {
+          "kind": " ",
+          "text": "    # body ends by pushing it.",
+          "old": 473,
+          "new": 484
+        },
+        {
+          "kind": " ",
+          "text": "    private def function_body(name : String) : Bytes",
+          "old": 474,
+          "new": 485
+        },
+        {
+          "kind": " ",
+          "text": "      stmt = @program.children(@program.root).find! do |s|",
+          "old": 475,
+          "new": 486
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

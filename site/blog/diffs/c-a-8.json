@@ -1,0 +1,409 @@
+{
+  "sha": "6a15aea1bbe1aede715667e8e00885fdb52bc67b",
+  "subject": "Phase A.8: if / elsif / else",
+  "summary": "Programs can choose among branches.",
+  "files": [
+    {
+      "path": "manifest.uuid",
+      "added": 1,
+      "removed": 1,
+      "role": "A source snapshot identifier."
+    },
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 6,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 29,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 6,
+      "removed": 3,
+      "role": "Compiler code reads robot programs or writes instructions."
+    },
+    {
+      "path": "src/compiler/program.cr",
+      "added": 5,
+      "removed": 0,
+      "role": "Compiler code reads robot programs or writes instructions."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 40,
+      "removed": 3,
+      "role": "Compiler code reads robot programs or writes instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/parser.cr",
+      "note": "The parser recognizes branches.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 19,
+          "new": 18
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 20,
+          "new": 19
+        },
+        {
+          "kind": " ",
+          "text": "    # One grammar rule: a regex over glyphs and the glyph it reduces to.",
+          "old": 21,
+          "new": 20
+        },
+        {
+          "kind": " ",
+          "text": "    struct Rule",
+          "old": 22,
+          "new": 21
+        },
+        {
+          "kind": " ",
+          "text": "      getter name : Symbol, regex : Regex, type : Type",
+          "old": 23,
+          "new": 22
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 24,
+          "new": 23
+        },
+        {
+          "kind": " ",
+          "text": "      def initialize(@name : Symbol, @regex : Regex, @type : Type)",
+          "old": 25,
+          "new": 24
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 26,
+          "new": 25
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 27,
+          "new": 26
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 28,
+          "new": 27
+        },
+        {
+          "kind": " ",
+          "text": "    KEYWORDS = {",
+          "old": 29,
+          "new": 28
+        },
+        {
+          "kind": " ",
+          "text": "      \"puts\" => Type::OneArgMethod, \"global\" => Type::GlobalKeyword,",
+          "old": 30,
+          "new": 29
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "      \"while\" => Type::WhileKeyword, \"until\" => Type::UntilKeyword,",
+          "old": 31,
+          "new": 30
+        },
+        {
+          "kind": " ",
+          "text": "      \"end\" => Type::EndKeyword, \"break\" => Type::BreakKeyword,",
+          "old": 32,
+          "new": 31
+        },
+        {
+          "kind": "+",
+          "text": "      \"if\" => Type::IfKeyword, \"elsif\" => Type::ElsifKeyword, \"else\" => Type::ElseKeyword,",
+          "old": null,
+          "new": 32
+        },
+        {
+          "kind": " ",
+          "text": "    }",
+          "old": 33,
+          "new": 33
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 34,
+          "new": 34
+        },
+        {
+          "kind": " ",
+          "text": "    OPERATORS = {",
+          "old": 35,
+          "new": 35
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "      \"//\" => Type::FloorDivOperator, \"==\" => Type::EqOperator, \"!=\" => Type::NeOperator,",
+          "old": 36,
+          "new": 36
+        },
+        {
+          "kind": " ",
+          "text": "      \"<=\" => Type::LeOperator, \">=\" => Type::GeOperator,",
+          "old": 37,
+          "new": 37
+        },
+        {
+          "kind": " ",
+          "text": "      \"+\" => Type::AddOperator, \"-\" => Type::SubOperator, \"*\" => Type::MulOperator,",
+          "old": 38,
+          "new": 38
+        },
+        {
+          "kind": " ",
+          "text": "      \"/\" => Type::DivOperator, \"%\" => Type::ModOperator, \"=\" => Type::Assign,",
+          "old": 39,
+          "new": 39
+        },
+        {
+          "kind": " ",
+          "text": "      \"<\" => Type::LtOperator, \">\" => Type::GtOperator,",
+          "old": 40,
+          "new": 40
+        },
+        {
+          "kind": " ",
+          "text": "      \"(\" => Type::OpenParen, \")\" => Type::CloseParen, \",\" => Type::Comma,",
+          "old": 41,
+          "new": 41
+        },
+        {
+          "kind": " ",
+          "text": "    }",
+          "old": 42,
+          "new": 42
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 43,
+          "new": 43
+        },
+        {
+          "kind": " ",
+          "text": "    # Pass 0 rules, tried in order at the current text position. `:skip`",
+          "old": 44,
+          "new": 44
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "src/compiler/wasm_emitter.cr",
+      "note": "The emitter chooses which branch to run.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "      code += op(Opcodes::I32_eqz) if while_true",
+          "old": 278,
+          "new": 281
+        },
+        {
+          "kind": " ",
+          "text": "      code += op(Opcodes::Br_if) + WASM_Emitter.unsignedLEB128(ctx.depth - exit)",
+          "old": 279,
+          "new": 282
+        },
+        {
+          "kind": " ",
+          "text": "      body_of(stmt).each { |s| code += statement(s, ctx) }",
+          "old": 280,
+          "new": 283
+        },
+        {
+          "kind": " ",
+          "text": "      code += op(Opcodes::Br) + WASM_Emitter.unsignedLEB128(0)",
+          "old": 281,
+          "new": 284
+        },
+        {
+          "kind": " ",
+          "text": "      ctx.depth -= 1",
+          "old": 282,
+          "new": 285
+        },
+        {
+          "kind": " ",
+          "text": "      code += op(Opcodes::End) # loop",
+          "old": 283,
+          "new": 286
+        },
+        {
+          "kind": " ",
+          "text": "      ctx.loops.pop",
+          "old": 284,
+          "new": 287
+        },
+        {
+          "kind": " ",
+          "text": "      ctx.depth -= 1",
+          "old": 285,
+          "new": 288
+        },
+        {
+          "kind": " ",
+          "text": "      code += op(Opcodes::End) # block",
+          "old": 286,
+          "new": 289
+        },
+        {
+          "kind": " ",
+          "text": "      code",
+          "old": 287,
+          "new": 290
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 288,
+          "new": 291
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 289,
+          "new": 292
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "    # `if`/`elsif`/`else`, each a `{condition, statements}` branch (`else`'s",
+          "old": null,
+          "new": 293
+        },
+        {
+          "kind": "+",
+          "text": "    # condition is `nil`), as nested WASM `if { ... } else { ... }` blocks.",
+          "old": null,
+          "new": 294
+        },
+        {
+          "kind": "+",
+          "text": "    private def if_statement(stmt : Int32, ctx : Ctx) : Bytes",
+          "old": null,
+          "new": 295
+        },
+        {
+          "kind": "+",
+          "text": "      branches = [] of {Int32?, Array(Int32)}",
+          "old": null,
+          "new": 296
+        },
+        {
+          "kind": "+",
+          "text": "      @program.children(stmt).each do |k|",
+          "old": null,
+          "new": 297
+        },
+        {
+          "kind": "+",
+          "text": "        case @program.type(k)",
+          "old": null,
+          "new": 298
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "        when Type::IfHead, Type::ElsifHead",
+          "old": null,
+          "new": 299
+        },
+        {
+          "kind": "+",
+          "text": "          branches << {@program.arg(k, 1), [] of Int32}",
+          "old": null,
+          "new": 300
+        },
+        {
+          "kind": "+",
+          "text": "        when Type::ElseKeyword",
+          "old": null,
+          "new": 301
+        },
+        {
+          "kind": "+",
+          "text": "          branches << {nil, [] of Int32}",
+          "old": null,
+          "new": 302
+        },
+        {
+          "kind": "+",
+          "text": "        when Type::Statement",
+          "old": null,
+          "new": 303
+        },
+        {
+          "kind": "+",
+          "text": "          branches.last[1] << k",
+          "old": null,
+          "new": 304
+        },
+        {
+          "kind": "+",
+          "text": "        end",
+          "old": null,
+          "new": 305
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 306
+        },
+        {
+          "kind": "+",
+          "text": "      emit_branches(branches, ctx)",
+          "old": null,
+          "new": 307
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 308
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 309
+        },
+        {
+          "kind": "+",
+          "text": "    private def emit_branches(branches : Array({Int32?, Array(Int32)}), ctx : Ctx) : Bytes",
+          "old": null,
+          "new": 310
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

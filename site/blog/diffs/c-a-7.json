@@ -1,0 +1,427 @@
+{
+  "sha": "2033e63457ac3662e091736738cb3f40d27ee933",
+  "subject": "Phase A.7: comparisons and while/until loops",
+  "summary": "Programs can compare values and repeat work.",
+  "files": [
+    {
+      "path": "manifest.uuid",
+      "added": 1,
+      "removed": 1,
+      "role": "A source snapshot identifier."
+    },
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 11,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 16,
+      "removed": 0,
+      "role": "Tests say what the program should do."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 24,
+      "removed": 6,
+      "role": "Compiler code reads robot programs or writes instructions."
+    },
+    {
+      "path": "src/compiler/program.cr",
+      "added": 14,
+      "removed": 0,
+      "role": "Compiler code reads robot programs or writes instructions."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 80,
+      "removed": 13,
+      "role": "Compiler code reads robot programs or writes instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/parser.cr",
+      "note": "The parser learns loop words.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    class Error < Exception",
+          "old": 18,
+          "new": 18
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 19,
+          "new": 19
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 20,
+          "new": 20
+        },
+        {
+          "kind": " ",
+          "text": "    # One grammar rule: a regex over glyphs and the glyph it reduces to.",
+          "old": 21,
+          "new": 21
+        },
+        {
+          "kind": " ",
+          "text": "    struct Rule",
+          "old": 22,
+          "new": 22
+        },
+        {
+          "kind": " ",
+          "text": "      getter name : Symbol, regex : Regex, type : Type",
+          "old": 23,
+          "new": 23
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 24,
+          "new": 24
+        },
+        {
+          "kind": " ",
+          "text": "      def initialize(@name : Symbol, @regex : Regex, @type : Type)",
+          "old": 25,
+          "new": 25
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 26,
+          "new": 26
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 27,
+          "new": 27
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 28,
+          "new": 28
+        },
+        {
+          "kind": "-",
+          "text": "    KEYWORDS = {\"puts\" => Type::OneArgMethod, \"global\" => Type::GlobalKeyword}",
+          "old": 29,
+          "new": null
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "    KEYWORDS = {",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": "+",
+          "text": "      \"puts\" => Type::OneArgMethod, \"global\" => Type::GlobalKeyword,",
+          "old": null,
+          "new": 30
+        },
+        {
+          "kind": "+",
+          "text": "      \"while\" => Type::WhileKeyword, \"until\" => Type::UntilKeyword,",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": "+",
+          "text": "      \"end\" => Type::EndKeyword, \"break\" => Type::BreakKeyword,",
+          "old": null,
+          "new": 32
+        },
+        {
+          "kind": "+",
+          "text": "    }",
+          "old": null,
+          "new": 33
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 30,
+          "new": 34
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "    OPERATORS = {",
+          "old": 31,
+          "new": 35
+        },
+        {
+          "kind": "-",
+          "text": "      \"//\" => Type::FloorDivOperator,",
+          "old": 32,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "      \"//\" => Type::FloorDivOperator, \"==\" => Type::EqOperator, \"!=\" => Type::NeOperator,",
+          "old": null,
+          "new": 36
+        },
+        {
+          "kind": "+",
+          "text": "      \"<=\" => Type::LeOperator, \">=\" => Type::GeOperator,",
+          "old": null,
+          "new": 37
+        },
+        {
+          "kind": " ",
+          "text": "      \"+\" => Type::AddOperator, \"-\" => Type::SubOperator, \"*\" => Type::MulOperator,",
+          "old": 33,
+          "new": 38
+        },
+        {
+          "kind": " ",
+          "text": "      \"/\" => Type::DivOperator, \"%\" => Type::ModOperator, \"=\" => Type::Assign,",
+          "old": 34,
+          "new": 39
+        },
+        {
+          "kind": "+",
+          "text": "      \"<\" => Type::LtOperator, \">\" => Type::GtOperator,",
+          "old": null,
+          "new": 40
+        },
+        {
+          "kind": " ",
+          "text": "      \"(\" => Type::OpenParen, \")\" => Type::CloseParen, \",\" => Type::Comma,",
+          "old": 35,
+          "new": 41
+        },
+        {
+          "kind": " ",
+          "text": "    }",
+          "old": 36,
+          "new": 42
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 37,
+          "new": 43
+        },
+        {
+          "kind": " ",
+          "text": "    # Pass 0 rules, tried in order at the current text position. `:skip`",
+          "old": 38,
+          "new": 44
+        },
+        {
+          "kind": " ",
+          "text": "    # drops the match (whitespace); `:word` looks the lexeme up in",
+          "old": 39,
+          "new": 45
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "src/compiler/wasm_emitter.cr",
+      "note": "A conditional branch decides whether the loop repeats.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "      Code   = 10",
+          "old": 25,
+          "new": 25
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 26,
+          "new": 26
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 27,
+          "new": 27
+        },
+        {
+          "kind": " ",
+          "text": "    # https://webassembly.github.io/spec/core/binary/types.html",
+          "old": 28,
+          "new": 28
+        },
+        {
+          "kind": " ",
+          "text": "    enum Valtype : UInt8",
+          "old": 29,
+          "new": 29
+        },
+        {
+          "kind": " ",
+          "text": "      I32 = 0x7f",
+          "old": 30,
+          "new": 30
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 31,
+          "new": 31
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 32,
+          "new": 32
+        },
+        {
+          "kind": " ",
+          "text": "    # https://webassembly.github.io/spec/core/binary/instructions.html",
+          "old": 33,
+          "new": 33
+        },
+        {
+          "kind": " ",
+          "text": "    enum Opcodes : UInt8",
+          "old": 34,
+          "new": 34
+        },
+        {
+          "kind": "+",
+          "text": "      Block      = 0x02",
+          "old": null,
+          "new": 35
+        },
+        {
+          "kind": "+",
+          "text": "      Loop       = 0x03",
+          "old": null,
+          "new": 36
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "      End        = 0x0b",
+          "old": 35,
+          "new": 37
+        },
+        {
+          "kind": "+",
+          "text": "      Br         = 0x0c",
+          "old": null,
+          "new": 38
+        },
+        {
+          "kind": "+",
+          "text": "      Br_if      = 0x0d",
+          "old": null,
+          "new": 39
+        },
+        {
+          "kind": " ",
+          "text": "      Call       = 0x10",
+          "old": 36,
+          "new": 40
+        },
+        {
+          "kind": " ",
+          "text": "      Drop       = 0x1a",
+          "old": 37,
+          "new": 41
+        },
+        {
+          "kind": " ",
+          "text": "      Global_get = 0x23",
+          "old": 38,
+          "new": 42
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "      Global_set = 0x24",
+          "old": 39,
+          "new": 43
+        },
+        {
+          "kind": " ",
+          "text": "      I32_const  = 0x41",
+          "old": 40,
+          "new": 44
+        },
+        {
+          "kind": "+",
+          "text": "      I32_eqz    = 0x45",
+          "old": null,
+          "new": 45
+        },
+        {
+          "kind": "+",
+          "text": "      I32_eq     = 0x46",
+          "old": null,
+          "new": 46
+        },
+        {
+          "kind": "+",
+          "text": "      I32_ne     = 0x47",
+          "old": null,
+          "new": 47
+        },
+        {
+          "kind": "+",
+          "text": "      I32_lt_s   = 0x48",
+          "old": null,
+          "new": 48
+        },
+        {
+          "kind": "+",
+          "text": "      I32_gt_s   = 0x4a",
+          "old": null,
+          "new": 49
+        },
+        {
+          "kind": "+",
+          "text": "      I32_le_s   = 0x4c",
+          "old": null,
+          "new": 50
+        },
+        {
+          "kind": "+",
+          "text": "      I32_ge_s   = 0x4e",
+          "old": null,
+          "new": 51
+        },
+        {
+          "kind": " ",
+          "text": "      I32_add    = 0x6a",
+          "old": 41,
+          "new": 52
+        },
+        {
+          "kind": " ",
+          "text": "      I32_sub    = 0x6b",
+          "old": 42,
+          "new": 53
+        },
+        {
+          "kind": " ",
+          "text": "      I32_mul    = 0x6c",
+          "old": 43,
+          "new": 54
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}
