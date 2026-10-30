@@ -26,22 +26,22 @@ def blog_build(dir : String)
 end
 
 describe "blog diff data" do
-  it "builds a deterministic excerpt from a tiny two-commit repository and reports a missing anchor" do
+  it "builds a deterministic range from a tiny repository and checks both anchors" do
     dir = File.join(Dir.tempdir, "blog-diffs-#{Process.pid}-#{Random.rand(1_000_000)}")
     Dir.mkdir_p(File.join(dir, "site/blog/diffs"))
     begin
       blog_git(dir, "init", "-q")
       blog_git(dir, "config", "user.name", "Test")
       blog_git(dir, "config", "user.email", "test@example.com")
-      File.write(File.join(dir, "hello.cr"), "puts 1\n")
+      File.write(File.join(dir, "hello.cr"), "puts 1\nputs 3\n")
       blog_git(dir, "add", ".")
       blog_git(dir, "commit", "-qm", "Start")
-      File.write(File.join(dir, "hello.cr"), "puts 2\n")
+      File.write(File.join(dir, "hello.cr"), "puts 2\nputs 4\n")
       blog_git(dir, "add", ".")
       blog_git(dir, "commit", "-qm", "Change number")
       File.write(File.join(dir, "site/blog/index.html"), %(<section class="commit" id="c-change"><a class="commit-link" data-subject="Change number"></a></section>))
       notes_path = File.join(dir, "site/blog/diffs/notes.yml")
-      notes = %({"roles":{"hello.cr":"Example program."},"commits":{"c-change":{"summary":"Changes the printed number.","excerpts":[{"file":"hello.cr","anchor":"puts 2","note":"The new number is two."}]}}})
+      notes = %({"roles":{"hello.cr":"Example program."},"commits":{"c-change":{"summary":"Changes the printed number.","excerpts":[{"file":"hello.cr","anchor":"puts 2","through":"puts 4","note":"The new number is two."}]}}})
       File.write(notes_path, notes)
       status, _, errors = blog_build(dir)
       status.success?.should be_true, errors
@@ -50,10 +50,21 @@ describe "blog diff data" do
       result = JSON.parse(first)
       result["subject"].as_s.should eq("Change number")
       result["sha"].as_s.size.should eq(40)
-      result["files"][0]["added"].as_i.should eq(1)
+      result["files"][0]["added"].as_i.should eq(2)
       result["excerpts"][0]["lines"].as_a.any? { |line| line["kind"].as_s == "+" && line["new"].as_i == 1 }.should be_true
+      result["excerpts"][0]["lines"].as_a.last["text"].as_s.should eq("puts 4")
       blog_build(dir)[0].success?.should be_true
       File.read(result_path).should eq(first)
+      File.write(notes_path, notes.gsub("puts 4", "missing end"))
+      status, _, errors = blog_build(dir)
+      status.success?.should be_false
+      errors.includes?("through").should be_true
+      errors.includes?("missing end").should be_true
+      File.write(notes_path, notes.gsub("puts 4", "puts"))
+      status, _, errors = blog_build(dir)
+      status.success?.should be_false
+      errors.includes?("through").should be_true
+      errors.includes?("need exactly one").should be_true
       File.write(notes_path, notes.gsub("puts 2", "missing text"))
       status, _, errors = blog_build(dir)
       status.success?.should be_false

@@ -1,31 +1,31 @@
 {
   "sha": "866c92a727998ca0b74a4ec056afa9c7eb70897f",
   "subject": "Project skeleton",
-  "summary": "The project gains a command and its first test.",
+  "summary": "The project can answer a command and check its answer.",
   "files": [
     {
       "path": ".editorconfig",
       "added": 9,
       "removed": 0,
-      "role": "Project setup file."
+      "role": "Sets up the project."
     },
     {
       "path": ".fossil-settings/ignore-glob",
       "added": 10,
       "removed": 0,
-      "role": "Project setup file."
+      "role": "Sets up the project."
     },
     {
       "path": ".fossil-settings/manifest",
       "added": 1,
       "removed": 0,
-      "role": "Project setup file."
+      "role": "Sets up the project."
     },
     {
       "path": ".gitignore",
       "added": 11,
       "removed": 0,
-      "role": "Project setup file."
+      "role": "Sets up the project."
     },
     {
       "path": "LICENSE",
@@ -37,69 +37,64 @@
       "path": "README.md",
       "added": 43,
       "removed": 22,
-      "role": "The project introduction."
+      "role": "Introduces the project and its learning goal."
     },
     {
       "path": "docs/PARSER.md",
       "added": 173,
       "removed": 0,
-      "role": "Plans and explanations for the project."
+      "role": "Explains a design choice."
     },
     {
       "path": "docs/PLAN.md",
       "added": 90,
       "removed": 0,
-      "role": "Plans and explanations for the project."
-    },
-    {
-      "path": "manifest.uuid",
-      "added": 1,
-      "removed": 0,
-      "role": "A source snapshot identifier."
+      "role": "Tracks the steps of the tutorial."
     },
     {
       "path": "shard.yml",
       "added": 17,
       "removed": 0,
-      "role": "Crystal project setup."
+      "role": "Names the Crystal project and its dependencies."
     },
     {
       "path": "spec/cli_spec.cr",
       "added": 9,
       "removed": 0,
-      "role": "Tests say what the program should do."
+      "role": "Checks what the command prints."
     },
     {
       "path": "spec/spec_helper.cr",
       "added": 1,
       "removed": 0,
-      "role": "Tests say what the program should do."
+      "role": "Checks that a piece of the project behaves as expected."
     },
     {
       "path": "src/cli.cr",
       "added": 7,
       "removed": 0,
-      "role": "Program code runs the command."
+      "role": "Reads command options and starts the requested action."
     },
     {
       "path": "src/version.cr",
       "added": 3,
       "removed": 0,
-      "role": "Program code runs the command."
+      "role": "Runs the project command."
     }
   ],
   "excerpts": [
     {
       "file": "src/cli.cr",
-      "note": "The first command can report the program version.",
-      "before": [],
-      "lines": [
+      "note": "The command can now answer `--version` or `-v` with its version number. `ARGV` holds the words typed after the command, so this is the first small example of reading what a person asked for.",
+      "before": [
         {
           "kind": "+",
           "text": "require \"./version\"",
           "old": null,
           "new": 1
-        },
+        }
+      ],
+      "lines": [
         {
           "kind": "+",
           "text": "",
@@ -129,9 +124,7 @@
           "text": "  puts \"crystal-robots #{CrystalRobots::VERSION}: nothing to do yet\"",
           "old": null,
           "new": 6
-        }
-      ],
-      "after": [
+        },
         {
           "kind": "+",
           "text": "end",
@@ -139,11 +132,12 @@
           "new": 7
         }
       ],
+      "after": [],
       "line_notes": {}
     },
     {
       "file": "spec/cli_spec.cr",
-      "note": "A test checks what the command prints.",
+      "note": "A [[test|#word-test-spec]] runs the command and checks the answer it prints. That gives the new command a clear promise before it grows more options.",
       "before": [
         {
           "kind": "+",
@@ -203,7 +197,9 @@
         }
       ],
       "after": [],
-      "line_notes": {}
+      "line_notes": {
+        "output = `crystal run": "The backticks run a command and keep the text it prints. The next line compares that text with the expected version."
+      }
     }
   ]
 }

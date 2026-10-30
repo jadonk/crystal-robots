@@ -1,74 +1,80 @@
 {
   "sha": "0b60f750ac7e0dc7428a2ad2f534977ec1b1e1ab",
   "subject": "Phase A.4: the multipass tokenizer and a real compiler for `puts NUMBER`",
-  "summary": "A parser and emitter turn puts into runnable instructions.",
+  "summary": "A robot can say `puts 42` and have it compiled.",
   "files": [
     {
       "path": "examples/hello.cr",
       "added": 1,
       "removed": 0,
-      "role": "Example robot programs to try."
-    },
-    {
-      "path": "manifest.uuid",
-      "added": 1,
-      "removed": 1,
-      "role": "A source snapshot identifier."
+      "role": "Contains robot programs to try."
     },
     {
       "path": "spec/cli_spec.cr",
       "added": 6,
       "removed": 0,
-      "role": "Tests say what the program should do."
+      "role": "Checks what the command prints."
     },
     {
       "path": "spec/parser_spec.cr",
       "added": 29,
       "removed": 0,
-      "role": "Tests say what the program should do."
+      "role": "Checks which robot programs the parser accepts."
     },
     {
       "path": "spec/spec_helper.cr",
       "added": 24,
       "removed": 0,
-      "role": "Tests say what the program should do."
+      "role": "Checks that a piece of the project behaves as expected."
     },
     {
       "path": "spec/wasm_emitter_spec.cr",
       "added": 7,
       "removed": 6,
-      "role": "Tests say what the program should do."
+      "role": "Checks the instructions written for robot programs."
     },
     {
       "path": "src/cli.cr",
       "added": 6,
       "removed": 0,
-      "role": "Program code runs the command."
+      "role": "Reads command options and starts the requested action."
     },
     {
       "path": "src/compiler/parser.cr",
       "added": 128,
       "removed": 0,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Groups the words and symbols in a robot program into meaningful steps."
     },
     {
       "path": "src/compiler/program.cr",
       "added": 132,
       "removed": 0,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Builds or runs a robot program."
     },
     {
       "path": "src/compiler/wasm_emitter.cr",
       "added": 109,
       "removed": 21,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Turns robot steps into WebAssembly instructions."
     }
   ],
   "excerpts": [
     {
       "file": "src/compiler/parser.cr",
-      "note": "Each pass replaces recognized text with one symbol.",
+      "note": "The [[parser|#word-parser]] now turns a tiny robot program into three nested pieces: a `puts` command, a statement, and the whole program. Each rule recognizes a shape and replaces it with one piece the next rule can use; the unusual symbols stand for pieces already recognized.",
       "before": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "    # Pass 0 rules, tried in order at the current text position. `:skip`",
+          "old": null,
+          "new": 28
+        },
         {
           "kind": "+",
           "text": "    # drops the match (whitespace); `:word` looks the lexeme up in",
@@ -128,7 +134,9 @@
           "text": "    # Grammar rules in priority order. Each pass applies the FIRST rule in",
           "old": null,
           "new": 38
-        },
+        }
+      ],
+      "lines": [
         {
           "kind": "+",
           "text": "    # this list that matches anywhere, to every non-overlapping match.",
@@ -140,9 +148,7 @@
           "text": "    GRAMMAR = [",
           "old": null,
           "new": 40
-        }
-      ],
-      "lines": [
+        },
         {
           "kind": "+",
           "text": "      Rule.new(:command1, /∊№/, Type::Expression),",
@@ -172,15 +178,15 @@
           "text": "",
           "old": null,
           "new": 45
-        },
+        }
+      ],
+      "after": [
         {
           "kind": "+",
           "text": "    property program : Program",
           "old": null,
           "new": 46
-        }
-      ],
-      "after": [
+        },
         {
           "kind": "+",
           "text": "",
@@ -246,206 +252,204 @@
           "text": "      while reduce_once(p)",
           "old": null,
           "new": 57
-        },
-        {
-          "kind": "+",
-          "text": "      end",
-          "old": null,
-          "new": 58
         }
       ],
-      "line_notes": {}
+      "line_notes": {
+        "Rule.new(:command1": "This rule recognizes `puts` followed by one number. It makes an expression that the next rule can treat as a complete line."
+      }
     },
     {
       "file": "src/compiler/wasm_emitter.cr",
-      "note": "The emitter writes a number as a WebAssembly instruction.",
+      "note": "The [[emitter|#word-emitter]] reads the parser’s command piece, writes the number, then writes an [[instruction|#word-instruction]] to call `puts`. This connects the words the robot author typed to the output a runner can execute.",
       "before": [
         {
-          "kind": " ",
+          "kind": "+",
+          "text": "    def export_section : Bytes",
+          "old": null,
+          "new": 134
+        },
+        {
+          "kind": "+",
+          "text": "      WASM_Emitter.createSection(Section::Export,",
+          "old": null,
+          "new": 135
+        },
+        {
+          "kind": "+",
+          "text": "        WASM_Emitter.encodeVector([",
+          "old": null,
+          "new": 136
+        },
+        {
+          "kind": "+",
+          "text": "          WASM_Emitter.encodeString(\"run\") + Bytes[ExportType::Func.value] + WASM_Emitter.unsignedLEB128(RUN_FUNC_INDEX),",
+          "old": null,
+          "new": 137
+        },
+        {
+          "kind": "+",
+          "text": "        ]))",
+          "old": null,
+          "new": 138
+        },
+        {
+          "kind": "+",
           "text": "    end",
-          "old": 15,
-          "new": 25
-        },
-        {
-          "kind": " ",
-          "text": "",
-          "old": 16,
-          "new": 26
-        },
-        {
-          "kind": "+",
-          "text": "    # https://webassembly.github.io/spec/core/binary/types.html",
           "old": null,
-          "new": 27
-        },
-        {
-          "kind": "+",
-          "text": "    enum Valtype : UInt8",
-          "old": null,
-          "new": 28
-        },
-        {
-          "kind": "+",
-          "text": "      I32 = 0x7f",
-          "old": null,
-          "new": 29
-        },
-        {
-          "kind": "+",
-          "text": "    end",
-          "old": null,
-          "new": 30
+          "new": 139
         },
         {
           "kind": "+",
           "text": "",
           "old": null,
-          "new": 31
+          "new": 140
         },
         {
-          "kind": " ",
-          "text": "    # https://webassembly.github.io/spec/core/binary/instructions.html",
-          "old": 17,
-          "new": 32
+          "kind": "+",
+          "text": "    # `run`: one `const; call puts; drop` per top-level `puts NUMBER`",
+          "old": null,
+          "new": 141
         },
         {
-          "kind": " ",
-          "text": "    enum Opcodes : UInt8",
-          "old": 18,
-          "new": 33
+          "kind": "+",
+          "text": "    # statement. `puts` returns its argument rather than nothing: it is",
+          "old": null,
+          "new": 142
         },
         {
-          "kind": " ",
-          "text": "      End       = 0x0b",
-          "old": 19,
-          "new": 34
+          "kind": "+",
+          "text": "    # called as a statement here, but later commits call it as an",
+          "old": null,
+          "new": 143
         },
         {
-          "kind": "-",
-          "text": "      Local_get = 0x20",
-          "old": 20,
-          "new": null
+          "kind": "+",
+          "text": "    # expression, and giving every builtin an `i32` result from the start",
+          "old": null,
+          "new": 144
         },
         {
-          "kind": "-",
-          "text": "      I32_add   = 0x6a",
-          "old": 21,
-          "new": null
+          "kind": "+",
+          "text": "    # keeps one calling convention for both.",
+          "old": null,
+          "new": 145
         }
       ],
       "lines": [
         {
           "kind": "+",
-          "text": "      Call      = 0x10",
+          "text": "    def code_section : Bytes",
           "old": null,
-          "new": 35
+          "new": 146
         },
         {
           "kind": "+",
-          "text": "      Drop      = 0x1a",
+          "text": "      code = Bytes[]",
           "old": null,
-          "new": 36
+          "new": 147
         },
         {
           "kind": "+",
-          "text": "      I32_const = 0x41",
+          "text": "      @program.children(@program.root).each do |stmt|",
           "old": null,
-          "new": 37
+          "new": 148
         },
         {
           "kind": "+",
-          "text": "    end",
+          "text": "        expr = @program.arg(stmt, 0)",
           "old": null,
-          "new": 38
+          "new": 149
         },
         {
           "kind": "+",
-          "text": "",
+          "text": "        number = @program.arg(expr, 1)",
           "old": null,
-          "new": 39
+          "new": 150
         },
         {
           "kind": "+",
-          "text": "    enum ExportType : UInt8",
+          "text": "        code += const(@program.value(number).to_i32) + call(PUTS_IMPORT_INDEX) + op(Opcodes::Drop)",
           "old": null,
-          "new": 40
+          "new": 151
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 152
+        },
+        {
+          "kind": "+",
+          "text": "      code += op(Opcodes::End)",
+          "old": null,
+          "new": 153
         }
       ],
       "after": [
         {
           "kind": "+",
-          "text": "      Func = 0x00",
+          "text": "      body = Bytes[0] + code # no locals",
           "old": null,
-          "new": 41
+          "new": 154
+        },
+        {
+          "kind": "+",
+          "text": "      WASM_Emitter.createSection(Section::Code,",
+          "old": null,
+          "new": 155
+        },
+        {
+          "kind": "+",
+          "text": "        WASM_Emitter.encodeVector([WASM_Emitter.unsignedLEB128(body.size) + body]))",
+          "old": null,
+          "new": 156
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 157
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 158
+        },
+        {
+          "kind": "+",
+          "text": "    def to_wasm : Bytes",
+          "old": null,
+          "new": 159
+        },
+        {
+          "kind": "+",
+          "text": "      WASM_Emitter.minimal_module + type_section + import_section + func_section + export_section + code_section",
+          "old": null,
+          "new": 160
         },
         {
           "kind": " ",
           "text": "    end",
-          "old": 22,
-          "new": 42
+          "old": 73,
+          "new": 161
         },
         {
           "kind": " ",
-          "text": "",
-          "old": 23,
-          "new": 43
+          "text": "  end",
+          "old": 74,
+          "new": 162
         },
         {
           "kind": " ",
-          "text": "    FunctionType      = 0x60",
-          "old": 24,
-          "new": 44
-        },
-        {
-          "kind": " ",
-          "text": "    MagicModuleHeader = Bytes[0x00, 'a'.ord, 's'.ord, 'm'.ord]",
-          "old": 25,
-          "new": 45
-        },
-        {
-          "kind": " ",
-          "text": "    ModuleVersion     = Bytes[0x01, 0x00, 0x00, 0x00]",
-          "old": 26,
-          "new": 46
-        },
-        {
-          "kind": " ",
-          "text": "",
-          "old": 27,
-          "new": 47
-        },
-        {
-          "kind": " ",
-          "text": "    def self.minimal_module : Bytes",
-          "old": 28,
-          "new": 48
-        },
-        {
-          "kind": " ",
-          "text": "      MagicModuleHeader + ModuleVersion",
-          "old": 29,
-          "new": 49
-        },
-        {
-          "kind": " ",
-          "text": "    end",
-          "old": 30,
-          "new": 50
-        },
-        {
-          "kind": " ",
-          "text": "",
-          "old": 31,
-          "new": 51
-        },
-        {
-          "kind": " ",
-          "text": "    # https://en.wikipedia.org/wiki/LEB128",
-          "old": 32,
-          "new": 52
+          "text": "end",
+          "old": 75,
+          "new": 163
         }
       ],
-      "line_notes": {}
+      "line_notes": {
+        "code += const(@program.value(number).to_i32)": "Write the number, call `puts` to print it, then `Drop` removes the answer from the stack. A stand-alone print line does not need to keep that answer."
+      }
     }
   ]
 }

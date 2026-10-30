@@ -1,62 +1,44 @@
 {
   "sha": "2b0d9c487e2aab5289bc3ab78a2d90196acd9d0b",
   "subject": "Phase A.14: CLI wiring and a disassembler debugging aid",
-  "summary": "The command gains practical modes and a readable instruction dump.",
+  "summary": "A reader can check, trace, run, and inspect a robot from the command line.",
   "files": [
     {
       "path": "examples/functions.cr",
       "added": 13,
       "removed": 0,
-      "role": "Example robot programs to try."
-    },
-    {
-      "path": "manifest.uuid",
-      "added": 1,
-      "removed": 1,
-      "role": "A source snapshot identifier."
+      "role": "Contains robot programs to try."
     },
     {
       "path": "spec/cli_spec.cr",
       "added": 28,
       "removed": 0,
-      "role": "Tests say what the program should do."
+      "role": "Checks what the command prints."
     },
     {
       "path": "src/cli.cr",
       "added": 67,
       "removed": 8,
-      "role": "Program code runs the command."
+      "role": "Reads command options and starts the requested action."
     },
     {
       "path": "src/compiler/disassembler.cr",
       "added": 160,
       "removed": 0,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Turns compiled instructions back into readable names."
     },
     {
       "path": "src/compiler/interpreter.cr",
       "added": 9,
       "removed": 0,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Runs robot steps directly so their behavior can be checked."
     }
   ],
   "excerpts": [
     {
       "file": "src/cli.cr",
-      "note": "Command options now select tracing, checking, compiling, or running.",
+      "note": "The command now lets a reader choose a job: trace how parsing proceeds, check for mistakes, compile, run directly, or display readable instructions. Each short flag names one job, making the compiler’s separate steps easy to try.",
       "before": [
-        {
-          "kind": "+",
-          "text": "  # anything.",
-          "old": null,
-          "new": 20
-        },
-        {
-          "kind": "+",
-          "text": "  private def self.checked_program(file : String) : Compiler::Program",
-          "old": null,
-          "new": 21
-        },
         {
           "kind": "+",
           "text": "    program = parsed_program(file)",
@@ -116,9 +98,7 @@
           "text": "  def self.run(argv : Array(String)) : Nil",
           "old": null,
           "new": 31
-        }
-      ],
-      "lines": [
+        },
         {
           "kind": "+",
           "text": "    mode = :help",
@@ -130,7 +110,9 @@
           "text": "    output = nil",
           "old": null,
           "new": 33
-        },
+        }
+      ],
+      "lines": [
         {
           "kind": "+",
           "text": "    parser = OptionParser.new do |p|",
@@ -154,9 +136,7 @@
           "text": "      p.on(\"-t\", \"--trace\", \"Print the parser's derivation, one line per pass\") { mode = :trace }",
           "old": null,
           "new": 37
-        }
-      ],
-      "after": [
+        },
         {
           "kind": "+",
           "text": "      p.on(\"-k\", \"--check\", \"Run the checker and print any issues found\") { mode = :check }",
@@ -204,7 +184,9 @@
           "text": "    parser.parse(argv)",
           "old": null,
           "new": 45
-        },
+        }
+      ],
+      "after": [
         {
           "kind": "+",
           "text": "    file = argv.first?",
@@ -228,170 +210,60 @@
           "text": "    when :trace",
           "old": null,
           "new": 49
+        },
+        {
+          "kind": "+",
+          "text": "      print parsed_program(file || abort \"usage: crystal-robots -t FILE\").derivation",
+          "old": null,
+          "new": 50
+        },
+        {
+          "kind": "+",
+          "text": "    when :check",
+          "old": null,
+          "new": 51
+        },
+        {
+          "kind": "+",
+          "text": "      issues = Compiler::Checker.check(parsed_program(file || abort \"usage: crystal-robots -k FILE\"))",
+          "old": null,
+          "new": 52
+        },
+        {
+          "kind": "+",
+          "text": "      issues.each { |issue| puts issue.to_s }",
+          "old": null,
+          "new": 53
+        },
+        {
+          "kind": "+",
+          "text": "      puts \"no issues found\" if issues.empty?",
+          "old": null,
+          "new": 54
+        },
+        {
+          "kind": "+",
+          "text": "    when :compile",
+          "old": null,
+          "new": 55
+        },
+        {
+          "kind": "+",
+          "text": "      program = checked_program(file || abort \"usage: crystal-robots -c FILE -o OUT\")",
+          "old": null,
+          "new": 56
+        },
+        {
+          "kind": "+",
+          "text": "      out_file = output",
+          "old": null,
+          "new": 57
         }
       ],
-      "line_notes": {}
-    },
-    {
-      "file": "src/compiler/disassembler.cr",
-      "note": "The disassembler turns emitted bytes into readable instructions.",
-      "before": [
-        {
-          "kind": "+",
-          "text": "require \"./wasm_emitter\"",
-          "old": null,
-          "new": 1
-        },
-        {
-          "kind": "+",
-          "text": "",
-          "old": null,
-          "new": 2
-        },
-        {
-          "kind": "+",
-          "text": "# A debugging aid, not a general WASM tool: decodes exactly the shapes",
-          "old": null,
-          "new": 3
-        },
-        {
-          "kind": "+",
-          "text": "# `WASM_Emitter` itself produces back into readable text, one line per",
-          "old": null,
-          "new": 4
-        },
-        {
-          "kind": "+",
-          "text": "# instruction, so a compiled module can be inspected without a separate",
-          "old": null,
-          "new": 5
-        },
-        {
-          "kind": "+",
-          "text": "# `wasm2wat` on the machine. Reads its own encoding (LEB128, the section",
-          "old": null,
-          "new": 6
-        },
-        {
-          "kind": "+",
-          "text": "# layout, the opcode set `WASM_Emitter::Opcodes` already names) in",
-          "old": null,
-          "new": 7
-        }
-      ],
-      "lines": [
-        {
-          "kind": "+",
-          "text": "# reverse.",
-          "old": null,
-          "new": 8
-        },
-        {
-          "kind": "+",
-          "text": "module CrystalRobots::Compiler",
-          "old": null,
-          "new": 9
-        },
-        {
-          "kind": "+",
-          "text": "  class Disassembler",
-          "old": null,
-          "new": 10
-        },
-        {
-          "kind": "+",
-          "text": "    private class Reader",
-          "old": null,
-          "new": 11
-        },
-        {
-          "kind": "+",
-          "text": "      def initialize(@bytes : Bytes, @pos : Int32 = 0)",
-          "old": null,
-          "new": 12
-        },
-        {
-          "kind": "+",
-          "text": "      end",
-          "old": null,
-          "new": 13
-        }
-      ],
-      "after": [
-        {
-          "kind": "+",
-          "text": "",
-          "old": null,
-          "new": 14
-        },
-        {
-          "kind": "+",
-          "text": "      def eof? : Bool",
-          "old": null,
-          "new": 15
-        },
-        {
-          "kind": "+",
-          "text": "        @pos >= @bytes.size",
-          "old": null,
-          "new": 16
-        },
-        {
-          "kind": "+",
-          "text": "      end",
-          "old": null,
-          "new": 17
-        },
-        {
-          "kind": "+",
-          "text": "",
-          "old": null,
-          "new": 18
-        },
-        {
-          "kind": "+",
-          "text": "      def byte : UInt8",
-          "old": null,
-          "new": 19
-        },
-        {
-          "kind": "+",
-          "text": "        b = @bytes[@pos]",
-          "old": null,
-          "new": 20
-        },
-        {
-          "kind": "+",
-          "text": "        @pos += 1",
-          "old": null,
-          "new": 21
-        },
-        {
-          "kind": "+",
-          "text": "        b",
-          "old": null,
-          "new": 22
-        },
-        {
-          "kind": "+",
-          "text": "      end",
-          "old": null,
-          "new": 23
-        },
-        {
-          "kind": "+",
-          "text": "",
-          "old": null,
-          "new": 24
-        },
-        {
-          "kind": "+",
-          "text": "      def bytes(n : Int32) : Bytes",
-          "old": null,
-          "new": 25
-        }
-      ],
-      "line_notes": {}
+      "line_notes": {
+        "p.on(\"-t\"": "`-t` prints the parser’s steps. It lets you watch a robot program become the pieces the compiler uses.",
+        "p.on(\"-k\"": "`-k` asks for mistakes before running the robot. The message points back to the robot’s source line."
+      }
     }
   ]
 }

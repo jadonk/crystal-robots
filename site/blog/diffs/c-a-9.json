@@ -1,433 +1,244 @@
 {
   "sha": "abf7f9b50e57939d9d2a035cf3108e5f338ae486",
   "subject": "Phase A.9: the CROBOTS builtins as host imports",
-  "summary": "Robot sensing and actions become host calls.",
+  "summary": "Robots can sense the arena and act in it.",
   "files": [
-    {
-      "path": "manifest.uuid",
-      "added": 1,
-      "removed": 1,
-      "role": "A source snapshot identifier."
-    },
     {
       "path": "spec/parser_spec.cr",
       "added": 6,
       "removed": 0,
-      "role": "Tests say what the program should do."
+      "role": "Checks which robot programs the parser accepts."
     },
     {
       "path": "spec/spec_helper.cr",
       "added": 30,
       "removed": 7,
-      "role": "Tests say what the program should do."
+      "role": "Checks that a piece of the project behaves as expected."
     },
     {
       "path": "spec/wasm_emitter_spec.cr",
       "added": 17,
       "removed": 0,
-      "role": "Tests say what the program should do."
+      "role": "Checks the instructions written for robot programs."
     },
     {
       "path": "src/compiler/parser.cr",
       "added": 13,
       "removed": 3,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Groups the words and symbols in a robot program into meaningful steps."
     },
     {
       "path": "src/compiler/program.cr",
       "added": 11,
       "removed": 1,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Builds or runs a robot program."
     },
     {
       "path": "src/compiler/wasm_emitter.cr",
       "added": 45,
       "removed": 14,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Turns robot steps into WebAssembly instructions."
     }
   ],
   "excerpts": [
     {
       "file": "src/compiler/wasm_emitter.cr",
-      "note": "The table lists robot actions and how many numbers they take.",
+      "note": "A robot can now ask for its speed or damage and call actions such as `scan`, `cannon`, and `drive`. The compiler passes their arguments to the [[host|#word-host]], the part outside the robot program that knows the arena.",
       "before": [
         {
           "kind": " ",
-          "text": "    def self.encodeVector(entries : Array(Bytes)) : Bytes",
-          "old": 116,
-          "new": 118
+          "text": "      case n.rule",
+          "old": 202,
+          "new": 228
         },
         {
           "kind": " ",
-          "text": "      unsignedLEB128(entries.size) + entries.reduce(Bytes[]) { |a, b| a + b }",
-          "old": 117,
-          "new": 119
+          "text": "      when :lex",
+          "old": 203,
+          "new": 229
         },
         {
           "kind": " ",
-          "text": "    end",
-          "old": 118,
-          "new": 120
+          "text": "        n.type == Type::Identifier ? global_get(@program.value(n)) : const(@program.value(n).to_i32)",
+          "old": 204,
+          "new": 230
         },
         {
           "kind": " ",
-          "text": "",
-          "old": 119,
-          "new": 121
+          "text": "      when :assign",
+          "old": 205,
+          "new": 231
         },
         {
           "kind": " ",
-          "text": "    def self.encodeString(string : String) : Bytes",
-          "old": 120,
-          "new": 122
+          "text": "        name = @program.value(@program.arg(i, 0))",
+          "old": 206,
+          "new": 232
         },
         {
           "kind": " ",
-          "text": "      unsignedLEB128(string.bytesize) + string.to_slice",
-          "old": 121,
-          "new": 123
+          "text": "        expression(@program.arg(i, 2)) + global_set(name) + global_get(name)",
+          "old": 207,
+          "new": 233
         },
         {
           "kind": " ",
-          "text": "    end",
-          "old": 122,
-          "new": 124
+          "text": "      when :paren",
+          "old": 208,
+          "new": 234
         },
         {
           "kind": " ",
-          "text": "",
-          "old": 123,
-          "new": 125
+          "text": "        expression(@program.arg(i, 1))",
+          "old": 209,
+          "new": 235
         },
         {
           "kind": " ",
-          "text": "    def self.createSection(type : Section, data : Bytes) : Bytes",
-          "old": 124,
-          "new": 126
+          "text": "      when :neg",
+          "old": 210,
+          "new": 236
         },
         {
           "kind": " ",
-          "text": "      Bytes[type.value] + unsignedLEB128(data.size) + data",
-          "old": 125,
-          "new": 127
+          "text": "        const(0) + expression(@program.arg(i, 1)) + op(Opcodes::I32_sub)",
+          "old": 211,
+          "new": 237
         },
         {
           "kind": " ",
-          "text": "    end",
-          "old": 126,
-          "new": 128
+          "text": "      when :mul, :add, :cmp, :eq",
+          "old": 212,
+          "new": 238
         },
         {
           "kind": " ",
-          "text": "",
-          "old": 127,
-          "new": 129
+          "text": "        binary(@program.type(@program.arg(i, 1)), expression(@program.arg(i, 0)), expression(@program.arg(i, 2)))",
+          "old": 213,
+          "new": 239
         }
       ],
       "lines": [
         {
           "kind": "+",
-          "text": "    # Builtins in import order, with how many `i32` arguments each takes.",
+          "text": "      when :call0",
           "old": null,
-          "new": 130
+          "new": 240
         },
         {
           "kind": "+",
-          "text": "    IMPORTS = {",
+          "text": "        call(import_index(@program.lexeme(i)))",
           "old": null,
-          "new": 131
-        },
-        {
-          "kind": "+",
-          "text": "      \"puts\" => 1, \"scan\" => 2, \"cannon\" => 2, \"drive\" => 2,",
-          "old": null,
-          "new": 132
-        },
-        {
-          "kind": "+",
-          "text": "      \"damage\" => 0, \"speed\" => 0, \"loc_x\" => 0, \"loc_y\" => 0, \"sleep\" => 0,",
-          "old": null,
-          "new": 133
-        },
-        {
-          "kind": "+",
-          "text": "      \"rand\" => 1, \"sqrt\" => 1, \"sin\" => 1, \"cos\" => 1, \"tan\" => 1, \"atan\" => 1,",
-          "old": null,
-          "new": 134
-        },
-        {
-          "kind": "+",
-          "text": "    }",
-          "old": null,
-          "new": 135
-        }
-      ],
-      "after": [
-        {
-          "kind": "+",
-          "text": "",
-          "old": null,
-          "new": 136
+          "new": 241
         },
         {
           "kind": " ",
-          "text": "    getter program : Program",
-          "old": 128,
-          "new": 137
-        },
-        {
-          "kind": "+",
-          "text": "    getter imports : Array(String)",
-          "old": null,
-          "new": 138
-        },
-        {
-          "kind": " ",
-          "text": "",
-          "old": 129,
-          "new": 139
-        },
-        {
-          "kind": " ",
-          "text": "    def initialize(@program : Program)",
-          "old": 130,
-          "new": 140
-        },
-        {
-          "kind": " ",
-          "text": "      @globals = [] of String",
-          "old": 131,
-          "new": 141
-        },
-        {
-          "kind": " ",
-          "text": "      @program.children(@program.root).each do |stmt|",
-          "old": 132,
-          "new": 142
-        },
-        {
-          "kind": " ",
-          "text": "        # global(name, init): children are 🌐 ⟮ name ， init ⟯ ⏎",
-          "old": 133,
-          "new": 143
-        },
-        {
-          "kind": " ",
-          "text": "        @globals << @program.value(@program.arg(stmt, 2)) if @program[stmt].rule == :global",
-          "old": 134,
-          "new": 144
-        },
-        {
-          "kind": " ",
-          "text": "      end",
-          "old": 135,
-          "new": 145
-        },
-        {
-          "kind": "+",
-          "text": "      used = Set(String).new",
-          "old": null,
-          "new": 146
-        },
-        {
-          "kind": "+",
-          "text": "      @program.ast.each do |n|",
-          "old": null,
-          "new": 147
-        }
-      ],
-      "line_notes": {}
-    },
-    {
-      "file": "src/compiler/parser.cr",
-      "note": "The parser recognizes builtins that read the robot state.",
-      "before": [
-        {
-          "kind": " ",
-          "text": "    # One grammar rule: a regex over glyphs and the glyph it reduces to.",
-          "old": 20,
-          "new": 22
-        },
-        {
-          "kind": " ",
-          "text": "    struct Rule",
-          "old": 21,
-          "new": 23
-        },
-        {
-          "kind": " ",
-          "text": "      getter name : Symbol, regex : Regex, type : Type",
-          "old": 22,
-          "new": 24
-        },
-        {
-          "kind": " ",
-          "text": "",
-          "old": 23,
-          "new": 25
-        },
-        {
-          "kind": " ",
-          "text": "      def initialize(@name : Symbol, @regex : Regex, @type : Type)",
-          "old": 24,
-          "new": 26
-        },
-        {
-          "kind": " ",
-          "text": "      end",
-          "old": 25,
-          "new": 27
-        },
-        {
-          "kind": " ",
-          "text": "    end",
-          "old": 26,
-          "new": 28
-        },
-        {
-          "kind": " ",
-          "text": "",
-          "old": 27,
-          "new": 29
-        },
-        {
-          "kind": " ",
-          "text": "    KEYWORDS = {",
-          "old": 28,
-          "new": 30
+          "text": "      when :command1",
+          "old": 214,
+          "new": 242
         },
         {
           "kind": "-",
-          "text": "      \"puts\" => Type::OneArgMethod, \"global\" => Type::GlobalKeyword,",
-          "old": 29,
+          "text": "        expression(@program.arg(i, 1)) + call(PUTS_IMPORT_INDEX)",
+          "old": 215,
           "new": null
         },
         {
           "kind": "+",
-          "text": "      \"global\" => Type::GlobalKeyword,",
+          "text": "        expression(@program.arg(i, 1)) + call(import_index(@program.lexeme(@program.arg(i, 0))))",
           "old": null,
-          "new": 31
-        },
-        {
-          "kind": " ",
-          "text": "      \"while\" => Type::WhileKeyword, \"until\" => Type::UntilKeyword,",
-          "old": 30,
-          "new": 32
-        }
-      ],
-      "lines": [
-        {
-          "kind": " ",
-          "text": "      \"end\" => Type::EndKeyword, \"break\" => Type::BreakKeyword,",
-          "old": 31,
-          "new": 33
-        },
-        {
-          "kind": " ",
-          "text": "      \"if\" => Type::IfKeyword, \"elsif\" => Type::ElsifKeyword, \"else\" => Type::ElseKeyword,",
-          "old": 32,
-          "new": 34
+          "new": 243
         },
         {
           "kind": "+",
-          "text": "      \"damage\" => Type::ZeroArgMethod, \"speed\" => Type::ZeroArgMethod, \"loc_x\" => Type::ZeroArgMethod,",
+          "text": "      when :command2",
           "old": null,
-          "new": 35
+          "new": 244
         },
         {
           "kind": "+",
-          "text": "      \"loc_y\" => Type::ZeroArgMethod, \"sleep\" => Type::ZeroArgMethod,",
+          "text": "        expression(@program.arg(i, 1)) + expression(@program.arg(i, 3)) +",
           "old": null,
-          "new": 36
-        },
-        {
-          "kind": "+",
-          "text": "      \"puts\" => Type::OneArgMethod, \"rand\" => Type::OneArgMethod, \"sqrt\" => Type::OneArgMethod,",
-          "old": null,
-          "new": 37
-        },
-        {
-          "kind": "+",
-          "text": "      \"sin\" => Type::OneArgMethod, \"cos\" => Type::OneArgMethod, \"tan\" => Type::OneArgMethod,",
-          "old": null,
-          "new": 38
+          "new": 245
         }
       ],
       "after": [
         {
           "kind": "+",
-          "text": "      \"atan\" => Type::OneArgMethod,",
+          "text": "          call(import_index(@program.lexeme(@program.arg(i, 0))))",
           "old": null,
-          "new": 39
-        },
-        {
-          "kind": "+",
-          "text": "      \"scan\" => Type::TwoArgMethod, \"cannon\" => Type::TwoArgMethod, \"drive\" => Type::TwoArgMethod,",
-          "old": null,
-          "new": 40
+          "new": 246
         },
         {
           "kind": " ",
-          "text": "    }",
-          "old": 33,
-          "new": 41
+          "text": "      else",
+          "old": 216,
+          "new": 247
+        },
+        {
+          "kind": " ",
+          "text": "        raise Unsupported.new(\"expression #{n.rule} is not supported in WASM\")",
+          "old": 217,
+          "new": 248
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 218,
+          "new": 249
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 219,
+          "new": 250
         },
         {
           "kind": " ",
           "text": "",
-          "old": 34,
-          "new": 42
+          "old": 220,
+          "new": 251
         },
         {
           "kind": " ",
-          "text": "    OPERATORS = {",
-          "old": 35,
-          "new": 43
+          "text": "    # `/` and `//` both truncate toward zero for now, and none of the four",
+          "old": 221,
+          "new": 252
         },
         {
           "kind": " ",
-          "text": "      \"//\" => Type::FloorDivOperator, \"==\" => Type::EqOperator, \"!=\" => Type::NeOperator,",
-          "old": 36,
-          "new": 44
+          "text": "    # trap on division by zero the way WASM's own `i32.div_s` does; CROBOTS's",
+          "old": 222,
+          "new": 253
         },
         {
           "kind": " ",
-          "text": "      \"<=\" => Type::LeOperator, \">=\" => Type::GeOperator,",
-          "old": 37,
-          "new": 45
+          "text": "    # floored division and its divide-by-zero-is-zero rule are a later",
+          "old": 223,
+          "new": 254
         },
         {
           "kind": " ",
-          "text": "      \"+\" => Type::AddOperator, \"-\" => Type::SubOperator, \"*\" => Type::MulOperator,",
-          "old": 38,
-          "new": 46
+          "text": "    # commit's problem, once a robot can actually divide by something that",
+          "old": 224,
+          "new": 255
         },
         {
           "kind": " ",
-          "text": "      \"/\" => Type::DivOperator, \"%\" => Type::ModOperator, \"=\" => Type::Assign,",
-          "old": 39,
-          "new": 47
+          "text": "    # might be zero.",
+          "old": 225,
+          "new": 256
         },
         {
           "kind": " ",
-          "text": "      \"<\" => Type::LtOperator, \">\" => Type::GtOperator,",
-          "old": 40,
-          "new": 48
-        },
-        {
-          "kind": " ",
-          "text": "      \"(\" => Type::OpenParen, \")\" => Type::CloseParen, \",\" => Type::Comma,",
-          "old": 41,
-          "new": 49
-        },
-        {
-          "kind": " ",
-          "text": "    }",
-          "old": 42,
-          "new": 50
+          "text": "    private def binary(opt : Type, left : Bytes, right : Bytes) : Bytes",
+          "old": 226,
+          "new": 257
         }
       ],
-      "line_notes": {}
+      "line_notes": {
+        "when :command2": "Two-argument actions put both numbers on the stack before calling the host. For example, `drive` needs a direction and a speed."
+      }
     }
   ]
 }

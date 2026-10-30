@@ -1,12 +1,8 @@
-// Headless check for site/editor's line-number gutter (Phase 6 follow-up):
-// drives a real headless Chromium over the DevTools protocol (CDP) with
-// only Node's built-in `http`/`fetch`/`WebSocket` -- no npm dependency to
-// vendor -- and checks that (1) the textarea never soft-wraps a logical
-// line onto a second visual row and (2) the gutter's scrollTop tracks the
-// textarea's after a scroll. Exits 0 and prints `{"ok":true}` on success,
-// exits 1 and prints the failing checks otherwise.
+// Check chapter 1 diff views in a real headless Chromium using only Node's
+// built-in modules and the DevTools protocol. Exits 0 with {"ok":true} when
+// every view loads, keyboard controls work, and its content fits at 360px.
 //
-//   node spec/support/editor_gutter_check.mjs [chromium-binary]
+//   node spec/support/blog_diffs_check.mjs [chromium-binary]
 import { createServer } from "node:http";
 import { readFile, stat, writeFile, mkdir } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
@@ -148,6 +144,14 @@ try {
     checks[id] = ok;
   }
   checks.noPageOverflow = await evaluate(`document.documentElement.scrollWidth <= innerWidth`);
+  checks.notesFit = await evaluate(`Array.from(document.querySelectorAll('#phase-a .diff-excerpt')).every((box) => {
+    const edge = box.getBoundingClientRect().right;
+    return Array.from(box.querySelectorAll('.diff-note, .diff-callout')).every((note) => {
+      const rect = note.getBoundingClientRect();
+      return rect.left >= box.getBoundingClientRect().left - 1 && rect.right <= edge + 1 && note.scrollWidth <= note.clientWidth + 1;
+    });
+  })`);
+  checks.codeFits = await evaluate(`Array.from(document.querySelectorAll('#phase-a .diff-scroll')).every((box) => box.scrollWidth <= box.clientWidth + 1)`);
   const toggle = await evaluate(`(() => { const b = document.querySelector('.diff-toggle'); b.focus(); return !!b })()`);
   // CDP sends a real Enter key to the focused button.
   await sendOn("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });

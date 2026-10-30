@@ -1,304 +1,312 @@
 {
   "roles": {
-    "spec/": "Tests say what the program should do.",
-    "src/compiler/": "Compiler code reads robot programs or writes instructions.",
-    "src/": "Program code runs the command.",
-    "examples/": "Example robot programs to try.",
-    "docs/": "Plans and explanations for the project.",
-    "README.md": "The project introduction.",
-    "shard.yml": "Crystal project setup.",
-    "shard.lock": "Pinned library versions.",
-    "manifest.uuid": "A source snapshot identifier.",
-    ".": "Project setup file."
+    "src/compiler/checker.cr": "Finds mistakes in a robot program before it runs.",
+    "src/compiler/parser.cr": "Groups the words and symbols in a robot program into meaningful steps.",
+    "src/compiler/wasm_emitter.cr": "Turns robot steps into WebAssembly instructions.",
+    "src/compiler/interpreter.cr": "Runs robot steps directly so their behavior can be checked.",
+    "src/compiler/disassembler.cr": "Turns compiled instructions back into readable names.",
+    "src/cli.cr": "Reads command options and starts the requested action.",
+    "spec/checker_spec.cr": "Checks that mistakes are reported clearly.",
+    "spec/parser_spec.cr": "Checks which robot programs the parser accepts.",
+    "spec/wasm_emitter_spec.cr": "Checks the instructions written for robot programs.",
+    "spec/differential_spec.cr": "Checks that both ways of running a robot agree.",
+    "spec/cli_spec.cr": "Checks what the command prints.",
+    "spec/": "Checks that a piece of the project behaves as expected.",
+    "src/compiler/": "Builds or runs a robot program.",
+    "src/": "Runs the project command.",
+    "examples/": "Contains robot programs to try.",
+    "docs/PLAN.md": "Tracks the steps of the tutorial.",
+    "docs/": "Explains a design choice.",
+    "README.md": "Introduces the project and its learning goal.",
+    "shard.yml": "Names the Crystal project and its dependencies.",
+    ".": "Sets up the project."
   },
   "commits": {
     "c-initial-commit": {
-      "summary": "The project begins with its learning goal.",
+      "summary": "A robot battle becomes a way to learn how programs work.",
       "excerpts": [
         {
           "file": "README.md",
-          "anchor": "A great way to learn about programming with a simple Ruby-like syntax. Write programs to battle",
+          "anchor": "A great way to learn about programming",
           "before": 2,
           "after": 3,
-          "note": "The first page states the goal: learn by making robots and looking inside the program."
+          "note": "The project starts with two promises: write a robot for a battle, then see how the program becomes instructions a machine can follow. This first page gives the reason for all the small steps that follow."
         }
       ]
     },
     "c-project-skeleton": {
-      "summary": "The project gains a command and its first test.",
+      "summary": "The project can answer a command and check its answer.",
       "excerpts": [
         {
           "file": "src/cli.cr",
-          "anchor": "if ARGV.includes?(\"--version\") || ARGV.includes?(\"-v\")",
-          "before": 2,
-          "after": 3,
-          "note": "The first command can report the program version."
+          "anchor": "if ARGV.includes?(\"--version\")",
+          "before": 1,
+          "after": 4,
+          "note": "The command can now answer `--version` or `-v` with its version number. `ARGV` holds the words typed after the command, so this is the first small example of reading what a person asked for."
         },
         {
           "file": "spec/cli_spec.cr",
-          "anchor": "output = `crystal run src/cli.cr -- --version`",
-          "before": 2,
-          "after": 3,
-          "note": "A test checks what the command prints."
+          "anchor": "it \"builds and reports its version\"",
+          "note": "A [[test|#word-test-spec]] runs the command and checks the answer it prints. That gives the new command a clear promise before it grows more options.",
+          "line_notes": {
+            "output = `crystal run": "The backticks run a command and keep the text it prints. The next line compares that text with the expected version."
+          },
+          "before": 1,
+          "after": 4
         }
       ]
     },
     "c-a-2": {
-      "summary": "The emitter writes the smallest valid WebAssembly file.",
+      "summary": "The project can write a WebAssembly file that a runner recognizes.",
       "excerpts": [
         {
           "file": "src/compiler/wasm_emitter.cr",
-          "anchor": "MagicModuleHeader = Bytes[0x00, 'a'.ord, 's'.ord, 'm'.ord]",
-          "before": 2,
-          "after": 3,
-          "note": "These first eight bytes identify a WebAssembly file. [[Bytes|#crystal-bytes]] lists numbers that go straight into a file.",
+          "anchor": "def self.minimal_module : Bytes",
+          "note": "The [[emitter|#word-emitter]] starts with the eight numbers every [[WebAssembly|#word-webassembly]] file needs: four to identify the file and four for its version. `minimal_module` joins them; later steps can add instructions after this valid beginning.",
           "line_notes": {
-            "MagicModuleHeader =": "These bytes tell a runner that this is a WebAssembly file."
-          }
+            "MagicModuleHeader =": "`Bytes` is a list of numbers written straight to the file. The first four identify the file as WebAssembly."
+          },
+          "before": 3,
+          "after": 4
         },
         {
           "file": "spec/wasm_emitter_spec.cr",
-          "anchor": "W.minimal_module.should eq Bytes[0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00]",
-          "before": 2,
-          "after": 3,
-          "note": "The test compares the bytes with the expected header."
+          "anchor": "it \"is the 8-byte magic header",
+          "before": 3,
+          "after": 4,
+          "note": "This [[spec|#word-test-spec]] checks the exact eight numbers written to the file. A byte is one small number, and checking each one helps catch a file that looks right in code but cannot be opened by a runner."
         }
       ]
     },
     "c-a-3": {
-      "summary": "A hand-built function adds two numbers.",
+      "summary": "A WebAssembly function can add two numbers.",
       "excerpts": [
         {
           "file": "src/compiler/wasm_emitter.cr",
-          "anchor": "body = Bytes[0] +                                       # no locals beyond the parameters",
-          "before": 2,
-          "after": 3,
-          "note": "The function takes two numbers from the stack and adds them."
+          "anchor": "body = Bytes[0]",
+          "through": "minimal_module + type_section + func_section + export_section + code_section",
+          "note": "This hand-built function takes two numbers, adds them, and makes the answer available under the name `add`. WebAssembly uses [[the stack|#word-the-stack]]: each `Local_get` puts a number on top, and `I32_add` replaces the top two with their sum.",
+          "line_notes": {
+            "Bytes[Opcodes::I32_add.value]": "This [[instruction|#word-instruction]] takes the two numbers just placed on the stack and leaves their sum there."
+          }
         }
       ]
     },
     "c-a-4": {
-      "summary": "A parser and emitter turn puts into runnable instructions.",
+      "summary": "A robot can say `puts 42` and have it compiled.",
       "excerpts": [
         {
           "file": "src/compiler/parser.cr",
-          "anchor": "Rule.new(:program, /\\A❢+\\z/, Type::Program),",
+          "anchor": "Rule.new(:command1",
+          "note": "The [[parser|#word-parser]] now turns a tiny robot program into three nested pieces: a `puts` command, a statement, and the whole program. Each rule recognizes a shape and replaces it with one piece the next rule can use; the unusual symbols stand for pieces already recognized.",
+          "line_notes": {
+            "Rule.new(:command1": "This rule recognizes `puts` followed by one number. It makes an expression that the next rule can treat as a complete line."
+          },
           "before": 2,
-          "after": 3,
-          "note": "Each pass replaces recognized text with one symbol."
+          "after": 4
         },
         {
           "file": "src/compiler/wasm_emitter.cr",
-          "anchor": "I32_const = 0x41",
-          "before": 2,
-          "after": 3,
-          "note": "The emitter writes a number as a WebAssembly instruction."
+          "anchor": "def code_section : Bytes",
+          "before": 3,
+          "after": 4,
+          "note": "The [[emitter|#word-emitter]] reads the parser’s command piece, writes the number, then writes an [[instruction|#word-instruction]] to call `puts`. This connects the words the robot author typed to the output a runner can execute.",
+          "through": "code += op(Opcodes::End)",
+          "line_notes": {
+            "code += const(@program.value(number).to_i32)": "Write the number, call `puts` to print it, then `Drop` removes the answer from the stack. A stand-alone print line does not need to keep that answer."
+          }
         }
       ]
     },
     "c-a-5": {
-      "summary": "The language gains arithmetic and precedence.",
+      "summary": "Robots can calculate with the usual order of operations.",
       "excerpts": [
         {
           "file": "src/compiler/parser.cr",
-          "anchor": "MULOPS = \"⊗／⊘％\"",
+          "anchor": "Rule.new(:paren",
+          "note": "Parentheses are grouped first, then multiplication and division, then addition and subtraction. The parser needs this order so `2 + 3 * 4` means 14, just as it does on paper.",
+          "line_notes": {
+            "Rule.new(:mul": "This rule groups multiplication before addition. The next rule sees its result as one value."
+          },
           "before": 2,
-          "after": 3,
-          "note": "Multiplication is grouped before addition."
+          "after": 4
         },
         {
           "file": "src/compiler/wasm_emitter.cr",
-          "anchor": "I32_mul   = 0x6c",
+          "anchor": "when :mul, :add",
           "before": 2,
           "after": 3,
-          "note": "The emitter gains arithmetic instructions."
+          "note": "The emitter writes an instruction for the operation the parser found. It first writes the two values, then the operation, so WebAssembly can take those values from [[the stack|#word-the-stack]]."
         }
       ]
     },
     "c-a-6": {
-      "summary": "Programs can keep and change global values.",
+      "summary": "Robots can remember a number and change it later.",
       "excerpts": [
         {
-          "file": "src/compiler/parser.cr",
-          "anchor": "Rule.new(:assign, /𝑥＝#{V}(?=⏎)/, Type::Expression),",
+          "file": "src/compiler/wasm_emitter.cr",
+          "anchor": "when :assign",
+          "note": "An assignment stores a number under a name so later steps can use it. The emitter also reads the stored value back, because an assignment can itself be used where a value is expected.",
+          "line_notes": {
+            "global_set(name) + global_get(name)": "`global_set` saves the value in a slot shared by the program; `global_get` puts it back on the stack for the surrounding expression."
+          },
           "before": 2,
-          "after": 3,
-          "note": "An assignment gives a variable a new value."
+          "after": 4
         },
         {
-          "file": "src/compiler/wasm_emitter.cr",
-          "anchor": "Global_set = 0x24",
+          "file": "src/compiler/parser.cr",
+          "anchor": "Rule.new(:assign",
           "before": 2,
           "after": 3,
-          "note": "WebAssembly stores that value in a global slot."
+          "note": "The parser recognizes a name, `=`, and a finished value as an assignment. Waiting for the value to finish prevents it from storing only part of a calculation."
         }
       ]
     },
     "c-a-7": {
-      "summary": "Programs can compare values and repeat work.",
+      "summary": "Robots can compare values and repeat steps.",
       "excerpts": [
         {
-          "file": "src/compiler/parser.cr",
-          "anchor": "\"while\" => Type::WhileKeyword, \"until\" => Type::UntilKeyword,",
-          "before": 2,
-          "after": 3,
-          "note": "The parser learns loop words."
-        },
-        {
           "file": "src/compiler/wasm_emitter.cr",
-          "anchor": "Br_if      = 0x0d",
-          "before": 2,
-          "after": 3,
-          "note": "A conditional branch decides whether the loop repeats."
+          "anchor": "code = op(Opcodes::Block)",
+          "through": "code += op(Opcodes::Br) + WASM_Emitter.unsignedLEB128(0)",
+          "note": "[[WebAssembly|#word-webassembly]] has no `while`. It has a block you can jump out of and a loop you can jump back to, so the compiler uses both: check the condition, leave when the work is done, otherwise run the body and return to the top.",
+          "line_notes": {
+            "code += op(Opcodes::I32_eqz)": "`while` keeps going while its test is true, so this flips the answer: now true means it is time to leave.",
+            "code += op(Opcodes::Br_if)": "Leave the outer block if the test says the loop is done.",
+            "code += op(Opcodes::Br) +": "Jump back to the top of the loop and check again."
+          }
         }
       ]
     },
     "c-a-8": {
-      "summary": "Programs can choose among branches.",
+      "summary": "Robots can choose what to do based on a test.",
       "excerpts": [
         {
-          "file": "src/compiler/parser.cr",
-          "anchor": "\"if\" => Type::IfKeyword, \"elsif\" => Type::ElsifKeyword, \"else\" => Type::ElseKeyword,",
-          "before": 2,
-          "after": 3,
-          "note": "The parser recognizes branches."
-        },
-        {
           "file": "src/compiler/wasm_emitter.cr",
-          "anchor": "private def if_statement(stmt : Int32, ctx : Ctx) : Bytes",
-          "before": 2,
-          "after": 3,
-          "note": "The emitter chooses which branch to run."
+          "anchor": "private def if_statement",
+          "through": "emit_branches(branches, ctx)",
+          "note": "An `if` gives a robot a choice: run the first body whose condition is true, or run `else` if none is. This method collects each condition with its statements so the emitter can write that choice as nested WebAssembly branches.",
+          "line_notes": {
+            "branches << {nil": "`else` has no test to check. It runs when the earlier tests did not choose a branch."
+          }
         }
       ]
     },
     "c-a-9": {
-      "summary": "Robot sensing and actions become host calls.",
+      "summary": "Robots can sense the arena and act in it.",
       "excerpts": [
         {
           "file": "src/compiler/wasm_emitter.cr",
-          "anchor": "\"puts\" => 1, \"scan\" => 2, \"cannon\" => 2, \"drive\" => 2,",
-          "before": 2,
-          "after": 3,
-          "note": "The table lists robot actions and how many numbers they take."
-        },
-        {
-          "file": "src/compiler/parser.cr",
-          "anchor": "\"damage\" => Type::ZeroArgMethod, \"speed\" => Type::ZeroArgMethod, \"loc_x\" => Type::ZeroArgMethod,",
-          "before": 2,
-          "after": 3,
-          "note": "The parser recognizes builtins that read the robot state."
+          "anchor": "when :call0",
+          "note": "A robot can now ask for its speed or damage and call actions such as `scan`, `cannon`, and `drive`. The compiler passes their arguments to the [[host|#word-host]], the part outside the robot program that knows the arena.",
+          "line_notes": {
+            "when :command2": "Two-argument actions put both numbers on the stack before calling the host. For example, `drive` needs a direction and a speed."
+          },
+          "before": 0,
+          "after": 6
         }
       ]
     },
     "c-a-10": {
-      "summary": "Robots can define and call functions.",
+      "summary": "Robots can name a set of steps and call it later.",
       "excerpts": [
         {
           "file": "src/compiler/parser.cr",
-          "anchor": "\"def\" => Type::DefKeyword, \"return\" => Type::ReturnKeyword,",
+          "anchor": "V = \"(?:[№😑]|𝑥(?!⟮))\"",
           "before": 2,
-          "after": 3,
-          "note": "A robot can name its own function."
+          "after": 4,
+          "note": "The parser must tell a plain variable from the start of a function call. The changed `V` pattern waits when a name is followed by `(`, so a call such as `aim(30)` stays together instead of being split too soon.",
+          "line_notes": {
+            "V = ": "The `(?!⟮)` part means “only if an opening parenthesis does not come next.” That leaves the name for the call rule."
+          }
         },
         {
           "file": "src/compiler/wasm_emitter.cr",
-          "anchor": "getter functions : Array(String)",
+          "anchor": "name = @program.lexeme(kids[0])",
           "before": 2,
-          "after": 3,
-          "note": "The emitter keeps track of function names."
+          "after": 4,
+          "note": "A call evaluates each argument, then jumps to the named function. This lets a robot reuse a calculation or action instead of copying its steps everywhere.",
+          "line_notes": {
+            "args.reduce(Bytes[])": "Write each argument before the call, so the function can take those values from the stack in order."
+          }
         }
       ]
     },
     "c-a-11": {
-      "summary": "A named main block starts the robot.",
+      "summary": "Each robot can have a named starting block.",
       "excerpts": [
         {
-          "file": "src/compiler/parser.cr",
-          "anchor": "\"main\" => Type::MainKeyword, \"do\" => Type::DoKeyword,",
-          "before": 2,
-          "after": 3,
-          "note": "The parser recognizes the robot entry block."
-        },
-        {
           "file": "src/compiler/wasm_emitter.cr",
-          "anchor": "when :main",
-          "before": 2,
-          "after": 3,
-          "note": "The main block runs after other top-level statements."
+          "anchor": "private def run_body",
+          "through": "main_stmts.each { |s| code += statement(s, ctx) }",
+          "note": "The compiler sets the statements inside `main` aside and writes them after the other top-level statements. That lets setup happen first, wherever the named starting block appears in the file.",
+          "line_notes": {
+            "main_stmts = body_of(stmt)": "Keep the robot’s starting steps for later. Other top-level setup steps are written first."
+          }
         }
       ]
     },
     "c-a-12": {
-      "summary": "The checker reports mistakes with source locations.",
+      "summary": "A robot author can see several mistakes with their locations.",
       "excerpts": [
         {
           "file": "src/compiler/checker.cr",
           "anchor": "struct Issue",
-          "before": 2,
-          "after": 3,
-          "note": "Each problem carries a message and a place in the source.",
+          "note": "The checker looks for mistakes before a robot runs, and keeps each one together with its line and column in the robot program. It can report several problems at once, so a beginner can fix them without rerunning after every single one.",
           "line_notes": {
-            "getter message : String, line : Int32, col : Int32": "The checker keeps the message and the source position together."
-          }
+            "getter message : String, line : Int32, col : Int32": "These three fields say what went wrong and where to look. `Int32` means a whole-number position."
+          },
+          "before": 1,
+          "after": 4
         },
         {
           "file": "spec/checker_spec.cr",
-          "anchor": "it \"flags an undefined variable\" do",
+          "anchor": "it \"flags an undefined variable\"",
           "before": 2,
-          "after": 3,
-          "note": "Tests show the problems the checker should report."
+          "after": 4,
+          "note": "This test gives the checker a program that uses `mystery` without defining it. The expected message shows the helpful answer the robot author should see."
         }
       ]
     },
     "c-a-13": {
-      "summary": "An interpreter runs beside the WebAssembly emitter.",
+      "summary": "Two independent runners can check each other’s answers.",
       "excerpts": [
         {
-          "file": "src/compiler/interpreter.cr",
-          "anchor": "abstract class Host",
-          "before": 2,
-          "after": 3,
-          "note": "A host supplies the robot actions while the interpreter runs."
-        },
-        {
           "file": "spec/differential_spec.cr",
-          "anchor": "wasmer_it \"agree on #{name}\" do",
-          "before": 2,
-          "after": 3,
-          "note": "The same robot runs through both engines for comparison."
+          "anchor": "describe \"the interpreter and the WASM emitter\"",
+          "note": "Each robot program is run twice, once by the [[interpreter|#word-interpreter]] and once compiled to WebAssembly, and the two printed answers must agree. This catches mistakes that one runner’s own tests might miss.",
+          "line_notes": {
+            "interpret_puts(source).should eq run_puts(source)": "Compare the text printed by each runner for the same robot. A difference means at least one path needs fixing."
+          },
+          "before": 1,
+          "after": 4
         }
       ]
     },
     "c-a-14": {
-      "summary": "The command gains practical modes and a readable instruction dump.",
+      "summary": "A reader can check, trace, run, and inspect a robot from the command line.",
       "excerpts": [
         {
           "file": "src/cli.cr",
-          "anchor": "parser = OptionParser.new do |p|",
-          "before": 2,
-          "after": 3,
-          "note": "Command options now select tracing, checking, compiling, or running."
-        },
-        {
-          "file": "src/compiler/disassembler.cr",
-          "anchor": "class Disassembler",
-          "before": 2,
-          "after": 3,
-          "note": "The disassembler turns emitted bytes into readable instructions."
+          "anchor": "parser = OptionParser.new",
+          "through": "parser.parse(argv)",
+          "note": "The command now lets a reader choose a job: trace how parsing proceeds, check for mistakes, compile, run directly, or display readable instructions. Each short flag names one job, making the compiler’s separate steps easy to try.",
+          "line_notes": {
+            "p.on(\"-t\"": "`-t` prints the parser’s steps. It lets you watch a robot program become the pieces the compiler uses.",
+            "p.on(\"-k\"": "`-k` asks for mistakes before running the robot. The message points back to the robot’s source line."
+          }
         }
       ]
     },
     "c-docs-mark-phase-a-done-in-the-tutorial-p": {
-      "summary": "The tutorial plan records Phase A as done.",
+      "summary": "The first compiler chapter has a complete working path.",
       "excerpts": [
         {
           "file": "docs/PLAN.md",
-          "anchor": "**Status 2026-09-17: Phase A done**, commits A.1 through A.14 below, all on",
+          "anchor": "**Status 2026-09-17: Phase A done**",
           "before": 2,
-          "after": 3,
-          "note": "The plan records that the first compiler chapter is complete.",
-          "context_before": 3
+          "after": 4,
+          "note": "The plan marks this chapter complete after the command, checker, interpreter, and WebAssembly path work together. The recorded spec count gives a checkpoint for readers who follow the steps."
         }
       ]
     }

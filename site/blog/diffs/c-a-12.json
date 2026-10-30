@@ -1,43 +1,37 @@
 {
   "sha": "4f5d440303e2ab798b5ab0099c46816616a0e747",
   "subject": "Phase A.12: the checker",
-  "summary": "The checker reports mistakes with source locations.",
+  "summary": "A robot author can see several mistakes with their locations.",
   "files": [
-    {
-      "path": "manifest.uuid",
-      "added": 1,
-      "removed": 1,
-      "role": "A source snapshot identifier."
-    },
     {
       "path": "spec/checker_spec.cr",
       "added": 55,
       "removed": 0,
-      "role": "Tests say what the program should do."
+      "role": "Checks that mistakes are reported clearly."
     },
     {
       "path": "spec/spec_helper.cr",
       "added": 1,
       "removed": 0,
-      "role": "Tests say what the program should do."
+      "role": "Checks that a piece of the project behaves as expected."
     },
     {
       "path": "src/compiler/checker.cr",
       "added": 170,
       "removed": 0,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Finds mistakes in a robot program before it runs."
     },
     {
       "path": "src/compiler/program.cr",
       "added": 19,
       "removed": 0,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Builds or runs a robot program."
     }
   ],
   "excerpts": [
     {
       "file": "src/compiler/checker.cr",
-      "note": "Each problem carries a message and a place in the source.",
+      "note": "The checker looks for mistakes before a robot runs, and keeps each one together with its line and column in the robot program. It can report several problems at once, so a beginner can fix them without rerunning after every single one.",
       "before": [
         {
           "kind": "+",
@@ -98,15 +92,15 @@
           "text": "# first one.",
           "old": null,
           "new": 10
-        }
-      ],
-      "lines": [
+        },
         {
           "kind": "+",
           "text": "module CrystalRobots::Compiler",
           "old": null,
           "new": 11
-        },
+        }
+      ],
+      "lines": [
         {
           "kind": "+",
           "text": "  class Checker",
@@ -136,15 +130,15 @@
           "text": "      def initialize(@message : String, @line : Int32, @col : Int32)",
           "old": null,
           "new": 16
-        }
-      ],
-      "after": [
+        },
         {
           "kind": "+",
           "text": "      end",
           "old": null,
           "new": 17
-        },
+        }
+      ],
+      "after": [
         {
           "kind": "+",
           "text": "",
@@ -210,15 +204,21 @@
           "text": "    private record Scope, locals : Set(String), in_function : Bool, in_loop : Bool",
           "old": null,
           "new": 28
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 29
         }
       ],
       "line_notes": {
-        "getter message : String, line : Int32, col : Int32": "The checker keeps the message and the source position together."
+        "getter message : String, line : Int32, col : Int32": "These three fields say what went wrong and where to look. `Int32` means a whole-number position."
       }
     },
     {
       "file": "spec/checker_spec.cr",
-      "note": "Tests show the problems the checker should report.",
+      "note": "This test gives the checker a program that uses `mystery` without defining it. The expected message shows the helpful answer the robot author should see.",
       "before": [
         {
           "kind": "+",
@@ -329,15 +329,15 @@
           "text": "",
           "old": null,
           "new": 18
-        }
-      ],
-      "after": [
+        },
         {
           "kind": "+",
           "text": "  it \"flags an undefined function\" do",
           "old": null,
           "new": 19
-        },
+        }
+      ],
+      "after": [
         {
           "kind": "+",
           "text": "    issues(\"puts go(1)\\n\").should eq [\"undefined function go\"]",
@@ -403,6 +403,12 @@
           "text": "",
           "old": null,
           "new": 30
+        },
+        {
+          "kind": "+",
+          "text": "  it \"flags break outside of a loop\" do",
+          "old": null,
+          "new": 31
         }
       ],
       "line_notes": {}

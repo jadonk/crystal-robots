@@ -22,26 +22,30 @@ pre.output { border-left-color: var(--green); }
 }
 #blog-toc ol { list-style: none; padding-left: 0; }
 
-/* Selected changes in chapter 1. Code scrolls inside its own box. */
+/* Selected changes in chapter 1. */
 .diff-view { min-width: 0; margin: 1.2rem 0; }
 .diff-summary { font-weight: 650; }
-.diff-files-heading { margin: .7rem 0 .2rem; font-weight: 650; }
+.diff-files-heading { margin: .7rem 0 .2rem; font-weight: 650; cursor: pointer; }
 .diff-files { margin: 0 0 1rem; padding-left: 1.3rem; font-size: .85rem; }
 .diff-files li { margin: .2rem 0; overflow-wrap: anywhere; }
 .diff-count { color: var(--muted); white-space: nowrap; }
 .diff-excerpt { margin: 1.2rem 0; min-width: 0; }
+.diff-excerpt p.diff-file, .diff-excerpt p.diff-callout { max-width: none; }
 .diff-note { margin: 0 0 .35rem; }
 .diff-file { margin: 0; padding: .35rem .6rem; background: var(--accent-soft); font: 600 .85rem/1.4 ui-monospace, monospace; overflow-wrap: anywhere; }
 .diff-scroll { max-width: 100%; overflow-x: auto; border: 1px solid var(--line); background: var(--surface); }
 .diff-table { width: max-content; min-width: 100%; border-collapse: collapse; font: .8rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
 .diff-table td { padding: .05rem .35rem; vertical-align: top; }
+.diff-number-column { width: 3rem; }
 .diff-table tbody[hidden] { display: none; }
 .diff-number { min-width: 2.5rem; color: var(--muted); text-align: right; user-select: none; border-right: 1px solid var(--line); }
 .diff-code { white-space: pre; }
 .diff-mark { display: inline-block; width: 1.4em; font-weight: 800; }
 .diff-add { background: color-mix(in srgb, var(--green) 13%, var(--surface)); }
 .diff-remove { background: color-mix(in srgb, var(--orange) 14%, var(--surface)); }
-.diff-callout td { white-space: normal; max-width: 65ch; padding: .4rem .7rem; border-left: 3px solid var(--accent); background: var(--accent-soft); font: .85rem/1.5 system-ui, sans-serif; }
+.diff-single .diff-add, .diff-single .diff-remove { background: transparent; }
+.diff-callout { margin: .45rem 0; padding: .4rem .7rem; border-left: 3px solid var(--accent); background: var(--accent-soft); font: .85rem/1.5 system-ui, sans-serif; overflow-wrap: anywhere; }
+.diff-callout-label { font-weight: 700; }
 .diff-toggle { margin-top: .4rem; padding: .3rem .6rem; color: var(--accent); background: var(--surface); border: 1px solid var(--line); border-radius: .3rem; font: inherit; cursor: pointer; }
 .diff-whole { display: inline-block; margin-top: .3rem; }
 .syntax-comment { color: var(--muted); font-style: italic; }
@@ -54,5 +58,15 @@ pre.output { border-left-color: var(--green); }
 .crystal-primer h3 { margin-bottom: .2rem; }
 .crystal-primer pre { margin: .2rem 0; }
 .crystal-primer p { margin: .25rem 0; }
-@media (max-width: 700px) { .diff-table { font-size: .75rem; } .diff-number { min-width: 2rem; } }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }.diff-file { max-width: none; }
+.words-glossary dl { margin: .5rem 0; }
+.words-glossary dt { margin-top: .75rem; font-weight: 700; scroll-margin-top: 1rem; }
+.words-glossary dd { margin: .1rem 0 0; }
+@media (max-width: 600px) {
+  .diff-scroll { overflow-x: hidden; }
+  .diff-table { width: 100%; table-layout: fixed; font-size: .75rem; }
+  .diff-number-column { width: 2.2rem; }
+  .diff-number { width: 2rem; min-width: 0; padding-left: .1rem; padding-right: .2rem; }
+  .diff-code { white-space: normal; min-width: 0; }
+  .diff-source { display: block; padding-left: 2ch; text-indent: -2ch; white-space: pre-wrap; overflow-wrap: anywhere; }
+}
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }

@@ -1,397 +1,425 @@
 {
   "sha": "7fbce2eda2056d78a3a2c544737460addacb3f90",
   "subject": "Phase A.10: user-defined functions",
-  "summary": "Robots can define and call functions.",
+  "summary": "Robots can name a set of steps and call it later.",
   "files": [
-    {
-      "path": "manifest.uuid",
-      "added": 1,
-      "removed": 1,
-      "role": "A source snapshot identifier."
-    },
     {
       "path": "spec/parser_spec.cr",
       "added": 10,
       "removed": 0,
-      "role": "Tests say what the program should do."
+      "role": "Checks which robot programs the parser accepts."
     },
     {
       "path": "spec/wasm_emitter_spec.cr",
       "added": 52,
       "removed": 0,
-      "role": "Tests say what the program should do."
+      "role": "Checks the instructions written for robot programs."
     },
     {
       "path": "src/compiler/parser.cr",
       "added": 14,
       "removed": 8,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Groups the words and symbols in a robot program into meaningful steps."
     },
     {
       "path": "src/compiler/program.cr",
       "added": 10,
       "removed": 7,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Builds or runs a robot program."
     },
     {
       "path": "src/compiler/wasm_emitter.cr",
       "added": 163,
       "removed": 37,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Turns robot steps into WebAssembly instructions."
     }
   ],
   "excerpts": [
     {
       "file": "src/compiler/parser.cr",
-      "note": "A robot can name its own function.",
+      "note": "The parser must tell a plain variable from the start of a function call. The changed `V` pattern waits when a name is followed by `(`, so a call such as `aim(30)` stays together instead of being split too soon.",
       "before": [
         {
           "kind": " ",
-          "text": "",
-          "old": 21,
-          "new": 20
+          "text": "      {/\\A[ \\t\\r]+/, :skip},",
+          "old": 57,
+          "new": 57
         },
         {
           "kind": " ",
-          "text": "    # One grammar rule: a regex over glyphs and the glyph it reduces to.",
-          "old": 22,
-          "new": 21
+          "text": "      {/\\A(\\n|;)+/, :newline},",
+          "old": 58,
+          "new": 58
         },
         {
           "kind": " ",
-          "text": "    struct Rule",
-          "old": 23,
-          "new": 22
+          "text": "      {/\\A[0-9]+/, :number},",
+          "old": 59,
+          "new": 59
         },
         {
           "kind": " ",
-          "text": "      getter name : Symbol, regex : Regex, type : Type",
-          "old": 24,
-          "new": 23
+          "text": "      {/\\A(\\/\\/|==|!=|<=|>=|[-+*\\/%(),=<>])/, :operator},",
+          "old": 60,
+          "new": 60
         },
         {
           "kind": " ",
-          "text": "",
-          "old": 25,
-          "new": 24
+          "text": "      {/\\A[A-Za-z_][A-Za-z0-9_]*/, :word},",
+          "old": 61,
+          "new": 61
         },
         {
           "kind": " ",
-          "text": "      def initialize(@name : Symbol, @regex : Regex, @type : Type)",
-          "old": 26,
-          "new": 25
-        },
-        {
-          "kind": " ",
-          "text": "      end",
-          "old": 27,
-          "new": 26
-        },
-        {
-          "kind": " ",
-          "text": "    end",
-          "old": 28,
-          "new": 27
+          "text": "    ]",
+          "old": 62,
+          "new": 62
         },
         {
           "kind": " ",
           "text": "",
-          "old": 29,
-          "new": 28
+          "old": 63,
+          "new": 63
         },
         {
-          "kind": " ",
-          "text": "    KEYWORDS = {",
-          "old": 30,
-          "new": 29
+          "kind": "-",
+          "text": "    # Anything that is already a value: a number, an identifier, or a",
+          "old": 64,
+          "new": null
         },
         {
-          "kind": " ",
-          "text": "      \"global\" => Type::GlobalKeyword,",
-          "old": 31,
-          "new": 30
+          "kind": "-",
+          "text": "    # reduced expression.",
+          "old": 65,
+          "new": null
         },
         {
-          "kind": " ",
-          "text": "      \"while\" => Type::WhileKeyword, \"until\" => Type::UntilKeyword,",
-          "old": 32,
-          "new": 31
+          "kind": "-",
+          "text": "    V = \"[№𝑥😑]\"",
+          "old": 66,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "    # Anything that is already a value: a number, a reduced expression, or",
+          "old": null,
+          "new": 64
+        },
+        {
+          "kind": "+",
+          "text": "    # an identifier -- but not one immediately followed by `(`, which is a",
+          "old": null,
+          "new": 65
         }
       ],
       "lines": [
         {
-          "kind": " ",
-          "text": "      \"end\" => Type::EndKeyword, \"break\" => Type::BreakKeyword,",
-          "old": 33,
-          "new": 32
-        },
-        {
-          "kind": " ",
-          "text": "      \"if\" => Type::IfKeyword, \"elsif\" => Type::ElsifKeyword, \"else\" => Type::ElseKeyword,",
-          "old": 34,
-          "new": 33
+          "kind": "+",
+          "text": "    # pending call and must wait for the `call` rule, not be scooped up as",
+          "old": null,
+          "new": 66
         },
         {
           "kind": "+",
-          "text": "      \"def\" => Type::DefKeyword, \"return\" => Type::ReturnKeyword,",
+          "text": "    # a bare value by an infix rule first.",
           "old": null,
-          "new": 34
+          "new": 67
+        },
+        {
+          "kind": "+",
+          "text": "    V = \"(?:[№😑]|𝑥(?!⟮))\"",
+          "old": null,
+          "new": 68
         },
         {
           "kind": " ",
-          "text": "      \"damage\" => Type::ZeroArgMethod, \"speed\" => Type::ZeroArgMethod, \"loc_x\" => Type::ZeroArgMethod,",
-          "old": 35,
-          "new": 35
+          "text": "",
+          "old": 67,
+          "new": 69
         },
         {
           "kind": " ",
-          "text": "      \"loc_y\" => Type::ZeroArgMethod, \"sleep\" => Type::ZeroArgMethod,",
-          "old": 36,
-          "new": 36
+          "text": "    # Infix operator glyphs by precedence level, tightest first.",
+          "old": 68,
+          "new": 70
         },
         {
           "kind": " ",
-          "text": "      \"puts\" => Type::OneArgMethod, \"rand\" => Type::OneArgMethod, \"sqrt\" => Type::OneArgMethod,",
-          "old": 37,
-          "new": 37
+          "text": "    MULOPS = \"⊗／⊘％\"",
+          "old": 69,
+          "new": 71
+        },
+        {
+          "kind": " ",
+          "text": "    ADDOPS = \"⊕⊖\"",
+          "old": 70,
+          "new": 72
         }
       ],
       "after": [
         {
           "kind": " ",
-          "text": "      \"sin\" => Type::OneArgMethod, \"cos\" => Type::OneArgMethod, \"tan\" => Type::OneArgMethod,",
-          "old": 38,
-          "new": 38
+          "text": "    CMPOPS = \"≺≻≼≽\"",
+          "old": 71,
+          "new": 73
         },
         {
           "kind": " ",
-          "text": "      \"atan\" => Type::OneArgMethod,",
-          "old": 39,
-          "new": 39
-        },
-        {
-          "kind": " ",
-          "text": "      \"scan\" => Type::TwoArgMethod, \"cannon\" => Type::TwoArgMethod, \"drive\" => Type::TwoArgMethod,",
-          "old": 40,
-          "new": 40
-        },
-        {
-          "kind": " ",
-          "text": "    }",
-          "old": 41,
-          "new": 41
+          "text": "    EQOPS  = \"≟≠\"",
+          "old": 72,
+          "new": 74
         },
         {
           "kind": " ",
           "text": "",
-          "old": 42,
-          "new": 42
+          "old": 73,
+          "new": 75
         },
         {
           "kind": " ",
-          "text": "    OPERATORS = {",
-          "old": 43,
-          "new": 43
+          "text": "    # An infix rule at level L reduces `V op V` only when the left operand",
+          "old": 74,
+          "new": 76
         },
         {
           "kind": " ",
-          "text": "      \"//\" => Type::FloorDivOperator, \"==\" => Type::EqOperator, \"!=\" => Type::NeOperator,",
-          "old": 44,
-          "new": 44
+          "text": "    # is not preceded by an operator of level <= L (that operand belongs to",
+          "old": 75,
+          "new": 77
         },
         {
           "kind": " ",
-          "text": "      \"<=\" => Type::LeOperator, \">=\" => Type::GeOperator,",
-          "old": 45,
-          "new": 45
+          "text": "    # the earlier operator, giving left associativity) and the right",
+          "old": 76,
+          "new": 78
         },
         {
           "kind": " ",
-          "text": "      \"+\" => Type::AddOperator, \"-\" => Type::SubOperator, \"*\" => Type::MulOperator,",
-          "old": 46,
-          "new": 46
+          "text": "    # operand is not followed by an operator of a tighter level (that",
+          "old": 77,
+          "new": 79
+        },
+        {
+          "kind": " ",
+          "text": "    # operand belongs to the tighter operator instead). See docs/PARSER.md",
+          "old": 78,
+          "new": 80
+        },
+        {
+          "kind": " ",
+          "text": "    # section 2 for the full reasoning.",
+          "old": 79,
+          "new": 81
+        },
+        {
+          "kind": " ",
+          "text": "    def self.infix(ops : String, higher : String) : Regex",
+          "old": 80,
+          "new": 82
+        },
+        {
+          "kind": " ",
+          "text": "      ahead = higher.empty? ? \"\" : \"(?![#{higher}])\"",
+          "old": 81,
+          "new": 83
+        },
+        {
+          "kind": " ",
+          "text": "      Regex.new(\"(?<![#{higher}#{ops}])#{V}[#{ops}]#{V}#{ahead}\")",
+          "old": 82,
+          "new": 84
         }
       ],
-      "line_notes": {}
+      "line_notes": {
+        "V = ": "The `(?!⟮)` part means “only if an opening parenthesis does not come next.” That leaves the name for the call rule."
+      }
     },
     {
       "file": "src/compiler/wasm_emitter.cr",
-      "note": "The emitter keeps track of function names.",
+      "note": "A call evaluates each argument, then jumps to the named function. This lets a robot reuse a calculation or action instead of copying its steps everywhere.",
       "before": [
         {
           "kind": " ",
-          "text": "      Bytes[type.value] + unsignedLEB128(data.size) + data",
-          "old": 127,
-          "new": 140
+          "text": "      when :mul, :add, :cmp, :eq",
+          "old": 238,
+          "new": 321
+        },
+        {
+          "kind": "-",
+          "text": "        binary(@program.type(@program.arg(i, 1)), expression(@program.arg(i, 0)), expression(@program.arg(i, 2)))",
+          "old": 239,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "        binary(@program.type(@program.arg(i, 1)), expression(@program.arg(i, 0), ctx), expression(@program.arg(i, 2), ctx))",
+          "old": null,
+          "new": 322
         },
         {
           "kind": " ",
-          "text": "    end",
-          "old": 128,
-          "new": 141
+          "text": "      when :call0",
+          "old": 240,
+          "new": 323
         },
         {
           "kind": " ",
-          "text": "",
-          "old": 129,
-          "new": 142
+          "text": "        call(import_index(@program.lexeme(i)))",
+          "old": 241,
+          "new": 324
         },
         {
           "kind": " ",
-          "text": "    # Builtins in import order, with how many `i32` arguments each takes.",
-          "old": 130,
-          "new": 143
+          "text": "      when :command1",
+          "old": 242,
+          "new": 325
+        },
+        {
+          "kind": "-",
+          "text": "        expression(@program.arg(i, 1)) + call(import_index(@program.lexeme(@program.arg(i, 0))))",
+          "old": 243,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "        expression(@program.arg(i, 1), ctx) + call(import_index(@program.lexeme(@program.arg(i, 0))))",
+          "old": null,
+          "new": 326
         },
         {
           "kind": " ",
-          "text": "    IMPORTS = {",
-          "old": 131,
-          "new": 144
+          "text": "      when :command2",
+          "old": 244,
+          "new": 327
+        },
+        {
+          "kind": "-",
+          "text": "        expression(@program.arg(i, 1)) + expression(@program.arg(i, 3)) +",
+          "old": 245,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "        expression(@program.arg(i, 1), ctx) + expression(@program.arg(i, 3), ctx) +",
+          "old": null,
+          "new": 328
         },
         {
           "kind": " ",
-          "text": "      \"puts\" => 1, \"scan\" => 2, \"cannon\" => 2, \"drive\" => 2,",
-          "old": 132,
-          "new": 145
-        },
-        {
-          "kind": " ",
-          "text": "      \"damage\" => 0, \"speed\" => 0, \"loc_x\" => 0, \"loc_y\" => 0, \"sleep\" => 0,",
-          "old": 133,
-          "new": 146
-        },
-        {
-          "kind": " ",
-          "text": "      \"rand\" => 1, \"sqrt\" => 1, \"sin\" => 1, \"cos\" => 1, \"tan\" => 1, \"atan\" => 1,",
-          "old": 134,
-          "new": 147
-        },
-        {
-          "kind": " ",
-          "text": "    }",
-          "old": 135,
-          "new": 148
-        },
-        {
-          "kind": " ",
-          "text": "",
-          "old": 136,
-          "new": 149
+          "text": "          call(import_index(@program.lexeme(@program.arg(i, 0))))",
+          "old": 246,
+          "new": 329
         }
       ],
       "lines": [
         {
-          "kind": " ",
-          "text": "    getter program : Program",
-          "old": 137,
-          "new": 150
-        },
-        {
-          "kind": " ",
-          "text": "    getter imports : Array(String)",
-          "old": 138,
-          "new": 151
+          "kind": "+",
+          "text": "      when :call",
+          "old": null,
+          "new": 330
         },
         {
           "kind": "+",
-          "text": "    getter functions : Array(String)",
+          "text": "        kids = @program.children(i)",
           "old": null,
-          "new": 152
+          "new": 331
+        },
+        {
+          "kind": "+",
+          "text": "        name = @program.lexeme(kids[0])",
+          "old": null,
+          "new": 332
+        },
+        {
+          "kind": "+",
+          "text": "        args = kids[2..].reject { |k| {Type::CloseParen, Type::Comma}.includes?(@program.type(k)) }",
+          "old": null,
+          "new": 333
+        },
+        {
+          "kind": "+",
+          "text": "        args.reduce(Bytes[]) { |code, a| code + expression(a, ctx) } + call(function_index(name))",
+          "old": null,
+          "new": 334
         },
         {
           "kind": " ",
-          "text": "",
-          "old": 139,
-          "new": 153
+          "text": "      else",
+          "old": 247,
+          "new": 335
         },
         {
           "kind": " ",
-          "text": "    def initialize(@program : Program)",
-          "old": 140,
-          "new": 154
-        },
-        {
-          "kind": " ",
-          "text": "      @globals = [] of String",
-          "old": 141,
-          "new": 155
+          "text": "        raise Unsupported.new(\"expression #{n.rule} is not supported in WASM\")",
+          "old": 248,
+          "new": 336
         }
       ],
       "after": [
         {
-          "kind": "+",
-          "text": "      @functions = [] of String",
-          "old": null,
-          "new": 156
-        },
-        {
-          "kind": "+",
-          "text": "      @arity = {} of String => Int32",
-          "old": null,
-          "new": 157
-        },
-        {
-          "kind": "+",
-          "text": "      @extra_arities = [] of Int32",
-          "old": null,
-          "new": 158
+          "kind": " ",
+          "text": "      end",
+          "old": 249,
+          "new": 337
         },
         {
           "kind": " ",
-          "text": "      @program.children(@program.root).each do |stmt|",
-          "old": 142,
-          "new": 159
+          "text": "    end",
+          "old": 250,
+          "new": 338
         },
         {
-          "kind": "-",
-          "text": "        # global(name, init): children are 🌐 ⟮ name ， init ⟯ ⏎",
-          "old": 143,
-          "new": null
+          "kind": " ",
+          "text": "",
+          "old": 251,
+          "new": 339
         },
         {
-          "kind": "-",
-          "text": "        @globals << @program.value(@program.arg(stmt, 2)) if @program[stmt].rule == :global",
-          "old": 144,
-          "new": null
+          "kind": " ",
+          "text": "    # `/` and `//` both truncate toward zero for now, and none of the four",
+          "old": 252,
+          "new": 340
         },
         {
-          "kind": "+",
-          "text": "        case @program[stmt].rule",
-          "old": null,
-          "new": 160
+          "kind": " ",
+          "text": "    # trap on division by zero the way WASM's own `i32.div_s` does; CROBOTS's",
+          "old": 253,
+          "new": 341
         },
         {
-          "kind": "+",
-          "text": "        when :global",
-          "old": null,
-          "new": 161
+          "kind": " ",
+          "text": "    # floored division and its divide-by-zero-is-zero rule are a later",
+          "old": 254,
+          "new": 342
         },
         {
-          "kind": "+",
-          "text": "          # global(name, init): children are 🌐 ⟮ name ， init ⟯ ⏎",
-          "old": null,
-          "new": 162
+          "kind": " ",
+          "text": "    # commit's problem, once a robot can actually divide by something that",
+          "old": 255,
+          "new": 343
         },
         {
-          "kind": "+",
-          "text": "          @globals << @program.value(@program.arg(stmt, 2))",
-          "old": null,
-          "new": 163
+          "kind": " ",
+          "text": "    # might be zero.",
+          "old": 256,
+          "new": 344
         },
         {
-          "kind": "+",
-          "text": "        when :def",
-          "old": null,
-          "new": 164
+          "kind": " ",
+          "text": "    private def binary(opt : Type, left : Bytes, right : Bytes) : Bytes",
+          "old": 257,
+          "new": 345
         },
         {
-          "kind": "+",
-          "text": "          head = @program.children(stmt)[0]",
-          "old": null,
-          "new": 165
+          "kind": " ",
+          "text": "      case opt",
+          "old": 258,
+          "new": 346
         }
       ],
-      "line_notes": {}
+      "line_notes": {
+        "args.reduce(Bytes[])": "Write each argument before the call, so the function can take those values from the stack in order."
+      }
     }
   ]
 }

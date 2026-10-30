@@ -61,7 +61,8 @@ entries.each do |id_any, entry_any|
   files = [] of NamedTuple(path: String, added: Int32, removed: Int32, role: String)
   git("show", "--format=", "--numstat", sha).each_line do |line|
     added, removed, path = line.rstrip.split('\t', 3)
-    role = roles.find { |prefix, _| path.starts_with?(prefix.to_s) }.try(&.[1].to_s) || "Project file."
+    next if {"manifest.uuid", "shard.lock"}.includes?(path)
+    role = roles[path]?.try(&.to_s) || roles.find { |prefix, _| path.starts_with?(prefix.to_s) }.try(&.[1].to_s) || "Project file."
     files << {path: path, added: added.to_i? || 0, removed: removed.to_i? || 0, role: role}
   end
   excerpts = [] of NamedTuple(file: String, note: String, lines: Array(DiffLine), before: Array(DiffLine), after: Array(DiffLine), line_notes: Hash(String, String))
@@ -102,10 +103,22 @@ entries.each do |id_any, entry_any|
     end
     abort "#{id}: anchor #{anchor.inspect} in #{path} matched #{matches.size} lines (need exactly one)" unless matches.size == 1
     hunk, index = matches.first
-    before_count = ex["before"]?.try(&.as_i) || 3
-    after_count = ex["after"]?.try(&.as_i) || 4
-    first = Math.max(0, index - before_count)
-    last = Math.min(hunk.size, index + after_count + 1)
+    if through = ex["through"]?
+      end_matches = [] of {Array(DiffLine), Int32}
+      hunks.each do |candidate|
+        candidate.each_with_index { |line, position| end_matches << {candidate, position} if line.text.includes?(through.to_s) }
+      end
+      abort "#{id}: through #{through} in #{path} matched #{end_matches.size} lines (need exactly one)" unless end_matches.size == 1
+      abort "#{id}: through #{through} is outside the anchor's hunk in #{path}" unless end_matches.first[0] == hunk
+      abort "#{id}: through #{through} comes before anchor #{anchor} in #{path}" if end_matches.first[1] < index
+      first = index
+      last = end_matches.first[1] + 1
+    else
+      before_count = ex["before"]?.try(&.as_i) || 3
+      after_count = ex["after"]?.try(&.as_i) || 4
+      first = Math.max(0, index - before_count)
+      last = Math.min(hunk.size, index + after_count + 1)
+    end
     core = hunk[first...last]
     abort "#{id}: excerpt has no added line: #{path}" unless core.any? { |line| line.kind == "+" }
     context_before = Math.min(12, ex["context_before"]?.try(&.as_i) || 12)

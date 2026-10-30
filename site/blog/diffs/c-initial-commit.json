@@ -1,19 +1,19 @@
 {
   "sha": "69c75a5077f8722738fde3a3b1acd6bd0b5d388c",
   "subject": "Initial commit",
-  "summary": "The project begins with its learning goal.",
+  "summary": "A robot battle becomes a way to learn how programs work.",
   "files": [
     {
       "path": "README.md",
       "added": 39,
       "removed": 0,
-      "role": "The project introduction."
+      "role": "Introduces the project and its learning goal."
     }
   ],
   "excerpts": [
     {
       "file": "README.md",
-      "note": "The first page states the goal: learn by making robots and looking inside the program.",
+      "note": "The project starts with two promises: write a robot for a battle, then see how the program becomes instructions a machine can follow. This first page gives the reason for all the small steps that follow.",
       "before": [],
       "lines": [
         {

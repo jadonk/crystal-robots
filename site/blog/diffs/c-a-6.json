@@ -1,49 +1,230 @@
 {
   "sha": "2ae5e0565e578395ca7634b9a22d80d81e3c3f70",
   "subject": "Phase A.6: global variables and assignment",
-  "summary": "Programs can keep and change global values.",
+  "summary": "Robots can remember a number and change it later.",
   "files": [
-    {
-      "path": "manifest.uuid",
-      "added": 1,
-      "removed": 1,
-      "role": "A source snapshot identifier."
-    },
     {
       "path": "spec/parser_spec.cr",
       "added": 10,
       "removed": 2,
-      "role": "Tests say what the program should do."
+      "role": "Checks which robot programs the parser accepts."
     },
     {
       "path": "spec/wasm_emitter_spec.cr",
       "added": 8,
       "removed": 0,
-      "role": "Tests say what the program should do."
+      "role": "Checks the instructions written for robot programs."
     },
     {
       "path": "src/compiler/parser.cr",
       "added": 18,
       "removed": 13,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Groups the words and symbols in a robot program into meaningful steps."
     },
     {
       "path": "src/compiler/program.cr",
       "added": 7,
       "removed": 3,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Builds or runs a robot program."
     },
     {
       "path": "src/compiler/wasm_emitter.cr",
       "added": 53,
       "removed": 16,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Turns robot steps into WebAssembly instructions."
     }
   ],
   "excerpts": [
     {
+      "file": "src/compiler/wasm_emitter.cr",
+      "note": "An assignment stores a number under a name so later steps can use it. The emitter also reads the stored value back, because an assignment can itself be used where a value is expected.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    def export_section : Bytes",
+          "old": 142,
+          "new": 170
+        },
+        {
+          "kind": " ",
+          "text": "      WASM_Emitter.createSection(Section::Export,",
+          "old": 143,
+          "new": 171
+        },
+        {
+          "kind": " ",
+          "text": "        WASM_Emitter.encodeVector([",
+          "old": 144,
+          "new": 172
+        },
+        {
+          "kind": " ",
+          "text": "          WASM_Emitter.encodeString(\"run\") + Bytes[ExportType::Func.value] + WASM_Emitter.unsignedLEB128(RUN_FUNC_INDEX),",
+          "old": 145,
+          "new": 173
+        },
+        {
+          "kind": " ",
+          "text": "        ]))",
+          "old": 146,
+          "new": 174
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 147,
+          "new": 175
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 148,
+          "new": 176
+        },
+        {
+          "kind": " ",
+          "text": "    # Emit code that leaves the value of expression node `i` on the stack.",
+          "old": 149,
+          "new": 177
+        },
+        {
+          "kind": " ",
+          "text": "    def expression(i : Int32) : Bytes",
+          "old": 150,
+          "new": 178
+        },
+        {
+          "kind": " ",
+          "text": "      n = @program[i]",
+          "old": 151,
+          "new": 179
+        },
+        {
+          "kind": " ",
+          "text": "      case n.rule",
+          "old": 152,
+          "new": 180
+        },
+        {
+          "kind": " ",
+          "text": "      when :lex",
+          "old": 153,
+          "new": 181
+        }
+      ],
+      "lines": [
+        {
+          "kind": "-",
+          "text": "        const(@program.value(n).to_i32)",
+          "old": 154,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "        n.type == Type::Identifier ? global_get(@program.value(n)) : const(@program.value(n).to_i32)",
+          "old": null,
+          "new": 182
+        },
+        {
+          "kind": "+",
+          "text": "      when :assign",
+          "old": null,
+          "new": 183
+        },
+        {
+          "kind": "+",
+          "text": "        name = @program.value(@program.arg(i, 0))",
+          "old": null,
+          "new": 184
+        },
+        {
+          "kind": "+",
+          "text": "        expression(@program.arg(i, 2)) + global_set(name) + global_get(name)",
+          "old": null,
+          "new": 185
+        },
+        {
+          "kind": " ",
+          "text": "      when :paren",
+          "old": 155,
+          "new": 186
+        },
+        {
+          "kind": " ",
+          "text": "        expression(@program.arg(i, 1))",
+          "old": 156,
+          "new": 187
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "      when :neg",
+          "old": 157,
+          "new": 188
+        },
+        {
+          "kind": " ",
+          "text": "        const(0) + expression(@program.arg(i, 1)) + op(Opcodes::I32_sub)",
+          "old": 158,
+          "new": 189
+        },
+        {
+          "kind": " ",
+          "text": "      when :mul, :add",
+          "old": 159,
+          "new": 190
+        },
+        {
+          "kind": " ",
+          "text": "        binary(@program.type(@program.arg(i, 1)), expression(@program.arg(i, 0)), expression(@program.arg(i, 2)))",
+          "old": 160,
+          "new": 191
+        },
+        {
+          "kind": " ",
+          "text": "      when :command1",
+          "old": 161,
+          "new": 192
+        },
+        {
+          "kind": " ",
+          "text": "        expression(@program.arg(i, 1)) + call(PUTS_IMPORT_INDEX)",
+          "old": 162,
+          "new": 193
+        },
+        {
+          "kind": " ",
+          "text": "      else",
+          "old": 163,
+          "new": 194
+        },
+        {
+          "kind": " ",
+          "text": "        raise Unsupported.new(\"expression #{n.rule} is not supported in WASM\")",
+          "old": 164,
+          "new": 195
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 165,
+          "new": 196
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 166,
+          "new": 197
+        }
+      ],
+      "line_notes": {
+        "global_set(name) + global_get(name)": "`global_set` saves the value in a slot shared by the program; `global_get` puts it back on the stack for the surrounding expression."
+      }
+    },
+    {
       "file": "src/compiler/parser.cr",
-      "note": "An assignment gives a variable a new value.",
+      "note": "The parser recognizes a name, `=`, and a finished value as an assignment. Waiting for the value to finish prevents it from storing only part of a calculation.",
       "before": [
         {
           "kind": " ",
@@ -210,197 +391,6 @@
           "text": "    end",
           "old": 86,
           "new": 92
-        }
-      ],
-      "line_notes": {}
-    },
-    {
-      "file": "src/compiler/wasm_emitter.cr",
-      "note": "WebAssembly stores that value in a global slot.",
-      "before": [
-        {
-          "kind": " ",
-          "text": "    enum Opcodes : UInt8",
-          "old": 33,
-          "new": 34
-        },
-        {
-          "kind": "-",
-          "text": "      End       = 0x0b",
-          "old": 34,
-          "new": null
-        },
-        {
-          "kind": "-",
-          "text": "      Call      = 0x10",
-          "old": 35,
-          "new": null
-        },
-        {
-          "kind": "-",
-          "text": "      Drop      = 0x1a",
-          "old": 36,
-          "new": null
-        },
-        {
-          "kind": "-",
-          "text": "      I32_const = 0x41",
-          "old": 37,
-          "new": null
-        },
-        {
-          "kind": "-",
-          "text": "      I32_add   = 0x6a",
-          "old": 38,
-          "new": null
-        },
-        {
-          "kind": "-",
-          "text": "      I32_sub   = 0x6b",
-          "old": 39,
-          "new": null
-        },
-        {
-          "kind": "-",
-          "text": "      I32_mul   = 0x6c",
-          "old": 40,
-          "new": null
-        },
-        {
-          "kind": "-",
-          "text": "      I32_div_s = 0x6d",
-          "old": 41,
-          "new": null
-        },
-        {
-          "kind": "-",
-          "text": "      I32_rem_s = 0x6f",
-          "old": 42,
-          "new": null
-        },
-        {
-          "kind": "+",
-          "text": "      End        = 0x0b",
-          "old": null,
-          "new": 35
-        },
-        {
-          "kind": "+",
-          "text": "      Call       = 0x10",
-          "old": null,
-          "new": 36
-        }
-      ],
-      "lines": [
-        {
-          "kind": "+",
-          "text": "      Drop       = 0x1a",
-          "old": null,
-          "new": 37
-        },
-        {
-          "kind": "+",
-          "text": "      Global_get = 0x23",
-          "old": null,
-          "new": 38
-        },
-        {
-          "kind": "+",
-          "text": "      Global_set = 0x24",
-          "old": null,
-          "new": 39
-        },
-        {
-          "kind": "+",
-          "text": "      I32_const  = 0x41",
-          "old": null,
-          "new": 40
-        },
-        {
-          "kind": "+",
-          "text": "      I32_add    = 0x6a",
-          "old": null,
-          "new": 41
-        },
-        {
-          "kind": "+",
-          "text": "      I32_sub    = 0x6b",
-          "old": null,
-          "new": 42
-        }
-      ],
-      "after": [
-        {
-          "kind": "+",
-          "text": "      I32_mul    = 0x6c",
-          "old": null,
-          "new": 43
-        },
-        {
-          "kind": "+",
-          "text": "      I32_div_s  = 0x6d",
-          "old": null,
-          "new": 44
-        },
-        {
-          "kind": "+",
-          "text": "      I32_rem_s  = 0x6f",
-          "old": null,
-          "new": 45
-        },
-        {
-          "kind": " ",
-          "text": "    end",
-          "old": 43,
-          "new": 46
-        },
-        {
-          "kind": " ",
-          "text": "",
-          "old": 44,
-          "new": 47
-        },
-        {
-          "kind": " ",
-          "text": "    class Unsupported < Exception",
-          "old": 45,
-          "new": 48
-        },
-        {
-          "kind": " ",
-          "text": "    end",
-          "old": 46,
-          "new": 49
-        },
-        {
-          "kind": " ",
-          "text": "",
-          "old": 47,
-          "new": 50
-        },
-        {
-          "kind": " ",
-          "text": "    enum ExportType : UInt8",
-          "old": 48,
-          "new": 51
-        },
-        {
-          "kind": " ",
-          "text": "      Func = 0x00",
-          "old": 49,
-          "new": 52
-        },
-        {
-          "kind": " ",
-          "text": "    end",
-          "old": 50,
-          "new": 53
-        },
-        {
-          "kind": " ",
-          "text": "",
-          "old": 51,
-          "new": 54
         }
       ],
       "line_notes": {}

@@ -30,6 +30,7 @@
 <li><a href="#intro">Introduction</a></li>
 <li><a href="#follow">Following along</a></li>
 <li><a href="#reading-crystal">Reading Crystal</a></li>
+<li><a href="#words">Words you’ll see</a></li>
 <li><a href="#phase-a">1. A compiler to WebAssembly</a></li>
 <li><a href="#phase-b">2. The language real robots use</a></li>
 <li><a href="#phase-c">3. The battlefield</a></li>
@@ -58,16 +59,16 @@
 </section>
 <section id="follow">
 <h2>Following along</h2>
-<p>A <em>terminal</em> is a window where you type a command and press Enter to run it. <code>cd</code> moves into a folder. <code>git checkout</code> opens the project as it was at a chosen commit, a saved step in its history.</p>
+<p>A <em>terminal</em> is a window where you type a command and press Enter to run it. The lines below are commands: type one, press Enter, then go to the next.</p>
 <p>Every section below names a commit. Clone the repository, check out that commit, and run the commands under “Try it”. You'll need Crystal 1.18; some steps also use wasmer (installed for you by the CI command from Phase U onward), Node, or the WebAssembly linker from LLVM, and each step says which.</p>
 <pre><code>git clone https://github.com/jadonk/crystal-robots.git
 cd crystal-robots
 git checkout &lt;commit&gt;
 crystal spec</code></pre>
-<p class="cmd-note"><code>git clone</code> — Copies the project from GitHub into a new folder.</p>
-<p class="cmd-note"><code>cd</code> — Moves into that folder.</p>
-<p class="cmd-note"><code>git checkout</code> — Opens the saved step named in a section below.</p>
-<p class="cmd-note"><code>crystal spec</code> — Runs every test in the spec/ folder.</p>
+<p class="cmd-note"><code>git clone</code> copies the project from GitHub into a new folder.</p>
+<p class="cmd-note"><code>cd</code> moves into that folder so the next commands use its files.</p>
+<p class="cmd-note"><code>git checkout</code> opens a saved step of the project; replace <code>&lt;commit&gt;</code> with the short code shown beside a step below.</p>
+<p class="cmd-note"><code>crystal spec</code> runs the tests in <code>spec/</code>. A good run ends with <code>0 failures, 0 errors</code>.</p>
 
 <p>Every commit on this line builds and passes its tests; that was the rule for each one, and the output under “What you'll see” is real: copied from the run recorded in that commit's message, or, for the few commits that recorded none, produced by running the commands for this post. It is lightly trimmed (“...” marks a cut) and never edited. Commit hashes link to GitHub.</p>
 </section>
@@ -96,6 +97,21 @@ end</code></pre><p>Run the indented steps once for each item, calling the curren
 end</code></pre><p>These group a test, name what it checks, and say what answer is expected.</p></div>
 <div id="crystal-bytes"><h3>Write bytes: <code>Bytes[…]</code></h3><pre><code>Bytes[0x00, 0x61]</code></pre><p>Bytes are small numbers written directly into a file; <code>0x</code> marks a number written in base 16.</p></div>
 </section>
+<section id="words" class="words-glossary">
+<h2>Words you’ll see</h2>
+<dl>
+<dt id="word-compiler">Compiler</dt><dd>A program that turns a robot’s code into instructions another machine can run.</dd>
+<dt id="word-parser">Parser</dt><dd>The part of the compiler that groups the robot’s words and symbols into meaningful pieces.</dd>
+<dt id="word-emitter">Emitter</dt><dd>The part of the compiler that writes runnable instructions from those pieces.</dd>
+<dt id="word-webassembly">WebAssembly</dt><dd>A portable format for instructions that a browser or another runner can execute.</dd>
+<dt id="word-instruction">Instruction</dt><dd>One small action, such as adding numbers or calling a function, that a runner understands.</dd>
+<dt id="word-the-stack">The stack</dt><dd>A pile of working values where instructions take numbers from the top and put answers back.</dd>
+<dt id="word-host">Host</dt><dd>The code outside a robot program that provides arena actions such as scanning and driving.</dd>
+<dt id="word-interpreter">Interpreter</dt><dd>A program that follows a robot’s steps directly instead of writing a WebAssembly file first.</dd>
+<dt id="word-test-spec">Test/spec</dt><dd>A small program that checks whether another part of the project gives an expected answer.</dd>
+<dt id="word-commit">Commit</dt><dd>A saved step in the project’s history that you can open and try.</dd>
+</dl>
+</section>
 <section class="chapter" id="phase-a">
 <h2><span class="chapter-number">Chapter 1 · </span>Phase A: a compiler to WebAssembly</h2>
 <p>Phase A follows chasm's own path, step by step: an empty module, a hand-written function, then a real compiler that grows one language feature per commit, plus the two things a robot language needs that chasm does not: host builtins for sensing and acting, and a checker that explains mistakes. By the end, a robot program can be traced, checked, interpreted and compiled from the command line, and two independent engines agree on what it does.</p>
@@ -114,17 +130,11 @@ end</code></pre><p>These group a test, name what it checks, and say what answer 
 <div class="diff-view" data-diff="c-project-skeleton"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/866c92a727998ca0b74a4ec056afa9c7eb70897f">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git clone https://github.com/jadonk/crystal-robots.git
-cd crystal-robots
-git checkout 866c92a
+<pre><code>git checkout 866c92a
 shards build
 bin/crystal-robots --version</code></pre>
-<p class="cmd-note"><code>git clone https://github.com/jadonk/crystal-robots.git</code> — Copies the project from GitHub into a new folder.</p>
-<p class="cmd-note"><code>cd crystal-robots</code> — Moves into the project folder.</p>
-<p class="cmd-note"><code>git checkout 866c92a</code> — Opens this saved step of the project.</p>
-<p class="cmd-note"><code>shards build</code> — Builds the command program into bin/.</p>
-<p class="cmd-note"><code>bin/crystal-robots --version</code> — Prints the program version.</p>
 
+<p class="cmd-note"><code>shards build</code> creates the command in <code>bin/</code>; <code>--version</code> asks it for its version. Look for <code>crystal-robots 0.0.1</code> after the build lines.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>Dependencies are satisfied
 Building: crystal-robots
@@ -144,11 +154,8 @@ crystal-robots 0.0.1</code></pre>
 crystal spec
 shards build
 bin/crystal-robots</code></pre>
-<p class="cmd-note"><code>git checkout 9206c10</code> — Opens this saved step of the project.</p>
-<p class="cmd-note"><code>crystal spec</code> — Runs every test in spec/.</p>
-<p class="cmd-note"><code>shards build</code> — Builds the command program into bin/.</p>
-<p class="cmd-note"><code>bin/crystal-robots</code> — Runs the program to show its current message.</p>
 
+<p class="cmd-note">Run the tests, then build and run the still-empty command. Look for the eight-byte module test to pass and for the command to say it has nothing to do yet.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>..
 
@@ -172,10 +179,8 @@ crystal-robots 0.0.1: nothing to do yet</code></pre>
 <pre><code>git checkout 27a3ab6
 crystal spec
 crystal spec -Dwasmer</code></pre>
-<p class="cmd-note"><code>git checkout 27a3ab6</code> — Opens this saved step of the project.</p>
-<p class="cmd-note"><code>crystal spec</code> — Runs every test in spec/.</p>
-<p class="cmd-note"><code>crystal spec -Dwasmer</code> — Runs every test in spec/, including WebAssembly tests with wasmer.</p>
 
+<p class="cmd-note"><code>-Dwasmer</code> turns on tests that run the WebAssembly output in Wasmer. Look for the new add-function test to pass; the run should end with no failures.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>..*
 
@@ -205,11 +210,8 @@ Finished in 1.08 seconds
 crystal spec -Dwasmer
 shards build
 bin/crystal-robots -t examples/hello.cr</code></pre>
-<p class="cmd-note"><code>git checkout 0b60f75</code> — Opens this saved step of the project.</p>
-<p class="cmd-note"><code>crystal spec -Dwasmer</code> — Runs every test in spec/, including WebAssembly tests with wasmer.</p>
-<p class="cmd-note"><code>shards build</code> — Builds the command program into bin/.</p>
-<p class="cmd-note"><code>bin/crystal-robots -t examples/hello.cr</code> — Shows how the parser reads the example program, step by step.</p>
 
+<p class="cmd-note"><code>-t</code> asks the command to trace how it parses <code>examples/hello.cr</code>. Look for the <code>puts</code> line becoming a command, then a statement, then a complete program.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>.........
 
@@ -234,9 +236,8 @@ Building: crystal-robots
 <p class="code-label">Try it</p>
 <pre><code>git checkout 613e895
 crystal spec -Dwasmer</code></pre>
-<p class="cmd-note"><code>git checkout 613e895</code> — Opens this saved step of the project.</p>
-<p class="cmd-note"><code>crystal spec -Dwasmer</code> — Runs every test in spec/, including WebAssembly tests with wasmer.</p>
 
+<p class="cmd-note">Look for the arithmetic tests to pass, including a calculation where multiplication happens before addition.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...............
 
@@ -255,9 +256,8 @@ Finished in 2.37 seconds
 <p class="code-label">Try it</p>
 <pre><code>git checkout 2ae5e05
 crystal spec -v -Dwasmer</code></pre>
-<p class="cmd-note"><code>git checkout 2ae5e05</code> — Opens this saved step of the project.</p>
-<p class="cmd-note"><code>crystal spec -v -Dwasmer</code> — Runs every test in spec/ with full names shown.</p>
 
+<p class="cmd-note"><code>-v</code> prints each test’s name, so you can see which behavior passed. Look for the new global-variable and assignment cases, then <code>0 failures</code>.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   declares a global and reads it back
@@ -278,9 +278,8 @@ Finished in 2.27 seconds
 <p class="code-label">Try it</p>
 <pre><code>git checkout 2033e63
 crystal spec -v -Dwasmer</code></pre>
-<p class="cmd-note"><code>git checkout 2033e63</code> — Opens this saved step of the project.</p>
-<p class="cmd-note"><code>crystal spec -v -Dwasmer</code> — Runs every test in spec/ with full names shown.</p>
 
+<p class="cmd-note">Look for named tests about comparisons and <code>while</code> or <code>until</code> loops. The final count should still show no failures.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   counts up in a while loop
@@ -301,9 +300,8 @@ Finished in 2.31 seconds
 <p class="code-label">Try it</p>
 <pre><code>git checkout 6a15aea
 crystal spec -v -Dwasmer</code></pre>
-<p class="cmd-note"><code>git checkout 6a15aea</code> — Opens this saved step of the project.</p>
-<p class="cmd-note"><code>crystal spec -v -Dwasmer</code> — Runs every test in spec/ with full names shown.</p>
 
+<p class="cmd-note">Look for tests in which a robot takes the right <code>if</code>, <code>elsif</code>, or <code>else</code> path.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   takes the if branch
@@ -326,9 +324,8 @@ Finished in 2.46 seconds
 <p class="code-label">Try it</p>
 <pre><code>git checkout abf7f9b
 crystal spec -v -Dwasmer</code></pre>
-<p class="cmd-note"><code>git checkout abf7f9b</code> — Opens this saved step of the project.</p>
-<p class="cmd-note"><code>crystal spec -v -Dwasmer</code> — Runs every test in spec/ with full names shown.</p>
 
+<p class="cmd-note">Look for tests that call robot actions such as <code>scan</code> and <code>drive</code> through the host.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   calls a zero-argument builtin
@@ -352,9 +349,8 @@ Finished in 2.45 seconds
 <p class="code-label">Try it</p>
 <pre><code>git checkout 7fbce2e
 crystal spec -v -Dwasmer</code></pre>
-<p class="cmd-note"><code>git checkout 7fbce2e</code> — Opens this saved step of the project.</p>
-<p class="cmd-note"><code>crystal spec -v -Dwasmer</code> — Runs every test in spec/ with full names shown.</p>
 
+<p class="cmd-note">Look for function-call tests, including one where a function calls itself.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   returns explicitly, short-circuiting the rest of the function
@@ -375,9 +371,8 @@ Finished in 2.42 seconds
 <p class="code-label">Try it</p>
 <pre><code>git checkout 2631ebd
 crystal spec -v -Dwasmer</code></pre>
-<p class="cmd-note"><code>git checkout 2631ebd</code> — Opens this saved step of the project.</p>
-<p class="cmd-note"><code>crystal spec -v -Dwasmer</code> — Runs every test in spec/ with full names shown.</p>
 
+<p class="cmd-note">Look for the test showing that <code>main</code> runs after other top-level steps.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   runs the main block after every other top-level statement
@@ -397,9 +392,8 @@ Finished in 2.46 seconds
 <p class="code-label">Try it</p>
 <pre><code>git checkout 4f5d440
 crystal spec -v -Dwasmer</code></pre>
-<p class="cmd-note"><code>git checkout 4f5d440</code> — Opens this saved step of the project.</p>
-<p class="cmd-note"><code>crystal spec -v -Dwasmer</code> — Runs every test in spec/ with full names shown.</p>
 
+<p class="cmd-note">Look for checker tests that name an undefined variable, a bad call, and a misplaced <code>break</code>. They should all pass.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>CrystalRobots::Compiler::Checker
   finds nothing wrong with a clean program
@@ -428,9 +422,8 @@ Finished in 2.42 seconds
 <p class="code-label">Try it</p>
 <pre><code>git checkout f0e79e1
 crystal spec -v -Dwasmer</code></pre>
-<p class="cmd-note"><code>git checkout f0e79e1</code> — Opens this saved step of the project.</p>
-<p class="cmd-note"><code>crystal spec -v -Dwasmer</code> — Runs every test in spec/ with full names shown.</p>
 
+<p class="cmd-note">Look for “agree on” tests: the interpreter and compiled runner should print the same answers for each robot program.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>the interpreter and the WASM emitter
   agree on arithmetic and comparisons
@@ -452,10 +445,8 @@ Finished in 2.36 seconds
 <pre><code>git checkout 2b0d9c4
 shards build
 bin/crystal-robots --help</code></pre>
-<p class="cmd-note"><code>git checkout 2b0d9c4</code> — Opens this saved step of the project.</p>
-<p class="cmd-note"><code>shards build</code> — Builds the command program into bin/.</p>
-<p class="cmd-note"><code>bin/crystal-robots --help</code> — Lists the command options and their meanings.</p>
 
+<p class="cmd-note"><code>--help</code> lists the jobs the command can do. Look for <code>-t</code> to trace, <code>-k</code> to check, <code>-c</code> to compile, and <code>-i</code> to run directly.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>Usage: crystal-robots [options] FILE
     -v, --version                    Print the version

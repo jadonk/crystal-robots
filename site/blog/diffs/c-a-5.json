@@ -1,168 +1,44 @@
 {
   "sha": "613e89546dd16011a99a8766ef64d131cbcddc01",
   "subject": "Phase A.5: binary expressions",
-  "summary": "The language gains arithmetic and precedence.",
+  "summary": "Robots can calculate with the usual order of operations.",
   "files": [
-    {
-      "path": "manifest.uuid",
-      "added": 1,
-      "removed": 1,
-      "role": "A source snapshot identifier."
-    },
     {
       "path": "spec/parser_spec.cr",
       "added": 7,
       "removed": 0,
-      "role": "Tests say what the program should do."
+      "role": "Checks which robot programs the parser accepts."
     },
     {
       "path": "spec/wasm_emitter_spec.cr",
       "added": 20,
       "removed": 0,
-      "role": "Tests say what the program should do."
+      "role": "Checks the instructions written for robot programs."
     },
     {
       "path": "src/compiler/parser.cr",
       "added": 40,
       "removed": 5,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Groups the words and symbols in a robot program into meaningful steps."
     },
     {
       "path": "src/compiler/program.cr",
       "added": 10,
       "removed": 0,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Builds or runs a robot program."
     },
     {
       "path": "src/compiler/wasm_emitter.cr",
       "added": 52,
       "removed": 13,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Turns robot steps into WebAssembly instructions."
     }
   ],
   "excerpts": [
     {
       "file": "src/compiler/parser.cr",
-      "note": "Multiplication is grouped before addition.",
+      "note": "Parentheses are grouped first, then multiplication and division, then addition and subtraction. The parser needs this order so `2 + 3 * 4` means 14, just as it does on paper.",
       "before": [
-        {
-          "kind": "-",
-          "text": "    # `KEYWORDS`.",
-          "old": 30,
-          "new": null
-        },
-        {
-          "kind": "+",
-          "text": "    # `KEYWORDS`; `:operator` looks it up in `OPERATORS`.",
-          "old": null,
-          "new": 40
-        },
-        {
-          "kind": " ",
-          "text": "    LEXICAL = [",
-          "old": 31,
-          "new": 41
-        },
-        {
-          "kind": " ",
-          "text": "      {/\\A[ \\t\\r]+/, :skip},",
-          "old": 32,
-          "new": 42
-        },
-        {
-          "kind": " ",
-          "text": "      {/\\A(\\n|;)+/, :newline},",
-          "old": 33,
-          "new": 43
-        },
-        {
-          "kind": " ",
-          "text": "      {/\\A[0-9]+/, :number},",
-          "old": 34,
-          "new": 44
-        },
-        {
-          "kind": "+",
-          "text": "      {/\\A(\\/\\/|[-+*\\/%()])/, :operator},",
-          "old": null,
-          "new": 45
-        },
-        {
-          "kind": " ",
-          "text": "      {/\\A[A-Za-z_][A-Za-z0-9_]*/, :word},",
-          "old": 35,
-          "new": 46
-        },
-        {
-          "kind": " ",
-          "text": "    ]",
-          "old": 36,
-          "new": 47
-        },
-        {
-          "kind": " ",
-          "text": "",
-          "old": 37,
-          "new": 48
-        },
-        {
-          "kind": "+",
-          "text": "    # Anything that is already a value: a number or a reduced expression.",
-          "old": null,
-          "new": 49
-        },
-        {
-          "kind": "+",
-          "text": "    V = \"[№😑]\"",
-          "old": null,
-          "new": 50
-        }
-      ],
-      "lines": [
-        {
-          "kind": "+",
-          "text": "",
-          "old": null,
-          "new": 51
-        },
-        {
-          "kind": "+",
-          "text": "    # Infix operator glyphs by precedence level, tightest first.",
-          "old": null,
-          "new": 52
-        },
-        {
-          "kind": "+",
-          "text": "    MULOPS = \"⊗／⊘％\"",
-          "old": null,
-          "new": 53
-        },
-        {
-          "kind": "+",
-          "text": "    ADDOPS = \"⊕⊖\"",
-          "old": null,
-          "new": 54
-        },
-        {
-          "kind": "+",
-          "text": "",
-          "old": null,
-          "new": 55
-        },
-        {
-          "kind": "+",
-          "text": "    # An infix rule at level L reduces `V op V` only when the left operand",
-          "old": null,
-          "new": 56
-        }
-      ],
-      "after": [
-        {
-          "kind": "+",
-          "text": "    # is not preceded by an operator of level <= L (that operand belongs to",
-          "old": null,
-          "new": 57
-        },
         {
           "kind": "+",
           "text": "    # the earlier operator, giving left associativity) and the right",
@@ -228,197 +104,323 @@
           "text": "    # this list that matches anywhere, to every non-overlapping match.",
           "old": 39,
           "new": 68
-        }
-      ],
-      "line_notes": {}
-    },
-    {
-      "file": "src/compiler/wasm_emitter.cr",
-      "note": "The emitter gains arithmetic instructions.",
-      "before": [
-        {
-          "kind": " ",
-          "text": "",
-          "old": 26,
-          "new": 26
         },
         {
           "kind": " ",
-          "text": "    # https://webassembly.github.io/spec/core/binary/types.html",
-          "old": 27,
-          "new": 27
-        },
-        {
-          "kind": " ",
-          "text": "    enum Valtype : UInt8",
-          "old": 28,
-          "new": 28
-        },
-        {
-          "kind": " ",
-          "text": "      I32 = 0x7f",
-          "old": 29,
-          "new": 29
-        },
-        {
-          "kind": " ",
-          "text": "    end",
-          "old": 30,
-          "new": 30
-        },
-        {
-          "kind": " ",
-          "text": "",
-          "old": 31,
-          "new": 31
-        },
-        {
-          "kind": " ",
-          "text": "    # https://webassembly.github.io/spec/core/binary/instructions.html",
-          "old": 32,
-          "new": 32
-        },
-        {
-          "kind": " ",
-          "text": "    enum Opcodes : UInt8",
-          "old": 33,
-          "new": 33
-        },
-        {
-          "kind": " ",
-          "text": "      End       = 0x0b",
-          "old": 34,
-          "new": 34
-        },
-        {
-          "kind": " ",
-          "text": "      Call      = 0x10",
-          "old": 35,
-          "new": 35
-        },
-        {
-          "kind": " ",
-          "text": "      Drop      = 0x1a",
-          "old": 36,
-          "new": 36
-        },
-        {
-          "kind": " ",
-          "text": "      I32_const = 0x41",
-          "old": 37,
-          "new": 37
+          "text": "    GRAMMAR = [",
+          "old": 40,
+          "new": 69
         }
       ],
       "lines": [
         {
-          "kind": "+",
-          "text": "      I32_add   = 0x6a",
-          "old": null,
-          "new": 38
+          "kind": "-",
+          "text": "      Rule.new(:command1, /∊№/, Type::Expression),",
+          "old": 41,
+          "new": null
+        },
+        {
+          "kind": "-",
+          "text": "      Rule.new(:exprstmt, /😑⏎/, Type::Statement),",
+          "old": 42,
+          "new": null
         },
         {
           "kind": "+",
-          "text": "      I32_sub   = 0x6b",
+          "text": "      Rule.new(:paren, /⟮#{V}⟯/, Type::Expression),",
           "old": null,
-          "new": 39
+          "new": 70
         },
         {
           "kind": "+",
-          "text": "      I32_mul   = 0x6c",
+          "text": "      Rule.new(:neg, /(?<![№😑⟯])⊖#{V}/, Type::Expression),",
           "old": null,
-          "new": 40
+          "new": 71
         },
         {
           "kind": "+",
-          "text": "      I32_div_s = 0x6d",
+          "text": "      Rule.new(:mul, infix(MULOPS, \"\"), Type::Expression),",
           "old": null,
-          "new": 41
+          "new": 72
         },
         {
           "kind": "+",
-          "text": "      I32_rem_s = 0x6f",
+          "text": "      Rule.new(:add, infix(ADDOPS, MULOPS), Type::Expression),",
           "old": null,
-          "new": 42
+          "new": 73
         },
         {
           "kind": "+",
-          "text": "    end",
+          "text": "      Rule.new(:command1, /∊#{V}(?=[⏎⟯])/, Type::Expression),",
           "old": null,
-          "new": 43
+          "new": 74
         }
       ],
       "after": [
         {
           "kind": "+",
-          "text": "",
+          "text": "      Rule.new(:exprstmt, /#{V}⏎/, Type::Statement),",
           "old": null,
-          "new": 44
-        },
-        {
-          "kind": "+",
-          "text": "    class Unsupported < Exception",
-          "old": null,
-          "new": 45
+          "new": 75
         },
         {
           "kind": " ",
-          "text": "    end",
-          "old": 38,
-          "new": 46
-        },
-        {
-          "kind": " ",
-          "text": "",
-          "old": 39,
-          "new": 47
-        },
-        {
-          "kind": " ",
-          "text": "    enum ExportType : UInt8",
-          "old": 40,
-          "new": 48
-        },
-        {
-          "kind": " ",
-          "text": "      Func = 0x00",
-          "old": 41,
-          "new": 49
-        },
-        {
-          "kind": " ",
-          "text": "    end",
-          "old": 42,
-          "new": 50
-        },
-        {
-          "kind": " ",
-          "text": "",
+          "text": "      Rule.new(:program, /\\A❢+\\z/, Type::Program),",
           "old": 43,
-          "new": 51
+          "new": 76
         },
         {
           "kind": " ",
-          "text": "    FunctionType      = 0x60",
+          "text": "    ]",
           "old": 44,
-          "new": 52
+          "new": 77
         },
         {
           "kind": " ",
-          "text": "    MagicModuleHeader = Bytes[0x00, 'a'.ord, 's'.ord, 'm'.ord]",
+          "text": "",
           "old": 45,
-          "new": 53
+          "new": 78
         },
         {
           "kind": " ",
-          "text": "    ModuleVersion     = Bytes[0x01, 0x00, 0x00, 0x00]",
+          "text": "    property program : Program",
           "old": 46,
-          "new": 54
+          "new": 79
         },
         {
           "kind": " ",
           "text": "",
           "old": 47,
-          "new": 55
+          "new": 80
+        },
+        {
+          "kind": " ",
+          "text": "    # Parse `src` completely. Raises `Parser::Error` when the text cannot",
+          "old": 48,
+          "new": 81
+        },
+        {
+          "kind": " ",
+          "text": "    # be reduced to a program.",
+          "old": 49,
+          "new": 82
+        },
+        {
+          "kind": " ",
+          "text": "    def initialize(src : String = \"\")",
+          "old": 50,
+          "new": 83
+        },
+        {
+          "kind": " ",
+          "text": "      @program = Program.new(src)",
+          "old": 51,
+          "new": 84
+        },
+        {
+          "kind": " ",
+          "text": "      Parser.parse(@program)",
+          "old": 52,
+          "new": 85
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 53,
+          "new": 86
+        }
+      ],
+      "line_notes": {
+        "Rule.new(:mul": "This rule groups multiplication before addition. The next rule sees its result as one value."
+      }
+    },
+    {
+      "file": "src/compiler/wasm_emitter.cr",
+      "note": "The emitter writes an instruction for the operation the parser found. It first writes the two values, then the operation, so WebAssembly can take those values from [[the stack|#word-the-stack]].",
+      "before": [
+        {
+          "kind": "-",
+          "text": "    # statement. `puts` returns its argument rather than nothing: it is",
+          "old": 142,
+          "new": null
+        },
+        {
+          "kind": "-",
+          "text": "    # called as a statement here, but later commits call it as an",
+          "old": 143,
+          "new": null
+        },
+        {
+          "kind": "-",
+          "text": "    # expression, and giving every builtin an `i32` result from the start",
+          "old": 144,
+          "new": null
+        },
+        {
+          "kind": "-",
+          "text": "    # keeps one calling convention for both.",
+          "old": 145,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "    # Emit code that leaves the value of expression node `i` on the stack.",
+          "old": null,
+          "new": 149
+        },
+        {
+          "kind": "+",
+          "text": "    def expression(i : Int32) : Bytes",
+          "old": null,
+          "new": 150
+        },
+        {
+          "kind": "+",
+          "text": "      n = @program[i]",
+          "old": null,
+          "new": 151
+        },
+        {
+          "kind": "+",
+          "text": "      case n.rule",
+          "old": null,
+          "new": 152
+        },
+        {
+          "kind": "+",
+          "text": "      when :lex",
+          "old": null,
+          "new": 153
+        },
+        {
+          "kind": "+",
+          "text": "        const(@program.value(n).to_i32)",
+          "old": null,
+          "new": 154
+        },
+        {
+          "kind": "+",
+          "text": "      when :paren",
+          "old": null,
+          "new": 155
+        },
+        {
+          "kind": "+",
+          "text": "        expression(@program.arg(i, 1))",
+          "old": null,
+          "new": 156
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "      when :neg",
+          "old": null,
+          "new": 157
+        },
+        {
+          "kind": "+",
+          "text": "        const(0) + expression(@program.arg(i, 1)) + op(Opcodes::I32_sub)",
+          "old": null,
+          "new": 158
+        },
+        {
+          "kind": "+",
+          "text": "      when :mul, :add",
+          "old": null,
+          "new": 159
+        },
+        {
+          "kind": "+",
+          "text": "        binary(@program.type(@program.arg(i, 1)), expression(@program.arg(i, 0)), expression(@program.arg(i, 2)))",
+          "old": null,
+          "new": 160
+        },
+        {
+          "kind": "+",
+          "text": "      when :command1",
+          "old": null,
+          "new": 161
+        },
+        {
+          "kind": "+",
+          "text": "        expression(@program.arg(i, 1)) + call(PUTS_IMPORT_INDEX)",
+          "old": null,
+          "new": 162
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      else",
+          "old": null,
+          "new": 163
+        },
+        {
+          "kind": "+",
+          "text": "        raise Unsupported.new(\"expression #{n.rule} is not supported in WASM\")",
+          "old": null,
+          "new": 164
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 165
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 166
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 167
+        },
+        {
+          "kind": "+",
+          "text": "    # `/` and `//` both truncate toward zero for now, and none of the four",
+          "old": null,
+          "new": 168
+        },
+        {
+          "kind": "+",
+          "text": "    # trap on division by zero the way WASM's own `i32.div_s` does; CROBOTS's",
+          "old": null,
+          "new": 169
+        },
+        {
+          "kind": "+",
+          "text": "    # floored division and its divide-by-zero-is-zero rule are a later",
+          "old": null,
+          "new": 170
+        },
+        {
+          "kind": "+",
+          "text": "    # commit's problem, once a robot can actually divide by something that",
+          "old": null,
+          "new": 171
+        },
+        {
+          "kind": "+",
+          "text": "    # might be zero.",
+          "old": null,
+          "new": 172
+        },
+        {
+          "kind": "+",
+          "text": "    private def binary(opt : Type, left : Bytes, right : Bytes) : Bytes",
+          "old": null,
+          "new": 173
+        },
+        {
+          "kind": "+",
+          "text": "      case opt",
+          "old": null,
+          "new": 174
         }
       ],
       "line_notes": {}

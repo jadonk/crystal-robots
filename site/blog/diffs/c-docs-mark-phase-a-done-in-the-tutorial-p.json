@@ -1,26 +1,62 @@
 {
   "sha": "2038dc793cb7bd793e65e440ba296eb1237cdb51",
   "subject": "docs: mark Phase A done in the tutorial plan",
-  "summary": "The tutorial plan records Phase A as done.",
+  "summary": "The first compiler chapter has a complete working path.",
   "files": [
     {
       "path": "docs/PLAN.md",
       "added": 12,
       "removed": 2,
-      "role": "Plans and explanations for the project."
-    },
-    {
-      "path": "manifest.uuid",
-      "added": 1,
-      "removed": 1,
-      "role": "A source snapshot identifier."
+      "role": "Tracks the steps of the tutorial."
     }
   ],
   "excerpts": [
     {
       "file": "docs/PLAN.md",
-      "note": "The plan records that the first compiler chapter is complete.",
+      "note": "The plan marks this chapter complete after the command, checker, interpreter, and WebAssembly path work together. The recorded spec count gives a checkpoint for readers who follow the steps.",
       "before": [
+        {
+          "kind": " ",
+          "text": "This project's check-in history is written to be read, commit by commit, the",
+          "old": 3,
+          "new": 3
+        },
+        {
+          "kind": " ",
+          "text": "way [chasm's history](https://github.com/ColinEberhardt/chasm/commits/master/)",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "kind": " ",
+          "text": "is read alongside [its blog post](https://blog.scottlogic.com/2019/05/17/webassembly-compiler.html).",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "kind": " ",
+          "text": "Every commit listed below compiles, passes `crystal spec`, and is demonstrated",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "kind": " ",
+          "text": "by a spec example or a `crystal run`/`bin/crystal-robots` invocation named in",
+          "old": 7,
+          "new": 7
+        },
+        {
+          "kind": " ",
+          "text": "its check-in comment. Where chasm hand-writes a tokenizer and a recursive",
+          "old": 8,
+          "new": 8
+        },
+        {
+          "kind": " ",
+          "text": "descent parser, this project uses the **progressive multipass tokenizer**",
+          "old": 9,
+          "new": 9
+        },
         {
           "kind": " ",
           "text": "described in [docs/PARSER.md](PARSER.md): every pass rewrites a string of",
@@ -76,15 +112,15 @@
           "text": "end (66 examples); the differential spec (`spec/differential_spec.cr`)",
           "old": null,
           "new": 18
-        }
-      ],
-      "after": [
+        },
         {
           "kind": "+",
           "text": "runs three robots through both the interpreter and wasmer and checks",
           "old": null,
           "new": 19
-        },
+        }
+      ],
+      "after": [
         {
           "kind": "+",
           "text": "identical `puts` output. Phases B through E are next.",
@@ -150,6 +186,12 @@
           "text": "   by hand, no compiler yet. Spec calls `add(1, 2)` through wasmer and",
           "old": 23,
           "new": 30
+        },
+        {
+          "kind": " ",
+          "text": "   checks `3`.",
+          "old": 24,
+          "new": 31
         }
       ],
       "line_notes": {}

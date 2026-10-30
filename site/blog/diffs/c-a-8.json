@@ -1,235 +1,44 @@
 {
   "sha": "6a15aea1bbe1aede715667e8e00885fdb52bc67b",
   "subject": "Phase A.8: if / elsif / else",
-  "summary": "Programs can choose among branches.",
+  "summary": "Robots can choose what to do based on a test.",
   "files": [
-    {
-      "path": "manifest.uuid",
-      "added": 1,
-      "removed": 1,
-      "role": "A source snapshot identifier."
-    },
     {
       "path": "spec/parser_spec.cr",
       "added": 6,
       "removed": 0,
-      "role": "Tests say what the program should do."
+      "role": "Checks which robot programs the parser accepts."
     },
     {
       "path": "spec/wasm_emitter_spec.cr",
       "added": 29,
       "removed": 0,
-      "role": "Tests say what the program should do."
+      "role": "Checks the instructions written for robot programs."
     },
     {
       "path": "src/compiler/parser.cr",
       "added": 6,
       "removed": 3,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Groups the words and symbols in a robot program into meaningful steps."
     },
     {
       "path": "src/compiler/program.cr",
       "added": 5,
       "removed": 0,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Builds or runs a robot program."
     },
     {
       "path": "src/compiler/wasm_emitter.cr",
       "added": 40,
       "removed": 3,
-      "role": "Compiler code reads robot programs or writes instructions."
+      "role": "Turns robot steps into WebAssembly instructions."
     }
   ],
   "excerpts": [
     {
-      "file": "src/compiler/parser.cr",
-      "note": "The parser recognizes branches.",
-      "before": [
-        {
-          "kind": " ",
-          "text": "    end",
-          "old": 19,
-          "new": 18
-        },
-        {
-          "kind": " ",
-          "text": "",
-          "old": 20,
-          "new": 19
-        },
-        {
-          "kind": " ",
-          "text": "    # One grammar rule: a regex over glyphs and the glyph it reduces to.",
-          "old": 21,
-          "new": 20
-        },
-        {
-          "kind": " ",
-          "text": "    struct Rule",
-          "old": 22,
-          "new": 21
-        },
-        {
-          "kind": " ",
-          "text": "      getter name : Symbol, regex : Regex, type : Type",
-          "old": 23,
-          "new": 22
-        },
-        {
-          "kind": " ",
-          "text": "",
-          "old": 24,
-          "new": 23
-        },
-        {
-          "kind": " ",
-          "text": "      def initialize(@name : Symbol, @regex : Regex, @type : Type)",
-          "old": 25,
-          "new": 24
-        },
-        {
-          "kind": " ",
-          "text": "      end",
-          "old": 26,
-          "new": 25
-        },
-        {
-          "kind": " ",
-          "text": "    end",
-          "old": 27,
-          "new": 26
-        },
-        {
-          "kind": " ",
-          "text": "",
-          "old": 28,
-          "new": 27
-        },
-        {
-          "kind": " ",
-          "text": "    KEYWORDS = {",
-          "old": 29,
-          "new": 28
-        },
-        {
-          "kind": " ",
-          "text": "      \"puts\" => Type::OneArgMethod, \"global\" => Type::GlobalKeyword,",
-          "old": 30,
-          "new": 29
-        }
-      ],
-      "lines": [
-        {
-          "kind": " ",
-          "text": "      \"while\" => Type::WhileKeyword, \"until\" => Type::UntilKeyword,",
-          "old": 31,
-          "new": 30
-        },
-        {
-          "kind": " ",
-          "text": "      \"end\" => Type::EndKeyword, \"break\" => Type::BreakKeyword,",
-          "old": 32,
-          "new": 31
-        },
-        {
-          "kind": "+",
-          "text": "      \"if\" => Type::IfKeyword, \"elsif\" => Type::ElsifKeyword, \"else\" => Type::ElseKeyword,",
-          "old": null,
-          "new": 32
-        },
-        {
-          "kind": " ",
-          "text": "    }",
-          "old": 33,
-          "new": 33
-        },
-        {
-          "kind": " ",
-          "text": "",
-          "old": 34,
-          "new": 34
-        },
-        {
-          "kind": " ",
-          "text": "    OPERATORS = {",
-          "old": 35,
-          "new": 35
-        }
-      ],
-      "after": [
-        {
-          "kind": " ",
-          "text": "      \"//\" => Type::FloorDivOperator, \"==\" => Type::EqOperator, \"!=\" => Type::NeOperator,",
-          "old": 36,
-          "new": 36
-        },
-        {
-          "kind": " ",
-          "text": "      \"<=\" => Type::LeOperator, \">=\" => Type::GeOperator,",
-          "old": 37,
-          "new": 37
-        },
-        {
-          "kind": " ",
-          "text": "      \"+\" => Type::AddOperator, \"-\" => Type::SubOperator, \"*\" => Type::MulOperator,",
-          "old": 38,
-          "new": 38
-        },
-        {
-          "kind": " ",
-          "text": "      \"/\" => Type::DivOperator, \"%\" => Type::ModOperator, \"=\" => Type::Assign,",
-          "old": 39,
-          "new": 39
-        },
-        {
-          "kind": " ",
-          "text": "      \"<\" => Type::LtOperator, \">\" => Type::GtOperator,",
-          "old": 40,
-          "new": 40
-        },
-        {
-          "kind": " ",
-          "text": "      \"(\" => Type::OpenParen, \")\" => Type::CloseParen, \",\" => Type::Comma,",
-          "old": 41,
-          "new": 41
-        },
-        {
-          "kind": " ",
-          "text": "    }",
-          "old": 42,
-          "new": 42
-        },
-        {
-          "kind": " ",
-          "text": "",
-          "old": 43,
-          "new": 43
-        },
-        {
-          "kind": " ",
-          "text": "    # Pass 0 rules, tried in order at the current text position. `:skip`",
-          "old": 44,
-          "new": 44
-        }
-      ],
-      "line_notes": {}
-    },
-    {
       "file": "src/compiler/wasm_emitter.cr",
-      "note": "The emitter chooses which branch to run.",
+      "note": "An `if` gives a robot a choice: run the first body whose condition is true, or run `else` if none is. This method collects each condition with its statements so the emitter can write that choice as nested WebAssembly branches.",
       "before": [
-        {
-          "kind": " ",
-          "text": "      code += op(Opcodes::I32_eqz) if while_true",
-          "old": 278,
-          "new": 281
-        },
-        {
-          "kind": " ",
-          "text": "      code += op(Opcodes::Br_if) + WASM_Emitter.unsignedLEB128(ctx.depth - exit)",
-          "old": 279,
-          "new": 282
-        },
         {
           "kind": " ",
           "text": "      body_of(stmt).each { |s| code += statement(s, ctx) }",
@@ -289,9 +98,7 @@
           "text": "",
           "old": 289,
           "new": 292
-        }
-      ],
-      "lines": [
+        },
         {
           "kind": "+",
           "text": "    # `if`/`elsif`/`else`, each a `{condition, statements}` branch (`else`'s",
@@ -303,7 +110,9 @@
           "text": "    # condition is `nil`), as nested WASM `if { ... } else { ... }` blocks.",
           "old": null,
           "new": 294
-        },
+        }
+      ],
+      "lines": [
         {
           "kind": "+",
           "text": "    private def if_statement(stmt : Int32, ctx : Ctx) : Bytes",
@@ -327,9 +136,7 @@
           "text": "        case @program.type(k)",
           "old": null,
           "new": 298
-        }
-      ],
-      "after": [
+        },
         {
           "kind": "+",
           "text": "        when Type::IfHead, Type::ElsifHead",
@@ -383,7 +190,9 @@
           "text": "      emit_branches(branches, ctx)",
           "old": null,
           "new": 307
-        },
+        }
+      ],
+      "after": [
         {
           "kind": "+",
           "text": "    end",
@@ -401,9 +210,65 @@
           "text": "    private def emit_branches(branches : Array({Int32?, Array(Int32)}), ctx : Ctx) : Bytes",
           "old": null,
           "new": 310
+        },
+        {
+          "kind": "+",
+          "text": "      return Bytes[] if branches.empty?",
+          "old": null,
+          "new": 311
+        },
+        {
+          "kind": "+",
+          "text": "      cond, stmts = branches[0]",
+          "old": null,
+          "new": 312
+        },
+        {
+          "kind": "+",
+          "text": "      if cond.nil?",
+          "old": null,
+          "new": 313
+        },
+        {
+          "kind": "+",
+          "text": "        return stmts.reduce(Bytes[]) { |code, s| code + statement(s, ctx) }",
+          "old": null,
+          "new": 314
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 315
+        },
+        {
+          "kind": "+",
+          "text": "      code = expression(cond) + op(Opcodes::If) + Bytes[BlockVoid]",
+          "old": null,
+          "new": 316
+        },
+        {
+          "kind": "+",
+          "text": "      ctx.depth += 1",
+          "old": null,
+          "new": 317
+        },
+        {
+          "kind": "+",
+          "text": "      code = stmts.reduce(code) { |c, s| c + statement(s, ctx) }",
+          "old": null,
+          "new": 318
+        },
+        {
+          "kind": "+",
+          "text": "      rest = branches[1..]",
+          "old": null,
+          "new": 319
         }
       ],
-      "line_notes": {}
+      "line_notes": {
+        "branches << {nil": "`else` has no test to check. It runs when the earlier tests did not choose a branch."
+      }
     }
   ]
 }
