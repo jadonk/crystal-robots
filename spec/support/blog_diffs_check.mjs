@@ -1,4 +1,4 @@
-// Check chapter 1 diff views in a real headless Chromium using only Node's
+// Check every blog diff view in a real headless Chromium using only Node's
 // built-in modules and the DevTools protocol. Exits 0 with {"ok":true} when
 // every view loads, keyboard controls work, and its content fits at 360px.
 //
@@ -134,24 +134,24 @@ try {
 
   await sendOn("Emulation.setDeviceMetricsOverride", { width: 360, height: 800, deviceScaleFactor: 1, mobile: false });
   await evaluate(`document.documentElement.style.scrollBehavior = "auto"`);
-  const ids = await evaluate(`Array.from(document.querySelectorAll('#phase-a .diff-view')).map(x => x.dataset.diff)`);
+  const ids = await evaluate(`Array.from(document.querySelectorAll('.diff-view[data-diff]')).map(x => x.dataset.diff)`);
   const checks = {};
-  checks.sixteen = ids.length === 16;
+  checks.allViewsPresent = ids.length === 37;
   for (const id of ids) {
     await evaluate(`document.querySelector('[data-diff="${id}"]').scrollIntoView()`);
     await new Promise((resolve) => setTimeout(resolve, 180));
-    const ok = await evaluate(`(() => { const v = document.querySelector('[data-diff="${id}"]'); return !!v.querySelector('.diff-excerpt .diff-add') })()`);
+    const ok = await evaluate(`(() => { const v = document.querySelector('[data-diff="${id}"]'); return !!v.querySelector('.diff-summary') && !!v.querySelector('.diff-files-heading') && (v.querySelector('.diff-excerpt .diff-add') || v.dataset.diff === 'c-u-2') && !v.dataset.error })()`);
     checks[id] = ok;
   }
   checks.noPageOverflow = await evaluate(`document.documentElement.scrollWidth <= innerWidth`);
-  checks.notesFit = await evaluate(`Array.from(document.querySelectorAll('#phase-a .diff-excerpt')).every((box) => {
+  checks.notesFit = await evaluate(`Array.from(document.querySelectorAll('.diff-excerpt')).every((box) => {
     const edge = box.getBoundingClientRect().right;
     return Array.from(box.querySelectorAll('.diff-note, .diff-callout')).every((note) => {
       const rect = note.getBoundingClientRect();
       return rect.left >= box.getBoundingClientRect().left - 1 && rect.right <= edge + 1 && note.scrollWidth <= note.clientWidth + 1;
     });
   })`);
-  checks.codeFits = await evaluate(`Array.from(document.querySelectorAll('#phase-a .diff-scroll')).every((box) => box.scrollWidth <= box.clientWidth + 1)`);
+  checks.codeFits = await evaluate(`Array.from(document.querySelectorAll('.diff-scroll')).every((box) => box.scrollWidth <= box.clientWidth + 1)`);
   const toggle = await evaluate(`(() => { const b = document.querySelector('.diff-toggle'); b.focus(); return !!b })()`);
   // CDP sends a real Enter key to the focused button.
   await sendOn("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });

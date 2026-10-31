@@ -55,6 +55,15 @@ describe "blog diff data" do
       result["excerpts"][0]["lines"].as_a.last["text"].as_s.should eq("puts 4")
       blog_build(dir)[0].success?.should be_true
       File.read(result_path).should eq(first)
+      File.write(File.join(dir, "site/blog/index.html"), %(<section class="commit" id="c-change"><a class="commit-link" data-subject="Mapped number"></a></section>))
+      map_path = File.join(dir, "site/blog/diffs/sources.map")
+      File.write(map_path, "Mapped number=#{blog_git(dir, "rev-parse", "HEAD")}\n")
+      mapped_output = IO::Memory.new
+      mapped_errors = IO::Memory.new
+      mapped_status = Process.run("crystal", ["run", File.join(BLOG_ROOT, "scripts/build_blog_diffs.cr"), "--", "HEAD", "--map", map_path], chdir: dir, output: mapped_output, error: mapped_errors)
+      mapped_status.success?.should be_true, mapped_errors.to_s
+      JSON.parse(File.read(result_path))["subject"].as_s.should eq("Mapped number")
+      File.write(File.join(dir, "site/blog/index.html"), %(<section class="commit" id="c-change"><a class="commit-link" data-subject="Change number"></a></section>))
       File.write(notes_path, notes.gsub("puts 4", "missing end"))
       status, _, errors = blog_build(dir)
       status.success?.should be_false
@@ -75,11 +84,11 @@ describe "blog diff data" do
     end
   end
 
-  it "has notes and generated data for every chapter 1 view" do
+  it "has notes and generated data for every blog view" do
     html = File.read(File.join(BLOG_ROOT, "site/blog/index.html"))
     notes = YAML.parse(File.read(File.join(BLOG_ROOT, "site/blog/diffs/notes.yml")))["commits"].as_h
     ids = html.scan(/data-diff="([^"]+)"/).map(&.[1])
-    ids.size.should eq(16)
+    ids.size.should eq(37)
     ids.each do |id|
       notes.has_key?(YAML::Any.new(id)).should be_true
       File.exists?(File.join(BLOG_ROOT, "site/blog/diffs/#{id}.json")).should be_true
@@ -89,7 +98,7 @@ end
 
 describe "blog diff views (headless)" do
   if (bin = BLOG_CHROMIUM) && Process.find_executable("node")
-    it "renders every chapter 1 change, toggles by keyboard, and fits at 360px" do
+    it "renders every blog change, toggles by keyboard, and fits at 360px" do
       output = IO::Memory.new
       errors = IO::Memory.new
       status = Process.run("node", ["spec/support/blog_diffs_check.mjs", bin], output: output, error: errors)

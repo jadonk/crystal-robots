@@ -19,7 +19,15 @@
     "docs/": "Explains a design choice.",
     "README.md": "Introduces the project and its learning goal.",
     "shard.yml": "Names the Crystal project and its dependencies.",
-    ".": "Sets up the project."
+    ".": "Sets up the project.",
+    "src/battle/": "Gives robots a shared field and its rules.",
+    "spec/battle/": "Checks battles and field behavior.",
+    "src/tournament/": "Organizes robots into pools and a final bracket.",
+    "spec/tournament/": "Checks tournament pairings and results.",
+    "robots/": "Explains a robot strategy and includes its program.",
+    "spec/robots_spec.cr": "Checks the shipped robot programs.",
+    "scripts/ci.sh": "Builds and checks the project in one command.",
+    "scripts/": "Helps build or check the project."
   },
   "commits": {
     "c-initial-commit": {
@@ -307,6 +315,429 @@
           "before": 2,
           "after": 4,
           "note": "The plan marks this chapter complete after the command, checker, interpreter, and WebAssembly path work together. The recorded spec count gives a checkpoint for readers who follow the steps."
+        }
+      ]
+    },
+    "c-b-1": {
+      "summary": "Robots can use comments and true or false in their programs.",
+      "excerpts": [
+        {
+          "file": "src/compiler/parser.cr",
+          "anchor": "\"true\" => Type::TrueKeyword",
+          "note": "The parser now recognizes `true` and `false` as values, and skips text after `#`. A robot can label its plan in comments and write `while true` for a lasting loop.",
+          "before": 1,
+          "after": 4
+        },
+        {
+          "file": "spec/interpreter_spec.cr",
+          "anchor": "it \"treats true and false as 1 and 0",
+          "note": "This [[spec|#word-test-spec]] runs a program with both kinds of comment and both values. The printed 1 and 0 show that comments do not change what the robot does.",
+          "before": 0,
+          "after": 8
+        }
+      ]
+    },
+    "c-b-2": {
+      "summary": "Robots can call builtins with parentheses.",
+      "excerpts": [
+        {
+          "file": "src/compiler/parser.cr",
+          "anchor": "Rule.new(:call1",
+          "note": "These two parser rules accept one or two arguments inside parentheses, as the example robots write them. The earlier bare call forms still work, so `scan(3, 4)` and `scan 3, 4` reach the same action.",
+          "before": 2,
+          "after": 5
+        },
+        {
+          "file": "spec/wasm_emitter_spec.cr",
+          "anchor": "wasmer_it \"calls one- and two-argument builtins",
+          "note": "The test runs each form through compiled WebAssembly and compares the answers. A robot can use familiar parentheses without changing what `sqrt` or `scan` does.",
+          "before": 2,
+          "after": 5
+        }
+      ]
+    },
+    "c-b-3": {
+      "summary": "Robots can declare constants with assignment and call their own functions by name.",
+      "excerpts": [
+        {
+          "file": "src/compiler/checker.cr",
+          "anchor": "when :exprstmt",
+          "note": "A top-level assignment now introduces a global name before the checker examines the rest of the program. That lets a robot keep a value such as a chosen corner in `C1X = 10`.",
+          "before": 2,
+          "after": 6
+        },
+        {
+          "file": "spec/wasm_emitter_spec.cr",
+          "anchor": "wasmer_it \"calls a zero-argument user function without parens",
+          "note": "This test calls `bump` twice without `()` and checks that the count reaches two. A robot can write short action names the way the older examples do.",
+          "before": 2,
+          "after": 5
+        }
+      ]
+    },
+    "c-b-4": {
+      "summary": "Robots can update a value with +=, -=, *= and %=.",
+      "excerpts": [
+        {
+          "file": "src/compiler/interpreter.cr",
+          "anchor": "when :opassign",
+          "note": "The interpreter reads the old value, applies the requested operation, and saves the result. A robot can shorten `i = i + 1` to `i += 1` while keeping the same result.",
+          "before": 0,
+          "after": 10,
+          "line_notes": {
+            "set_variable(name, binary": "Read the old value, calculate the new one, then store it under the same name."
+          }
+        },
+        {
+          "file": "spec/interpreter_spec.cr",
+          "anchor": "it \"compound-assigns +=",
+          "note": "The test starts at 10 and uses every new operator before checking the result. It proves a robot can change a remembered value without writing its name twice.",
+          "before": 2,
+          "after": 5
+        }
+      ]
+    },
+    "c-b-5": {
+      "summary": "Robots can combine tests and use bitwise exclusive-or.",
+      "excerpts": [
+        {
+          "file": "src/compiler/interpreter.cr",
+          "anchor": "when Type::AndOperator",
+          "note": "Both sides of `&&` and `||` have already been evaluated when these lines combine their answers into 1 or 0. `^` combines the bits of two whole numbers, which gives a robot another way to calculate.",
+          "before": 1,
+          "after": 4
+        },
+        {
+          "file": "spec/interpreter_spec.cr",
+          "anchor": "it \"computes && || and ^",
+          "note": "The test tries all three operators and checks the numbers printed. It keeps the interpreter in step with the compiled robot path.",
+          "before": 0,
+          "after": 10
+        }
+      ]
+    },
+    "c-b-6": {
+      "summary": "Robots can assign while testing a condition and pass bare calls as arguments.",
+      "excerpts": [
+        {
+          "file": "src/compiler/parser.cr",
+          "anchor": "Rule.new(:assign, /𝑥＝#{V}(?=[⏎⟯，])",
+          "note": "An assignment can now finish before `)` or `,` as well as a line break. This lets a robot save a scan result inside a `while` test instead of needing a separate line.",
+          "before": 2,
+          "after": 5,
+          "line_notes": {
+            "Rule.new(:assign, /𝑥＝#{V}(?=[⏎⟯，])": "This says the value may end before a line break, closing parenthesis or comma."
+          }
+        },
+        {
+          "file": "spec/checker_spec.cr",
+          "anchor": "it \"allows an assignment inside a condition",
+          "note": "The checker test uses a name first assigned in a condition and expects no error. That matters because a valid robot should not be stopped before it runs.",
+          "before": 2,
+          "after": 5
+        }
+      ]
+    },
+    "c-b-7": {
+      "summary": "Robots can choose a path with case and when.",
+      "excerpts": [
+        {
+          "file": "src/compiler/parser.cr",
+          "anchor": "Rule.new(:case, /🅲",
+          "note": "The parser groups a `case` value with its `when` choices and optional `else`. A robot can use this shape to choose among directions or states.",
+          "before": 1,
+          "after": 5
+        },
+        {
+          "file": "spec/interpreter_spec.cr",
+          "anchor": "it \"matches the right case/when branch",
+          "note": "The test gives the same choice several values and checks the selected branch. It also checks the fallback when no `when` matches.",
+          "before": 0,
+          "after": 7
+        }
+      ]
+    },
+    "c-b-8": {
+      "summary": "The original example robots all parse and compile.",
+      "excerpts": [
+        {
+          "file": "spec/examples_spec.cr",
+          "anchor": "describe \"the shipped example robots\"",
+          "note": "This spec reads every shipped example, checks its program, and compiles it. The earlier grammar steps now add up to robots a reader can open and study.",
+          "before": 0,
+          "after": 8
+        }
+      ]
+    },
+    "c-c-1": {
+      "summary": "Each robot action can be charged a fair cycle cost.",
+      "excerpts": [
+        {
+          "file": "src/compiler/interpreter.cr",
+          "anchor": "private def charge(n",
+          "note": "A [[cycle|#word-cycle]] is one unit of work in a robot turn. The interpreter adds a cost for each statement, and later the battlefield can use those totals to give each robot a fair share of time.",
+          "before": 1,
+          "after": 9,
+          "line_notes": {
+            "@cycles += n": "Add the cost to this robot’s running total; the field can later compare totals."
+          }
+        },
+        {
+          "file": "spec/differential_spec.cr",
+          "anchor": "wasmer_it \"charge identical cycle totals",
+          "note": "This test compares the cycle totals from the interpreter and WebAssembly paths. They must agree so a robot does not gain extra turns by choosing one runner.",
+          "before": 1,
+          "after": 5
+        }
+      ]
+    },
+    "c-c-2": {
+      "summary": "Robots can accelerate, turn, move and collide on a field.",
+      "excerpts": [
+        {
+          "file": "src/battle/field.cr",
+          "anchor": "if r.heading != r.d_heading",
+          "note": "A robot turns only when its speed is low enough; otherwise it first slows down. This [[battlefield physics|#word-battlefield-physics]] rule gives a moving robot a real reason to plan its turns.",
+          "before": 1,
+          "after": 9,
+          "line_notes": {
+            "r.d_speed = 0": "The robot must slow down before it can take the requested turn."
+          }
+        },
+        {
+          "file": "spec/battle/field_spec.cr",
+          "anchor": "it \"changes heading only at or below TURN_SPEED",
+          "note": "The field test checks the turn while a robot is moving. It makes the rule visible before missiles and scanners are added.",
+          "before": 1,
+          "after": 6
+        }
+      ]
+    },
+    "c-c-3": {
+      "summary": "Robots can fire missiles that travel and explode.",
+      "excerpts": [
+        {
+          "file": "src/battle/field.cr",
+          "anchor": "def fire_missile",
+          "note": "Firing checks reload time and an open missile slot before placing a shot on the field. A robot has to wait between shots, just as it has to slow before turning.",
+          "before": 0,
+          "after": 12,
+          "line_notes": {
+            "return true if distance < 0": "CROBOTS reports success for this unusual request even though it launches no missile."
+          }
+        },
+        {
+          "file": "spec/battle/field_spec.cr",
+          "anchor": "it \"fires a missile, then refuses while reloading",
+          "note": "The test fires once, confirms a missile is flying, then tries again too soon. The second shot is refused, proving the reload rule.",
+          "before": 0,
+          "after": 7
+        }
+      ]
+    },
+    "c-c-4": {
+      "summary": "Robot builtins can now sense and change a real field.",
+      "excerpts": [
+        {
+          "file": "src/battle/robot_host.cr",
+          "anchor": "def scan(angle",
+          "note": "`RobotHost` connects a robot’s `scan`, `cannon` and `drive` calls to its own place on the field. The earlier stand-in [[host|#word-host]] now has real positions and missiles to answer from.",
+          "before": 0,
+          "after": 11
+        },
+        {
+          "file": "spec/battle/robot_host_spec.cr",
+          "anchor": "it \"reads position, speed and damage",
+          "note": "This test asks a robot for values held by the field. It checks that the host reports that robot’s state, not made-up answers.",
+          "before": 0,
+          "after": 7
+        }
+      ]
+    },
+    "c-c-5": {
+      "summary": "Several robots can take turns in one real match.",
+      "excerpts": [
+        {
+          "file": "src/compiler/interpreter.cr",
+          "anchor": "private def sync_step",
+          "note": "Each interpreter reports that it finished a step, then waits for permission to continue. These one-place [[channels|#word-channel]] let the match alternate robots even when one has an endless loop.",
+          "before": 0,
+          "after": 7,
+          "line_notes": {
+            "d.send(nil)": "Send a signal saying this robot finished one step; the value itself carries no data."
+          }
+        },
+        {
+          "file": "src/battle/match.cr",
+          "anchor": "def run : Nil",
+          "note": "The match waits for each living robot, moves the field at regular intervals, then releases them for another step. It stops when one robot remains or the cycle limit is reached.",
+          "before": 0,
+          "after": 12,
+          "line_notes": {
+            "@dones[i].receive if r.alive?": "Wait for one completed step from each living robot before moving the field."
+          }
+        },
+        {
+          "file": "spec/battle/match_spec.cr",
+          "anchor": "it \"interleaves two robots",
+          "note": "This match test runs two endless robots for a fixed number of rounds and checks that the match stops there. It proves that both programs can share the scheduler without hanging.",
+          "before": 0,
+          "after": 7
+        }
+      ]
+    },
+    "c-c-6": {
+      "summary": "The command can run seeded matches and finish when a robot crashes.",
+      "excerpts": [
+        {
+          "file": "src/battle/match.cr",
+          "anchor": "rescue",
+          "note": "A crashing robot is marked dead and sends the waiting match its final answer. The other robots can finish the round instead of waiting forever.",
+          "before": 1,
+          "after": 11,
+          "line_notes": {
+            "done_ch.send(nil)": "Send the missing finish signal so the match does not wait forever after a crash."
+          }
+        },
+        {
+          "file": "spec/battle/match_spec.cr",
+          "anchor": "it \"marks a robot dead on a runtime crash",
+          "note": "The test makes one robot divide by zero and lets another keep running. It checks that the match ends and the crashed robot is dead.",
+          "before": 0,
+          "after": 8
+        }
+      ]
+    },
+    "c-t-1": {
+      "summary": "A room of robots can play pools with standings.",
+      "excerpts": [
+        {
+          "file": "src/tournament/tournament.cr",
+          "anchor": "def self.play_pool(",
+          "note": "Every pair in a [[tournament pool|#word-tournament-pool]] fights, and each win adds a point while each loss removes one. The ranked standings decide who can advance after the small group finishes.",
+          "before": 0,
+          "after": 12,
+          "line_notes": {
+            "when a then points[a] += 1": "A win gives one point to `a` and takes one from `b`; the reverse line handles `b` winning."
+          }
+        },
+        {
+          "file": "spec/tournament/tournament_spec.cr",
+          "anchor": "it \"scores a win +1",
+          "note": "The tournament test supplies planned fight results, so the standings can be checked without running a battlefield. This keeps the scoring rule clear.",
+          "before": 0,
+          "after": 7
+        }
+      ]
+    },
+    "c-t-2": {
+      "summary": "Pool winners can meet in a seeded elimination bracket.",
+      "excerpts": [
+        {
+          "file": "src/tournament/tournament.cr",
+          "anchor": "def self.bracket_slots",
+          "note": "The [[bracket|#word-bracket]] places the highest ranked robots apart and gives an empty slot, called a bye, to a top seed when needed. This carries the pool standings into the final rounds.",
+          "before": 1,
+          "after": 4,
+          "line_notes": {
+            " : nil }": "`nil` means this bracket slot has no robot, so the paired robot gets a bye."
+          }
+        },
+        {
+          "file": "src/tournament/tournament.cr",
+          "anchor": "def self.play_match",
+          "note": "A bracket match uses at most three fight attempts and stops when one robot has two wins. If those attempts leave a tie, the higher seed advances, so the tournament always finishes.",
+          "before": 0,
+          "after": 16,
+          "line_notes": {
+            "RETRY_LIMIT.times": "The entire match gets at most three fight attempts, including refights with no winner."
+          }
+        },
+        {
+          "file": "spec/tournament/tournament_spec.cr",
+          "anchor": "it \"builds the 3-entrant bracket",
+          "note": "The test checks a three-robot bracket: second plays third, then that winner meets first. It proves that the top seed gets the bye.",
+          "through": "final.entrants.should eq [\"X\", \"Y\"]"
+        }
+      ]
+    },
+    "c-u-1": {
+      "summary": "A built program can report the check-in it came from.",
+      "excerpts": [
+        {
+          "file": "src/version.cr",
+          "anchor": "CHECKIN = {{",
+          "note": "The version reads a saved check-in identifier while the program is built. When someone reports a problem, this line identifies the exact build they used.",
+          "before": 1,
+          "after": 6,
+          "line_notes": {
+            "CHECKIN = {{": "Crystal reads the identifier while building the program and stores it in the result."
+          }
+        },
+        {
+          "file": "spec/cli_spec.cr",
+          "anchor": "it \"builds and reports its version and check-in",
+          "note": "The command test checks that `--version` prints the project’s version and check-in. It gives readers a simple way to identify a build.",
+          "before": 0,
+          "after": 5
+        }
+      ]
+    },
+    "c-u-2": {
+      "summary": "The project reserves names for two future emitters.",
+      "excerpts": []
+    },
+    "c-u-3": {
+      "summary": "Five more documented robots can be read and checked.",
+      "excerpts": [
+        {
+          "file": "robots/dodger.md",
+          "anchor": "def sweep_and_fire",
+          "note": "Dodger sweeps directions until its scanner finds another robot, then fires toward it. This new example gives readers a moving opponent whose plan they can follow in code.",
+          "before": 0,
+          "after": 11
+        },
+        {
+          "file": "spec/scripts/publish_wiki_robots_spec.cr",
+          "anchor": "it \"creates a robot/<name>",
+          "note": "This spec checks the script that publishes the robot pages. It helps keep the written strategies available with their programs.",
+          "before": 0,
+          "after": 6
+        }
+      ]
+    },
+    "c-u-4": {
+      "summary": "Robot writers can look up every builtin in one reference.",
+      "excerpts": [
+        {
+          "file": "src/web/robot_api.cr",
+          "anchor": "record Entry",
+          "through": "example: \"range = scan(45, 10)\",",
+          "note": "The reference is a table written by hand, so each entry can say what a builtin does in words a new robot writer understands: what to type, what comes back, and an example to copy. The groups put the verb first (Sense, Move, Shoot), because that's how a beginner thinks about it: “I want to look around.” Each entry is a `record`: a small bundle of named values."
+        },
+        {
+          "file": "spec/web/robot_api_spec.cr",
+          "anchor": "it \"documents exactly the builtins",
+          "through": "RobotAPI::ENTRIES.keys.sort.should eq",
+          "note": "Writing the table by hand has a risk: someone adds a builtin and forgets to describe it, or describes one that doesn't exist. This [[test|#word-test-spec]] closes that gap by comparing the table's names with the interpreter's own list. If they ever differ, the test fails."
+        },
+        {
+          "file": "src/compiler/interpreter.cr",
+          "anchor": "BUILTIN_NAMES =",
+          "through": "scan cannon drive",
+          "note": "This is the interpreter's list of the builtins it really handles, the other side of the comparison. With the test in place, the reference and the interpreter can't drift apart."
+        }
+      ]
+    },
+    "c-u-6": {
+      "summary": "One CI command can build and check the whole project.",
+      "excerpts": [
+        {
+          "file": "scripts/ci.sh",
+          "anchor": "step \"crystal spec",
+          "note": "The [[CI|#word-ci]] script runs the specs and checks code formatting after building. With the Wasmer option, the compiled robot tests run too, so one command gives a clear result for a check-in.",
+          "before": 1,
+          "after": 9
         }
       ]
     }

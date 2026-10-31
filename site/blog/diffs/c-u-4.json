@@ -1,0 +1,576 @@
+{
+  "sha": "154dc0aba875010d27437caab5bcbc7ec3752f2b",
+  "subject": "Phase U.4: the robot API reference",
+  "summary": "Robot writers can look up every builtin in one reference.",
+  "files": [
+    {
+      "path": "spec/web/robot_api_spec.cr",
+      "added": 50,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "src/compiler/interpreter.cr",
+      "added": 11,
+      "removed": 0,
+      "role": "Runs robot steps directly so their behavior can be checked."
+    },
+    {
+      "path": "src/web/robot_api.cr",
+      "added": 139,
+      "removed": 0,
+      "role": "Runs the project command."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/web/robot_api.cr",
+      "note": "The reference is a table written by hand, so each entry can say what a builtin does in words a new robot writer understands: what to type, what comes back, and an example to copy. The groups put the verb first (Sense, Move, Shoot), because that's how a beginner thinks about it: “I want to look around.” Each entry is a `record`: a small bundle of named values.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "require \"../compiler/interpreter\"",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "# The robot API reference panel shown beside the editor on the parse and",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "# battle pages. `ENTRIES` is written by hand (a 10-year-old's wording",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "# can't be generated), but its keys are checked in spec against",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "# `Interpreter::BUILTIN_NAMES`, the interpreter's own dispatch list, so a",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "# builtin can never go undocumented and a documented name can never be",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "# make-believe.",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "module CrystalRobots::Web::RobotAPI",
+          "old": null,
+          "new": 9
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  record Entry, signature : String, returns : String, blurb : String, example : String, group : String",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "  # Order matters: this is the order the headings render in, kid-friendly",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "  # verb first.",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "  GROUPS = [",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "    \"Sense — look around\",",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "    \"Move — get going\",",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "    \"Shoot — fire your cannon\",",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "    \"Math — work out the numbers\",",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "    \"Output — leave yourself a note\",",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "  ]",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "  ENTRIES = {",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "    \"scan\" => Entry.new(",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "      signature: \"scan(degree, resolution)\",",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "      returns: \"how far away the closest robot is, or 0 if there's nobody there\",",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "      blurb: \"Looks around with your scanner.\",",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "      example: \"range = scan(45, 10)\",",
+          "old": null,
+          "new": 27
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      group: \"Sense — look around\"),",
+          "old": null,
+          "new": 28
+        },
+        {
+          "kind": "+",
+          "text": "    \"damage\" => Entry.new(",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": "+",
+          "text": "      signature: \"damage\",",
+          "old": null,
+          "new": 30
+        },
+        {
+          "kind": "+",
+          "text": "      returns: \"how banged up you are, 0 (fine) to 99 (nearly done for)\",",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": "+",
+          "text": "      blurb: \"Checks how hurt you are.\",",
+          "old": null,
+          "new": 32
+        },
+        {
+          "kind": "+",
+          "text": "      example: \"hurt = damage\",",
+          "old": null,
+          "new": 33
+        },
+        {
+          "kind": "+",
+          "text": "      group: \"Sense — look around\"),",
+          "old": null,
+          "new": 34
+        },
+        {
+          "kind": "+",
+          "text": "    \"speed\" => Entry.new(",
+          "old": null,
+          "new": 35
+        },
+        {
+          "kind": "+",
+          "text": "      signature: \"speed\",",
+          "old": null,
+          "new": 36
+        },
+        {
+          "kind": "+",
+          "text": "      returns: \"how fast you're going right now, 0 to 100\",",
+          "old": null,
+          "new": 37
+        },
+        {
+          "kind": "+",
+          "text": "      blurb: \"Checks your current speed.\",",
+          "old": null,
+          "new": 38
+        },
+        {
+          "kind": "+",
+          "text": "      example: \"going = speed\",",
+          "old": null,
+          "new": 39
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/web/robot_api_spec.cr",
+      "note": "Writing the table by hand has a risk: someone adds a builtin and forgets to describe it, or describes one that doesn't exist. This [[test|#word-test-spec]] closes that gap by comparing the table's names with the interpreter's own list. If they ever differ, the test fails.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "require \"../spec_helper\"",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "alias RobotAPI = CrystalRobots::Web::RobotAPI",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "describe RobotAPI do",
+          "old": null,
+          "new": 5
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  it \"documents exactly the builtins the interpreter actually dispatches, no more and no less\" do",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "    RobotAPI::ENTRIES.keys.sort.should eq CrystalRobots::Compiler::Interpreter::BUILTIN_NAMES.sort",
+          "old": null,
+          "new": 7
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "  it \"every name in BUILTIN_NAMES is a real, callable builtin, not just a documentation entry\" do",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "    # `puts` itself is exercised by every line here (it is how each",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "    # result gets observed at all), so there is no separate line for",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "    # it: 14 lines cover the other 14 names in BUILTIN_NAMES.",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "    source = <<-CR",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "      puts damage",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "      puts speed",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "      puts loc_x",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "      puts loc_y",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "      puts sleep",
+          "old": null,
+          "new": 19
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "src/compiler/interpreter.cr",
+      "note": "This is the interpreter's list of the builtins it really handles, the other side of the comparison. With the test in place, the reference and the interpreter can't drift apart.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    def puts(n : Int32) : Int32",
+          "old": 102,
+          "new": 102
+        },
+        {
+          "kind": " ",
+          "text": "      STDOUT.puts n",
+          "old": 103,
+          "new": 103
+        },
+        {
+          "kind": " ",
+          "text": "      super",
+          "old": 104,
+          "new": 104
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 105,
+          "new": 105
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 106,
+          "new": 106
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 107,
+          "new": 107
+        },
+        {
+          "kind": " ",
+          "text": "  class Interpreter",
+          "old": 108,
+          "new": 108
+        },
+        {
+          "kind": "+",
+          "text": "    # Every builtin name `builtin0`/`builtin1`/`builtin2` below actually",
+          "old": null,
+          "new": 109
+        },
+        {
+          "kind": "+",
+          "text": "    # dispatch, in one place: spec-checked against those three `case`",
+          "old": null,
+          "new": 110
+        },
+        {
+          "kind": "+",
+          "text": "    # statements (spec/interpreter_spec.cr) and against",
+          "old": null,
+          "new": 111
+        },
+        {
+          "kind": "+",
+          "text": "    # Web::RobotAPI::ENTRIES's keys, so a builtin can never go",
+          "old": null,
+          "new": 112
+        },
+        {
+          "kind": "+",
+          "text": "    # undocumented and a documented name can never be make-believe.",
+          "old": null,
+          "new": 113
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "    BUILTIN_NAMES = %w(",
+          "old": null,
+          "new": 114
+        },
+        {
+          "kind": "+",
+          "text": "      damage speed loc_x loc_y sleep",
+          "old": null,
+          "new": 115
+        },
+        {
+          "kind": "+",
+          "text": "      puts rand sqrt sin cos tan atan",
+          "old": null,
+          "new": 116
+        },
+        {
+          "kind": "+",
+          "text": "      scan cannon drive",
+          "old": null,
+          "new": 117
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    )",
+          "old": null,
+          "new": 118
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 119
+        },
+        {
+          "kind": " ",
+          "text": "    # How many cycles each kind of work costs, the same units CROBOTS",
+          "old": 109,
+          "new": 120
+        },
+        {
+          "kind": " ",
+          "text": "    # charged per bytecode instruction, mapped onto this tree-walker's",
+          "old": 110,
+          "new": 121
+        },
+        {
+          "kind": " ",
+          "text": "    # coarser AST-node granularity: a fetch or a store is one instruction",
+          "old": 111,
+          "new": 122
+        },
+        {
+          "kind": " ",
+          "text": "    # in either machine, an operator is one BINOP, a builtin call folds",
+          "old": 112,
+          "new": 123
+        },
+        {
+          "kind": " ",
+          "text": "    # the intrinsic dispatch and its bogus-frame cleanup into one weight,",
+          "old": 113,
+          "new": 124
+        },
+        {
+          "kind": " ",
+          "text": "    # and a user call folds pushing arguments and the FCALL into another.",
+          "old": 114,
+          "new": 125
+        },
+        {
+          "kind": " ",
+          "text": "    # `Costs.statements` is the simplest possible model -- one per",
+          "old": 115,
+          "new": 126
+        },
+        {
+          "kind": " ",
+          "text": "    # statement executed, everything else free -- kept for comparisons",
+          "old": 116,
+          "new": 127
+        },
+        {
+          "kind": " ",
+          "text": "    # that only care about how many statements ran.",
+          "old": 117,
+          "new": 128
+        },
+        {
+          "kind": " ",
+          "text": "    class Costs",
+          "old": 118,
+          "new": 129
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

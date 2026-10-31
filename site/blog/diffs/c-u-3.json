@@ -1,0 +1,457 @@
+{
+  "sha": "fa5389f9872caf44bee87c26575433f7f2cc346b",
+  "subject": "Phase U.3: versioned robots/*.md",
+  "summary": "Five more documented robots can be read and checked.",
+  "files": [
+    {
+      "path": "robots/circler.md",
+      "added": 96,
+      "removed": 0,
+      "role": "Explains a robot strategy and includes its program."
+    },
+    {
+      "path": "robots/dodger.md",
+      "added": 60,
+      "removed": 0,
+      "role": "Explains a robot strategy and includes its program."
+    },
+    {
+      "path": "robots/hunter.md",
+      "added": 92,
+      "removed": 0,
+      "role": "Explains a robot strategy and includes its program."
+    },
+    {
+      "path": "robots/turret.md",
+      "added": 46,
+      "removed": 0,
+      "role": "Explains a robot strategy and includes its program."
+    },
+    {
+      "path": "robots/wallhugger.md",
+      "added": 79,
+      "removed": 0,
+      "role": "Explains a robot strategy and includes its program."
+    },
+    {
+      "path": "scripts/publish_wiki_robots.sh",
+      "added": 34,
+      "removed": 0,
+      "role": "Helps build or check the project."
+    },
+    {
+      "path": "spec/scripts/publish_wiki_robots_spec.cr",
+      "added": 41,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "robots/dodger.md",
+      "note": "Dodger sweeps directions until its scanner finds another robot, then fires toward it. This new example gives readers a moving opponent whose plan they can follow in code.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "    heading = 180 - heading",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "  if y < 100 && heading > 180",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "    heading = 360 - heading",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "  if y > 900 && heading < 180",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "    heading = 360 - heading",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 28
+        },
+        {
+          "kind": "+",
+          "text": "  heading %= 360",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 30
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": "+",
+          "text": "# coarse sweep, then a fine shot at anything found",
+          "old": null,
+          "new": 32
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "def sweep_and_fire",
+          "old": null,
+          "new": 33
+        },
+        {
+          "kind": "+",
+          "text": "  a = 0",
+          "old": null,
+          "new": 34
+        },
+        {
+          "kind": "+",
+          "text": "  while a < 360",
+          "old": null,
+          "new": 35
+        },
+        {
+          "kind": "+",
+          "text": "    r = scan(a, 10)",
+          "old": null,
+          "new": 36
+        },
+        {
+          "kind": "+",
+          "text": "    if r > 0",
+          "old": null,
+          "new": 37
+        },
+        {
+          "kind": "+",
+          "text": "      cannon(a, r)",
+          "old": null,
+          "new": 38
+        },
+        {
+          "kind": "+",
+          "text": "      r = scan(a, 2)",
+          "old": null,
+          "new": 39
+        },
+        {
+          "kind": "+",
+          "text": "      if r > 0",
+          "old": null,
+          "new": 40
+        },
+        {
+          "kind": "+",
+          "text": "        cannon(a, r)",
+          "old": null,
+          "new": 41
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 42
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 43
+        },
+        {
+          "kind": "+",
+          "text": "    a += 20",
+          "old": null,
+          "new": 44
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 45
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 46
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 47
+        },
+        {
+          "kind": "+",
+          "text": "main(\"Dodger\") do",
+          "old": null,
+          "new": 48
+        },
+        {
+          "kind": "+",
+          "text": "  heading = rand(360)",
+          "old": null,
+          "new": 49
+        },
+        {
+          "kind": "+",
+          "text": "  while true",
+          "old": null,
+          "new": 50
+        },
+        {
+          "kind": "+",
+          "text": "    clamp_heading",
+          "old": null,
+          "new": 51
+        },
+        {
+          "kind": "+",
+          "text": "    drive(heading, 45) # under half speed, so every new heading takes",
+          "old": null,
+          "new": 52
+        },
+        {
+          "kind": "+",
+          "text": "    sweep_and_fire",
+          "old": null,
+          "new": 53
+        },
+        {
+          "kind": "+",
+          "text": "    heading += rand(90) - 45",
+          "old": null,
+          "new": 54
+        },
+        {
+          "kind": "+",
+          "text": "    if speed == 0",
+          "old": null,
+          "new": 55
+        },
+        {
+          "kind": "+",
+          "text": "      heading = rand(360)",
+          "old": null,
+          "new": 56
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/scripts/publish_wiki_robots_spec.cr",
+      "note": "This spec checks the script that publishes the robot pages. It helps keep the written strategies available with their programs.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "require \"../spec_helper\"",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "# Exercises scripts/publish_wiki_robots.sh for real, but against a",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "# throwaway Fossil repository created just for this spec, not the",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "# shared repository this checkout itself lives in -- publishing is a",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "# real write (fossil wiki create/commit), so this proves the script",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "# works without touching the wiki pages CrystalRobots::Web::WikiRobots",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "# reads from elsewhere in this suite.",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "describe \"scripts/publish_wiki_robots.sh\" do",
+          "old": null,
+          "new": 9
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  it \"creates a robot/<name> wiki page per robots/*.md, and updates it on a second run\" do",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "    repo = File.tempname(\"publish_wiki_robots_spec\", \".fossil\")",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "    begin",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "      init = Process.run(\"fossil\", [\"init\", repo, \"-A\", \"tester\"], env: {\"USER\" => \"tester\"},",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "        output: IO::Memory.new, error: (init_err = IO::Memory.new))",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "      init.success?.should be_true, init_err.to_s",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 16
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      first = Process.run(\"sh\", [\"scripts/publish_wiki_robots.sh\", \"-R\", repo], env: {\"USER\" => \"tester\"},",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "        output: (first_out = IO::Memory.new), error: IO::Memory.new)",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "      first.success?.should be_true",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "      first_out.to_s.should contain \"created robot/hunter\"",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "      names_out = IO::Memory.new",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "      Process.run(\"fossil\", [\"wiki\", \"list\", \"-R\", repo], env: {\"USER\" => \"tester\"}, output: names_out, error: IO::Memory.new)",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "      names = names_out.to_s.lines.map(&.strip)",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "      {\"robot/circler\", \"robot/dodger\", \"robot/hunter\", \"robot/turret\", \"robot/wallhugger\"}.each do |name|",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "        names.should contain name",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 28
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

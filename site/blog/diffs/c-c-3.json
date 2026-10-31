@@ -1,0 +1,459 @@
+{
+  "sha": "8f32efb47e58e82464c9e8c9d6be6c3f16965ba5",
+  "subject": "Phase C.3: missiles",
+  "summary": "Robots can fire missiles that travel and explode.",
+  "files": [
+    {
+      "path": "spec/battle/field_spec.cr",
+      "added": 56,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "src/battle/field.cr",
+      "added": 139,
+      "removed": 5,
+      "role": "Runs the project command."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/battle/field.cr",
+      "note": "Firing checks reload time and an open missile slot before placing a shot on the field. A robot has to wait between shots, just as it has to slow before turning.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "        r.x = (r.org_x + (lcos(r.heading) * (r.range // CLICK)).tdiv(SCALE)).to_i32",
+          "old": 132,
+          "new": 165
+        },
+        {
+          "kind": " ",
+          "text": "        r.y = (r.org_y + (lsin(r.heading) * (r.range // CLICK)).tdiv(SCALE)).to_i32",
+          "old": 133,
+          "new": 166
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 134,
+          "new": 167
+        },
+        {
+          "kind": " ",
+          "text": "        check_collisions(i)",
+          "old": 135,
+          "new": 168
+        },
+        {
+          "kind": " ",
+          "text": "        check_walls(r)",
+          "old": 136,
+          "new": 169
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 137,
+          "new": 170
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 138,
+          "new": 171
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 139,
+          "new": 172
+        },
+        {
+          "kind": "+",
+          "text": "    # c_cannon (intrins.c): fire from robot `i` if its cannon is not",
+          "old": null,
+          "new": 173
+        },
+        {
+          "kind": "+",
+          "text": "    # reloading and it has a missile available. Faithfully reproduces one",
+          "old": null,
+          "new": 174
+        },
+        {
+          "kind": "+",
+          "text": "    # CROBOTS quirk: a negative distance reports success (returns `true`)",
+          "old": null,
+          "new": 175
+        },
+        {
+          "kind": "+",
+          "text": "    # without actually firing anything.",
+          "old": null,
+          "new": 176
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "    def fire_missile(i : Int32, degree : Int32, distance : Int32) : Bool",
+          "old": null,
+          "new": 177
+        },
+        {
+          "kind": "+",
+          "text": "      distance = MIS_RANGE if distance > MIS_RANGE",
+          "old": null,
+          "new": 178
+        },
+        {
+          "kind": "+",
+          "text": "      return true if distance < 0",
+          "old": null,
+          "new": 179
+        },
+        {
+          "kind": "+",
+          "text": "      degree = degree.abs",
+          "old": null,
+          "new": 180
+        },
+        {
+          "kind": "+",
+          "text": "      degree %= 360 if degree >= 360",
+          "old": null,
+          "new": 181
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 182
+        },
+        {
+          "kind": "+",
+          "text": "      r = @robots[i]",
+          "old": null,
+          "new": 183
+        },
+        {
+          "kind": "+",
+          "text": "      return false if r.reload > 0",
+          "old": null,
+          "new": 184
+        },
+        {
+          "kind": "+",
+          "text": "      slot = @missiles[i].find(&.status.avail?)",
+          "old": null,
+          "new": 185
+        },
+        {
+          "kind": "+",
+          "text": "      return false unless slot",
+          "old": null,
+          "new": 186
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 187
+        },
+        {
+          "kind": "+",
+          "text": "      r.reload = RELOAD",
+          "old": null,
+          "new": 188
+        },
+        {
+          "kind": "+",
+          "text": "      slot.status = MissileStatus::Flying",
+          "old": null,
+          "new": 189
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      slot.beg_x = slot.cur_x = r.x",
+          "old": null,
+          "new": 190
+        },
+        {
+          "kind": "+",
+          "text": "      slot.beg_y = slot.cur_y = r.y",
+          "old": null,
+          "new": 191
+        },
+        {
+          "kind": "+",
+          "text": "      slot.heading = degree",
+          "old": null,
+          "new": 192
+        },
+        {
+          "kind": "+",
+          "text": "      slot.range = distance * CLICK",
+          "old": null,
+          "new": 193
+        },
+        {
+          "kind": "+",
+          "text": "      slot.curr_dist = 0",
+          "old": null,
+          "new": 194
+        },
+        {
+          "kind": "+",
+          "text": "      slot.count = EXP_COUNT",
+          "old": null,
+          "new": 195
+        },
+        {
+          "kind": "+",
+          "text": "      true",
+          "old": null,
+          "new": 196
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 197
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 198
+        },
+        {
+          "kind": "+",
+          "text": "    # move_miss (motion.c), plus count_miss (display.c) folded in: every",
+          "old": null,
+          "new": 199
+        },
+        {
+          "kind": "+",
+          "text": "    # flying missile advances toward its target range or a wall, exploding",
+          "old": null,
+          "new": 200
+        },
+        {
+          "kind": "+",
+          "text": "    # (and damaging nearby robots, once) when it reaches either; an",
+          "old": null,
+          "new": 201
+        }
+      ],
+      "line_notes": {
+        "return true if distance < 0": "CROBOTS reports success for this unusual request even though it launches no missile."
+      }
+    },
+    {
+      "file": "spec/battle/field_spec.cr",
+      "note": "The test fires once, confirms a missile is flying, then tries again too soon. The second shot is refused, proving the reload rule.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    b.damage.should eq CrystalRobots::Battle::COLLISION",
+          "old": 85,
+          "new": 85
+        },
+        {
+          "kind": " ",
+          "text": "    a.speed.should eq 0",
+          "old": 86,
+          "new": 86
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 87,
+          "new": 87
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 88,
+          "new": 88
+        },
+        {
+          "kind": " ",
+          "text": "  it \"kills a robot whose damage reaches 100\" do",
+          "old": 89,
+          "new": 89
+        },
+        {
+          "kind": " ",
+          "text": "    field = Field.new([\"a\"], seed: 1)",
+          "old": 90,
+          "new": 90
+        },
+        {
+          "kind": " ",
+          "text": "    robot = field.robots[0]",
+          "old": 91,
+          "new": 91
+        },
+        {
+          "kind": " ",
+          "text": "    robot.damage = 100",
+          "old": 92,
+          "new": 92
+        },
+        {
+          "kind": " ",
+          "text": "    field.move_robots",
+          "old": 93,
+          "new": 93
+        },
+        {
+          "kind": " ",
+          "text": "    robot.alive?.should be_false",
+          "old": 94,
+          "new": 94
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 95,
+          "new": 95
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 96
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  it \"fires a missile, then refuses while reloading\" do",
+          "old": null,
+          "new": 97
+        },
+        {
+          "kind": "+",
+          "text": "    field = Field.new([\"a\"], seed: 1)",
+          "old": null,
+          "new": 98
+        },
+        {
+          "kind": "+",
+          "text": "    field.fire_missile(0, 90, 100).should be_true",
+          "old": null,
+          "new": 99
+        },
+        {
+          "kind": "+",
+          "text": "    field.missiles[0].count(&.status.flying?).should eq 1",
+          "old": null,
+          "new": 100
+        },
+        {
+          "kind": "+",
+          "text": "    field.fire_missile(0, 90, 100).should be_false # still reloading",
+          "old": null,
+          "new": 101
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 102
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 103
+        },
+        {
+          "kind": "+",
+          "text": "  it \"reloads after RELOAD motion cycles, filling the second slot\" do",
+          "old": null,
+          "new": 104
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    field = Field.new([\"a\"], seed: 1)",
+          "old": null,
+          "new": 105
+        },
+        {
+          "kind": "+",
+          "text": "    field.fire_missile(0, 90, 700) # long range: still flying when reload clears",
+          "old": null,
+          "new": 106
+        },
+        {
+          "kind": "+",
+          "text": "    CrystalRobots::Battle::RELOAD.times { field.move_robots }",
+          "old": null,
+          "new": 107
+        },
+        {
+          "kind": "+",
+          "text": "    field.fire_missile(0, 90, 100).should be_true",
+          "old": null,
+          "new": 108
+        },
+        {
+          "kind": "+",
+          "text": "    field.missiles[0].count(&.status.flying?).should eq 2",
+          "old": null,
+          "new": 109
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 110
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 111
+        },
+        {
+          "kind": "+",
+          "text": "  it \"reports success without firing on a negative distance, a real CROBOTS quirk\" do",
+          "old": null,
+          "new": 112
+        },
+        {
+          "kind": "+",
+          "text": "    field = Field.new([\"a\"], seed: 1)",
+          "old": null,
+          "new": 113
+        },
+        {
+          "kind": "+",
+          "text": "    field.fire_missile(0, 90, -1).should be_true",
+          "old": null,
+          "new": 114
+        },
+        {
+          "kind": "+",
+          "text": "    field.missiles[0].none?(&.status.flying?).should be_true",
+          "old": null,
+          "new": 115
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 116
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

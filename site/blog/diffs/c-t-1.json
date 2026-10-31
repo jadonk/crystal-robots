@@ -1,0 +1,465 @@
+{
+  "sha": "dbbb4de3d8f00e13826f21ed4ad06efb24db8f1f",
+  "subject": "Phase T.1: tournament pool play",
+  "summary": "A room of robots can play pools with standings.",
+  "files": [
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 1,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/tournament/tournament_spec.cr",
+      "added": 116,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "src/tournament/tournament.cr",
+      "added": 164,
+      "removed": 0,
+      "role": "Runs the project command."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/tournament/tournament.cr",
+      "note": "Every pair in a [[tournament pool|#word-tournament-pool]] fights, and each win adds a point while each loss removes one. The ranked standings decide who can advance after the small group finishes.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "    tied.each { |p| sub_points[p] = 0 }",
+          "old": null,
+          "new": 114
+        },
+        {
+          "kind": "+",
+          "text": "    pairs(tied).each do |(a, b)|",
+          "old": null,
+          "new": 115
+        },
+        {
+          "kind": "+",
+          "text": "      case decide([a, b], cursor, limit, fight, log)",
+          "old": null,
+          "new": 116
+        },
+        {
+          "kind": "+",
+          "text": "      when a then sub_points[a] += 1; sub_points[b] -= 1",
+          "old": null,
+          "new": 117
+        },
+        {
+          "kind": "+",
+          "text": "      when b then sub_points[b] += 1; sub_points[a] -= 1",
+          "old": null,
+          "new": 118
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 119
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 120
+        },
+        {
+          "kind": "+",
+          "text": "    rank(tied, sub_points, cursor, limit, fight, log, depth + 1)",
+          "old": null,
+          "new": 121
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 122
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 123
+        },
+        {
+          "kind": "+",
+          "text": "  # Round-robin: every pair fights once (win +1, loss -1, no-winner ->",
+          "old": null,
+          "new": 124
+        },
+        {
+          "kind": "+",
+          "text": "  # refight then 0-0), then the standings are ranked with tie-breaks.",
+          "old": null,
+          "new": 125
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  def self.play_pool(pool : Array(String), cursor : Cursor, limit : Int32, fight : FightFn) : PoolResult",
+          "old": null,
+          "new": 126
+        },
+        {
+          "kind": "+",
+          "text": "    log = [] of FightRecord",
+          "old": null,
+          "new": 127
+        },
+        {
+          "kind": "+",
+          "text": "    points = Hash(String, Int32).new(0)",
+          "old": null,
+          "new": 128
+        },
+        {
+          "kind": "+",
+          "text": "    pool.each { |p| points[p] = 0 }",
+          "old": null,
+          "new": 129
+        },
+        {
+          "kind": "+",
+          "text": "    pairs(pool).each do |(a, b)|",
+          "old": null,
+          "new": 130
+        },
+        {
+          "kind": "+",
+          "text": "      case decide([a, b], cursor, limit, fight, log)",
+          "old": null,
+          "new": 131
+        },
+        {
+          "kind": "+",
+          "text": "      when a then points[a] += 1; points[b] -= 1",
+          "old": null,
+          "new": 132
+        },
+        {
+          "kind": "+",
+          "text": "      when b then points[b] += 1; points[a] -= 1",
+          "old": null,
+          "new": 133
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 134
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 135
+        },
+        {
+          "kind": "+",
+          "text": "    order = rank(pool, points, cursor, limit, fight, log)",
+          "old": null,
+          "new": 136
+        },
+        {
+          "kind": "+",
+          "text": "    standings = order.map_with_index { |name, i| Standing.new(name, points[name], i + 1) }",
+          "old": null,
+          "new": 137
+        },
+        {
+          "kind": "+",
+          "text": "    PoolResult.new(pool, log, standings)",
+          "old": null,
+          "new": 138
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 139
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 140
+        },
+        {
+          "kind": "+",
+          "text": "  # Who advances to the bracket, already in seed order (seed 1 = best):",
+          "old": null,
+          "new": 141
+        },
+        {
+          "kind": "+",
+          "text": "  # one pool -> top three (the wiki page's 5-or-fewer answer); 2+ pools",
+          "old": null,
+          "new": 142
+        },
+        {
+          "kind": "+",
+          "text": "  # -> every pool's winner (in pool order) then every runner-up (in",
+          "old": null,
+          "new": 143
+        },
+        {
+          "kind": "+",
+          "text": "  # pool order), so a standard bracket pairing gives \"1A vs 2B, 1B vs",
+          "old": null,
+          "new": 144
+        },
+        {
+          "kind": "+",
+          "text": "  # 2A\" for two pools.",
+          "old": null,
+          "new": 145
+        },
+        {
+          "kind": "+",
+          "text": "  def self.advancers(pools : Array(PoolResult)) : Array(String)",
+          "old": null,
+          "new": 146
+        },
+        {
+          "kind": "+",
+          "text": "    if pools.size == 1",
+          "old": null,
+          "new": 147
+        },
+        {
+          "kind": "+",
+          "text": "      pools[0].standings.first(3).map(&.name)",
+          "old": null,
+          "new": 148
+        },
+        {
+          "kind": "+",
+          "text": "    else",
+          "old": null,
+          "new": 149
+        },
+        {
+          "kind": "+",
+          "text": "      firsts = pools.map { |p| p.standings[0].name }",
+          "old": null,
+          "new": 150
+        }
+      ],
+      "line_notes": {
+        "when a then points[a] += 1": "A win gives one point to `a` and takes one from `b`; the reverse line handles `b` winning."
+      }
+    },
+    {
+      "file": "spec/tournament/tournament_spec.cr",
+      "note": "The tournament test supplies planned fight results, so the standings can be checked without running a battlefield. This keeps the scoring rule clear.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "      pools.map(&.size).should eq [4, 3, 3]",
+          "old": null,
+          "new": 47
+        },
+        {
+          "kind": "+",
+          "text": "      pools.flatten.should eq names",
+          "old": null,
+          "new": 48
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 49
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 50
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 51
+        },
+        {
+          "kind": "+",
+          "text": "  describe \".play_pools\" do",
+          "old": null,
+          "new": 52
+        },
+        {
+          "kind": "+",
+          "text": "    it \"rejects fewer than 3 entrants\" do",
+          "old": null,
+          "new": 53
+        },
+        {
+          "kind": "+",
+          "text": "      expect_raises(ArgumentError, \"at least 3 entrants\") do",
+          "old": null,
+          "new": 54
+        },
+        {
+          "kind": "+",
+          "text": "        T.play_pools([\"A\", \"B\"], 1, 100, default_fight)",
+          "old": null,
+          "new": 55
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 56
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 57
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 58
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "    it \"scores a win +1 and a loss -1 with no ties\" do",
+          "old": null,
+          "new": 59
+        },
+        {
+          "kind": "+",
+          "text": "      names = [\"X\", \"Y\", \"Z\"]",
+          "old": null,
+          "new": 60
+        },
+        {
+          "kind": "+",
+          "text": "      pools = T.play_pools(names, 1, 100, default_fight)",
+          "old": null,
+          "new": 61
+        },
+        {
+          "kind": "+",
+          "text": "      pool = pools[0]",
+          "old": null,
+          "new": 62
+        },
+        {
+          "kind": "+",
+          "text": "      pool.standings.map(&.name).should eq [\"X\", \"Y\", \"Z\"]",
+          "old": null,
+          "new": 63
+        },
+        {
+          "kind": "+",
+          "text": "      pool.standings.map(&.points).should eq [2, 0, -2]",
+          "old": null,
+          "new": 64
+        },
+        {
+          "kind": "+",
+          "text": "      pool.standings.map(&.rank).should eq [1, 2, 3]",
+          "old": null,
+          "new": 65
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 66
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 67
+        },
+        {
+          "kind": "+",
+          "text": "    it \"refights a no-winner fight at the next seed\" do",
+          "old": null,
+          "new": 68
+        },
+        {
+          "kind": "+",
+          "text": "      names = [\"P\", \"Q\", \"R\"]",
+          "old": null,
+          "new": 69
+        },
+        {
+          "kind": "+",
+          "text": "      overrides = {0 => nil} of Int32 => String?",
+          "old": null,
+          "new": 70
+        },
+        {
+          "kind": "+",
+          "text": "      pool = T.play_pools(names, 5, 100, scripted_fight(overrides))[0]",
+          "old": null,
+          "new": 71
+        },
+        {
+          "kind": "+",
+          "text": "      pool.fights[0].winner.should be_nil",
+          "old": null,
+          "new": 72
+        },
+        {
+          "kind": "+",
+          "text": "      pool.fights[0].seed.should eq 5",
+          "old": null,
+          "new": 73
+        },
+        {
+          "kind": "+",
+          "text": "      pool.fights[1].winner.should eq \"P\" # refought at seed+1",
+          "old": null,
+          "new": 74
+        },
+        {
+          "kind": "+",
+          "text": "      pool.fights[1].seed.should eq 6",
+          "old": null,
+          "new": 75
+        },
+        {
+          "kind": "+",
+          "text": "      pool.standings.find { |s| s.name == \"P\" }.not_nil!.points.should eq 2",
+          "old": null,
+          "new": 76
+        },
+        {
+          "kind": "+",
+          "text": "      pool.standings.find { |s| s.name == \"Q\" }.not_nil!.points.should eq 0",
+          "old": null,
+          "new": 77
+        },
+        {
+          "kind": "+",
+          "text": "      pool.standings.find { |s| s.name == \"R\" }.not_nil!.points.should eq -2",
+          "old": null,
+          "new": 78
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

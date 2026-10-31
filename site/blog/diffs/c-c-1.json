@@ -1,0 +1,399 @@
+{
+  "sha": "ce748a4ae16ceaa6485c6573a4496ce00c6c0541",
+  "subject": "Phase C.1: cycle charging",
+  "summary": "Each robot action can be charged a fair cycle cost.",
+  "files": [
+    {
+      "path": "spec/differential_spec.cr",
+      "added": 9,
+      "removed": 0,
+      "role": "Checks that both ways of running a robot agree."
+    },
+    {
+      "path": "spec/examples_spec.cr",
+      "added": 6,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/interpreter_spec.cr",
+      "added": 28,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 43,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "src/compiler/interpreter.cr",
+      "added": 89,
+      "removed": 17,
+      "role": "Runs robot steps directly so their behavior can be checked."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 49,
+      "removed": 22,
+      "role": "Turns robot steps into WebAssembly instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/interpreter.cr",
+      "note": "A [[cycle|#word-cycle]] is one unit of work in a robot turn. The interpreter adds a cost for each statement, and later the battlefield can use those totals to give each robot a fair share of time.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "          main_stmts = body_of(stmt)",
+          "old": 162,
+          "new": 191
+        },
+        {
+          "kind": " ",
+          "text": "        else",
+          "old": 163,
+          "new": 192
+        },
+        {
+          "kind": " ",
+          "text": "          exec_statement(stmt, scope)",
+          "old": 164,
+          "new": 193
+        },
+        {
+          "kind": " ",
+          "text": "        end",
+          "old": 165,
+          "new": 194
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 166,
+          "new": 195
+        },
+        {
+          "kind": " ",
+          "text": "      main_stmts.each { |s| exec_statement(s, scope) }",
+          "old": 167,
+          "new": 196
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 168,
+          "new": 197
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 169,
+          "new": 198
+        },
+        {
+          "kind": " ",
+          "text": "    private def body_of(block : Int32) : Array(Int32)",
+          "old": 170,
+          "new": 199
+        },
+        {
+          "kind": " ",
+          "text": "      @program.children(block).select { |i| @program.type(i) == Type::Statement }",
+          "old": 171,
+          "new": 200
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 172,
+          "new": 201
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "",
+          "old": 173,
+          "new": 202
+        },
+        {
+          "kind": "+",
+          "text": "    private def charge(n : Int32) : Nil",
+          "old": null,
+          "new": 203
+        },
+        {
+          "kind": "+",
+          "text": "      @cycles += n",
+          "old": null,
+          "new": 204
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 205
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 206
+        },
+        {
+          "kind": " ",
+          "text": "    # The value of a statement is the value of its expression, or, for",
+          "old": 174,
+          "new": 207
+        },
+        {
+          "kind": " ",
+          "text": "    # `if`, whichever branch's last statement ran; a loop is not a value",
+          "old": 175,
+          "new": 208
+        },
+        {
+          "kind": " ",
+          "text": "    # and yields 0, matching `WASM_Emitter`'s reset of `Ctx#ret`.",
+          "old": 176,
+          "new": 209
+        },
+        {
+          "kind": " ",
+          "text": "    private def exec_statement(stmt : Int32, scope : Scope) : Int32",
+          "old": 177,
+          "new": 210
+        },
+        {
+          "kind": "+",
+          "text": "      charge(@costs.statement)",
+          "old": null,
+          "new": 211
+        },
+        {
+          "kind": " ",
+          "text": "      case @program[stmt].rule",
+          "old": 178,
+          "new": 212
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "      when :global",
+          "old": 179,
+          "new": 213
+        },
+        {
+          "kind": " ",
+          "text": "        @globals[@program.value(@program.arg(stmt, 2))] = eval(@program.arg(stmt, 4), scope)",
+          "old": 180,
+          "new": 214
+        },
+        {
+          "kind": " ",
+          "text": "      when :exprstmt",
+          "old": 181,
+          "new": 215
+        },
+        {
+          "kind": " ",
+          "text": "        return eval(@program.arg(stmt, 0), scope)",
+          "old": 182,
+          "new": 216
+        },
+        {
+          "kind": " ",
+          "text": "      when :while",
+          "old": 183,
+          "new": 217
+        },
+        {
+          "kind": " ",
+          "text": "        loop_exec(stmt, scope, while_true: true)",
+          "old": 184,
+          "new": 218
+        },
+        {
+          "kind": " ",
+          "text": "      when :until",
+          "old": 185,
+          "new": 219
+        },
+        {
+          "kind": " ",
+          "text": "        loop_exec(stmt, scope, while_true: false)",
+          "old": 186,
+          "new": 220
+        },
+        {
+          "kind": " ",
+          "text": "      when :break",
+          "old": 187,
+          "new": 221
+        },
+        {
+          "kind": "+",
+          "text": "        charge(@costs.branch)",
+          "old": null,
+          "new": 222
+        },
+        {
+          "kind": " ",
+          "text": "        raise BreakSignal.new",
+          "old": 188,
+          "new": 223
+        },
+        {
+          "kind": " ",
+          "text": "      when :return",
+          "old": 189,
+          "new": 224
+        }
+      ],
+      "line_notes": {
+        "@cycles += n": "Add the cost to this robot’s running total; the field can later compare totals."
+      }
+    },
+    {
+      "file": "spec/differential_spec.cr",
+      "note": "This test compares the cycle totals from the interpreter and WebAssembly paths. They must agree so a robot does not gain extra turns by choosing one runner.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    puts sqrt 16",
+          "old": 55,
+          "new": 55
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 56,
+          "new": 56
+        },
+        {
+          "kind": " ",
+          "text": "    ROBOT",
+          "old": 57,
+          "new": 57
+        },
+        {
+          "kind": " ",
+          "text": "}",
+          "old": 58,
+          "new": 58
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 59,
+          "new": 59
+        },
+        {
+          "kind": " ",
+          "text": "describe \"the interpreter and the WASM emitter\" do",
+          "old": 60,
+          "new": 60
+        },
+        {
+          "kind": " ",
+          "text": "  ROBOTS.each do |name, source|",
+          "old": 61,
+          "new": 61
+        },
+        {
+          "kind": " ",
+          "text": "    wasmer_it \"agree on #{name}\" do",
+          "old": 62,
+          "new": 62
+        },
+        {
+          "kind": " ",
+          "text": "      interpret_puts(source).should eq run_puts(source)",
+          "old": 63,
+          "new": 63
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 64,
+          "new": 64
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 65,
+          "new": 65
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 66
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  ROBOTS.each do |name, source|",
+          "old": null,
+          "new": 67
+        },
+        {
+          "kind": "+",
+          "text": "    wasmer_it \"charge identical cycle totals on #{name}\" do",
+          "old": null,
+          "new": 68
+        },
+        {
+          "kind": "+",
+          "text": "      costs = CrystalRobots::Compiler::Interpreter::Costs.new",
+          "old": null,
+          "new": 69
+        },
+        {
+          "kind": "+",
+          "text": "      cycles = interpret_cycles(source, costs)",
+          "old": null,
+          "new": 70
+        },
+        {
+          "kind": "+",
+          "text": "      _puts_out, ticks = run_with_ticks(source, costs)",
+          "old": null,
+          "new": 71
+        },
+        {
+          "kind": "+",
+          "text": "      ticks.should eq cycles",
+          "old": null,
+          "new": 72
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 73
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 74
+        },
+        {
+          "kind": " ",
+          "text": "end",
+          "old": 66,
+          "new": 75
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

@@ -1,0 +1,433 @@
+{
+  "sha": "155b626f03a7b4a6ea9cd8c8e41593c97522cb0e",
+  "subject": "Phase C.4: the scanner and a real Host bound to the battlefield",
+  "summary": "Robot builtins can now sense and change a real field.",
+  "files": [
+    {
+      "path": "spec/battle/field_spec.cr",
+      "added": 20,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/battle/robot_host_spec.cr",
+      "added": 68,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 1,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "src/battle/field.cr",
+      "added": 68,
+      "removed": 8,
+      "role": "Runs the project command."
+    },
+    {
+      "path": "src/battle/robot_host.cr",
+      "added": 84,
+      "removed": 0,
+      "role": "Runs the project command."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/battle/robot_host.cr",
+      "note": "`RobotHost` connects a robot’s `scan`, `cannon` and `drive` calls to its own place on the field. The earlier stand-in [[host|#word-host]] now has real positions and missiles to answer from.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "# testing without a battlefield; these are the real thing.",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "module CrystalRobots::Battle",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "  SCALE_F = 100_000.0",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "  class RobotHost < Compiler::Host",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "    def initialize(@field : Field, @robot_index : Int32)",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "    def puts(n : Int32) : Int32",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "      n",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 22
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "    def scan(angle : Int32, resolution : Int32) : Int32",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "      @field.scan(@robot_index, angle, resolution)",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "    def cannon(angle : Int32, range : Int32) : Int32",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "      @field.fire_missile(@robot_index, angle, range) ? 1 : 0",
+          "old": null,
+          "new": 28
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 30
+        },
+        {
+          "kind": "+",
+          "text": "    def drive(heading : Int32, speed : Int32) : Int32",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": "+",
+          "text": "      @field.drive(@robot_index, heading, speed)",
+          "old": null,
+          "new": 32
+        },
+        {
+          "kind": "+",
+          "text": "      1",
+          "old": null,
+          "new": 33
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 34
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 35
+        },
+        {
+          "kind": "+",
+          "text": "    def damage : Int32",
+          "old": null,
+          "new": 36
+        },
+        {
+          "kind": "+",
+          "text": "      @field.robots[@robot_index].damage",
+          "old": null,
+          "new": 37
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 38
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 39
+        },
+        {
+          "kind": "+",
+          "text": "    def speed : Int32",
+          "old": null,
+          "new": 40
+        },
+        {
+          "kind": "+",
+          "text": "      @field.robots[@robot_index].speed",
+          "old": null,
+          "new": 41
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 42
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 43
+        },
+        {
+          "kind": "+",
+          "text": "    def loc_x : Int32",
+          "old": null,
+          "new": 44
+        },
+        {
+          "kind": "+",
+          "text": "      @field.robots[@robot_index].x // CLICK",
+          "old": null,
+          "new": 45
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 46
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/battle/robot_host_spec.cr",
+      "note": "This test asks a robot for values held by the field. It checks that the host reports that robot’s state, not made-up answers.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "require \"../spec_helper\"",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "alias RobotHost = CrystalRobots::Battle::RobotHost",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "alias BattleField = CrystalRobots::Battle::Field",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "describe RobotHost do",
+          "old": null,
+          "new": 6
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  it \"reads position, speed and damage from the field's own robot\" do",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "    field = BattleField.new([\"a\"], seed: 1)",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "    robot = field.robots[0]",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "    robot.x = 1234",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "    robot.y = 5678",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "    robot.speed = 42",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "    robot.damage = 7",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "    host = RobotHost.new(field, 0)",
+          "old": null,
+          "new": 14
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    host.loc_x.should eq robot.x // CrystalRobots::Battle::CLICK",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "    host.loc_y.should eq robot.y // CrystalRobots::Battle::CLICK",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "    host.speed.should eq 42",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "    host.damage.should eq 7",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "  it \"drive sets the field robot's desired heading and speed\" do",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "    field = BattleField.new([\"a\"], seed: 1)",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "    RobotHost.new(field, 0).drive(90, 50)",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "    field.robots[0].d_heading.should eq 90",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "    field.robots[0].d_speed.should eq 50",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 26
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

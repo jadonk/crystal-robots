@@ -1,0 +1,309 @@
+{
+  "sha": "f7b753a101bc04e2ebe542ebfb59255be0ffe3a2",
+  "subject": "Phase U.1: version reports the check-in it was built from",
+  "summary": "A built program can report the check-in it came from.",
+  "files": [
+    {
+      "path": "spec/cli_spec.cr",
+      "added": 3,
+      "removed": 2,
+      "role": "Checks what the command prints."
+    },
+    {
+      "path": "src/cli.cr",
+      "added": 2,
+      "removed": 2,
+      "role": "Reads command options and starts the requested action."
+    },
+    {
+      "path": "src/version.cr",
+      "added": 18,
+      "removed": 0,
+      "role": "Runs the project command."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/version.cr",
+      "note": "The version reads a saved check-in identifier while the program is built. When someone reports a problem, this line identifies the exact build they used.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "module CrystalRobots",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "kind": " ",
+          "text": "  VERSION = \"0.0.1\"",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "  # The Fossil check-in this binary was built from. Fossil's versioned",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "  # `manifest` setting (.fossil-settings/manifest holds \"u\") keeps",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "  # `manifest.uuid` in every checkout and tarball; it is read once, at",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "  # compile time. \"unknown\" when built from a plain source tree with",
+          "old": null,
+          "new": 7
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  # neither a checkout's generated file nor one written some other way.",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "  CHECKIN = {{ (read_file?(\"#{__DIR__}/../manifest.uuid\") || \"unknown\").strip }}",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "  # Short check-in for display, like Fossil's own timeline.",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "  def self.checkin_short : String",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "    CHECKIN == \"unknown\" ? CHECKIN : CHECKIN[0, 10]",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 15
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "  # \"0.0.1 (check-in 724ff90d58)\": what --version and /version report, so",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "  # a deploy can be compared against a specific check-in.",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "  def self.version_line : String",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "    \"crystal-robots #{VERSION} (check-in #{checkin_short})\"",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": " ",
+          "text": "end",
+          "old": 3,
+          "new": 21
+        }
+      ],
+      "line_notes": {
+        "CHECKIN = {{": "Crystal reads the identifier while building the program and stores it in the result."
+      }
+    },
+    {
+      "file": "spec/cli_spec.cr",
+      "note": "The command test checks that `--version` prints the project’s version and check-in. It gives readers a simple way to identify a build.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "require \"./spec_helper\"",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "kind": " ",
+          "text": "require \"../src/version\"",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 3,
+          "new": 3
+        },
+        {
+          "kind": " ",
+          "text": "describe \"crystal-robots CLI\" do",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "kind": "-",
+          "text": "  it \"builds and reports its version\" do",
+          "old": 5,
+          "new": null
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  it \"builds and reports its version and check-in\" do",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": " ",
+          "text": "    output = `crystal run src/cli.cr -- --version`",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "kind": "-",
+          "text": "    output.chomp.should eq \"crystal-robots #{CrystalRobots::VERSION}\"",
+          "old": 7,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "    output.chomp.should eq CrystalRobots.version_line",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "    output.should contain CrystalRobots::VERSION",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 8,
+          "new": 9
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "",
+          "old": 9,
+          "new": 10
+        },
+        {
+          "kind": " ",
+          "text": "  it \"-t prints the parse derivation for an example robot\" do",
+          "old": 10,
+          "new": 11
+        },
+        {
+          "kind": " ",
+          "text": "    output = `crystal run src/cli.cr -- -t examples/hello.cr`",
+          "old": 11,
+          "new": 12
+        },
+        {
+          "kind": " ",
+          "text": "    output.should contain \"∊№⏎\"",
+          "old": 12,
+          "new": 13
+        },
+        {
+          "kind": " ",
+          "text": "    output.should contain \"⏹\"",
+          "old": 13,
+          "new": 14
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 14,
+          "new": 15
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 15,
+          "new": 16
+        },
+        {
+          "kind": " ",
+          "text": "  it \"-k reports no issues for a clean robot, and the problem for a broken one\" do",
+          "old": 16,
+          "new": 17
+        },
+        {
+          "kind": " ",
+          "text": "    ok = `crystal run src/cli.cr -- -k examples/functions.cr`",
+          "old": 17,
+          "new": 18
+        },
+        {
+          "kind": " ",
+          "text": "    ok.chomp.should eq \"no issues found\"",
+          "old": 18,
+          "new": 19
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 19,
+          "new": 20
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

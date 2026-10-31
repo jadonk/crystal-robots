@@ -96,6 +96,8 @@ end</code></pre><p>Run the indented steps once for each item, calling the curren
   end
 end</code></pre><p>These group a test, name what it checks, and say what answer is expected.</p></div>
 <div id="crystal-bytes"><h3>Write bytes: <code>Bytes[…]</code></h3><pre><code>Bytes[0x00, 0x61]</code></pre><p>Bytes are small numbers written directly into a file; <code>0x</code> marks a number written in base 16.</p></div>
+<div id="crystal-channel"><h3>Pass a turn: <code>Channel</code></h3><pre><code>ready.send(nil)
+ready.receive</code></pre><p>One task sends a signal and another waits to receive it before continuing.</p></div>
 </section>
 <section id="words" class="words-glossary">
 <h2>Words you’ll see</h2>
@@ -110,6 +112,13 @@ end</code></pre><p>These group a test, name what it checks, and say what answer 
 <dt id="word-interpreter">Interpreter</dt><dd>A program that follows a robot’s steps directly instead of writing a WebAssembly file first.</dd>
 <dt id="word-test-spec">Test/spec</dt><dd>A small program that checks whether another part of the project gives an expected answer.</dd>
 <dt id="word-commit">Commit</dt><dd>A saved step in the project’s history that you can open and try.</dd>
+<dt id="word-cycle">Cycle</dt><dd>One measured unit of work a robot spends while it takes its turn.</dd>
+<dt id="word-battlefield-physics">Battlefield physics</dt><dd>The rules for how robots speed up, turn, move and collide.</dd>
+<dt id="word-seed">Seed</dt><dd>A starting number for random choices; using it again repeats the same match setup.</dd>
+<dt id="word-channel">Channel</dt><dd>A one-place mailbox that lets one running task wait for another.</dd>
+<dt id="word-tournament-pool">Tournament pool</dt><dd>A small group in which each robot fights every other robot.</dd>
+<dt id="word-bracket">Bracket</dt><dd>Rounds where winners advance and other robots leave the tournament.</dd>
+<dt id="word-ci">CI</dt><dd>Continuous integration: one repeatable command that builds and checks a project.</dd>
 </dl>
 </section>
 <section class="chapter" id="phase-a">
@@ -477,6 +486,7 @@ bin/crystal-robots --help</code></pre>
 <p>Phase A built a language. Phase B makes it the language real robots are written in. The target is the five example robots that come with the project (<code>counter</code>, <code>rabbit</code>, <code>rook</code>, <code>sniper</code> and <code>target</code>), and each commit closes one gap between what they use and what the parser accepts.</p>
 <p>First, the small things: <code>#</code> starts a comment that runs to the end of the line, and <code>true</code> and <code>false</code> are words for 1 and 0, so <code>while true</code> means what it looks like.</p>
 <p>(Phase B's commit messages don't include transcripts; the output shown in this chapter was produced for this post by running the commands at each commit.)</p>
+<div class="diff-view" data-diff="c-b-1"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/5729f6bd6bc3e479a6a78906a29ebb77c36b68ed">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 5729f6b
@@ -484,6 +494,7 @@ crystal spec
 shards build
 printf '# a comment\nputs true   # trailing\nputs false\n' &gt; b1.cr
 bin/crystal-robots -i b1.cr</code></pre>
+<p class="cmd-note"><code>printf</code> writes a tiny robot into <code>b1.cr</code>; <code>&gt;</code> puts that text in the file. Run it with <code>-i</code> and look for 1, then 0.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>69 examples, 0 failures, 0 errors, 29 pending
 1
@@ -496,6 +507,7 @@ bin/crystal-robots -i b1.cr</code></pre>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/1c95a0feaac56b8f0180e1f102e7731a9446464d" data-subject="Phase B.2: parenthesized builtin calls">1c95a0f</a></p>
 <p>Every example robot writes <code>scan(angle, res)</code> and <code>drive(angle, 50)</code> with parentheses, so those forms now parse alongside the bare <code>scan angle, res</code> style. The interpreter, the checker and the emitter share the logic for both shapes.</p>
 <p>This brings back a known, deliberately accepted quirk. Once spaces are gone, <code>puts (1) + 2</code> looks exactly like <code>puts(1) + 2</code>, so the parser calls <code>puts</code> with 1 and the <code>+ 2</code> is applied to what <code>puts</code> returns. It prints 1, where Ruby or Crystal would print 3. Crystal itself warns about writing it this way, <code>docs/PARSER.md</code> lists it, and a spec pins the behavior so nobody “fixes” it by accident.</p>
+<div class="diff-view" data-diff="c-b-2"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/1c95a0feaac56b8f0180e1f102e7731a9446464d">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 1c95a0f
@@ -503,6 +515,7 @@ crystal spec
 shards build
 printf 'puts (1) + 2\nputs sqrt(16)\n' &gt; b2.cr
 bin/crystal-robots -i b2.cr</code></pre>
+<p class="cmd-note">The new program calls <code>sqrt(16)</code> with parentheses. Look for 1 from the accepted <code>puts (1) + 2</code> quirk, then 4 from the square root.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>71 examples, 0 failures, 0 errors, 31 pending
 1
@@ -514,10 +527,12 @@ bin/crystal-robots -i b2.cr</code></pre>
 <h3>Phase B.3: implicit global constants and bare zero-argument calls</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/e52306b63639f210305888841c5c6bd4272e1abd" data-subject="Phase B.3: implicit global constants and bare zero-argument calls">e52306b</a></p>
 <p>Two gaps found by reading real robots. <code>sniper.cr</code> and <code>rook.cr</code> declare constants with a plain top-level assignment (<code>C1X = 10</code>) rather than <code>global(...)</code>, and several robots call their own zero-argument functions without parentheses (<code>new_corner</code>, <code>run</code>, <code>change</code>). Both now work: a top-level assignment declares a global, and a bare name that isn't a variable but is a known function with no parameters is a call to it.</p>
+<div class="diff-view" data-diff="c-b-3"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/e52306b63639f210305888841c5c6bd4272e1abd">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout e52306b
 crystal spec</code></pre>
+<p class="cmd-note">Look for tests that accept a top-level constant and a bare call to a function with no arguments.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>77 examples, 0 failures, 0 errors, 33 pending</code></pre>
 </div>
@@ -527,6 +542,7 @@ crystal spec</code></pre>
 <h3>Phase B.4: compound assignment</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/a4d90138adf5063f8b62bc25609b499f76441ffa" data-subject="Phase B.4: compound assignment">a4d9013</a></p>
 <p><code>+= -= *= %=</code>. The one subtle part is in the first pass: the scanner has to try the two-character operator before its one-character prefix, or <code>+=</code> would be read as <code>+</code> followed by a stray <code>=</code>.</p>
+<div class="diff-view" data-diff="c-b-4"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/a4d90138adf5063f8b62bc25609b499f76441ffa">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout a4d9013
@@ -534,6 +550,7 @@ crystal spec
 shards build
 printf 'global(x, 10)\nx += 5\nx -= 3\nx *= 4\nx %%= 7\nputs x\n' &gt; b4.cr
 bin/crystal-robots -i b4.cr</code></pre>
+<p class="cmd-note"><code>%%</code> makes <code>printf</code> write one percent sign into the robot file. Look for the final value after all four updates.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>80 examples, 0 failures, 0 errors, 34 pending
 6</code></pre>
@@ -545,6 +562,7 @@ bin/crystal-robots -i b4.cr</code></pre>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/610e3b59f03f20c104f5765377e62968d64b04fd" data-subject="Phase B.5: logical and/or and bitwise xor">610e3b5</a></p>
 <p><code>&amp;&amp;</code>, <code>||</code> and <code>^</code>. Following CROBOTS, both sides of <code>&amp;&amp;</code> and <code>||</code> are always evaluated (no short-cut when the left side already decides the answer), and the result is 0 or 1. <code>^</code> is <em>bitwise</em> exclusive-or, applied to the raw numbers: <code>6 ^ 3</code> is 5.</p>
 <p>This commit also records a real problem in the test setup. After roughly a hundred wasmer-backed examples, the test process would occasionally crash in the wasmer binding's interaction with Crystal's garbage collector, regardless of which test was running. The workaround (turning the collector off for the wasmer run) is documented in the spec helper, so nobody mistakes it for a grammar bug later.</p>
+<div class="diff-view" data-diff="c-b-5"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/610e3b59f03f20c104f5765377e62968d64b04fd">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 610e3b5
@@ -552,6 +570,7 @@ crystal spec
 shards build
 printf 'puts 3 &amp;&amp; 0\nputs 3 || 0\nputs 6 ^ 3\n' &gt; b5.cr
 bin/crystal-robots -i b5.cr</code></pre>
+<p class="cmd-note">Look for 0 and 1 from the two logical tests, then 5 from <code>6 ^ 3</code>.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>83 examples, 0 failures, 0 errors, 35 pending
 0
@@ -565,10 +584,12 @@ bin/crystal-robots -i b5.cr</code></pre>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/3cd6dd936573dc9d002ef437622cfff1e8467c52" data-subject="Phase B.6: assignment inside a condition, bare calls as call arguments">3cd6dd9</a></p>
 <p><code>counter.cr</code> scans in a loop like this: <code>while ((range = scan(angle, res)) &gt; 0)</code>. That needs an assignment to be an expression that can sit inside parentheses, so the lookahead for assignment and bare calls now accepts a closing parenthesis or a comma as well as a line break.</p>
 <p>Writing the spec also caught a checker bug: a name first assigned inside a condition was reported as undefined, even though both engines handled it fine. The checker now adds a name to scope the moment it sees it assigned.</p>
+<div class="diff-view" data-diff="c-b-6"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/3cd6dd936573dc9d002ef437622cfff1e8467c52">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 3cd6dd9
 crystal spec</code></pre>
+<p class="cmd-note">Look for tests that assign a scan result inside a condition and pass a bare call as an argument.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>88 examples, 0 failures, 0 errors, 37 pending</code></pre>
 </div>
@@ -578,6 +599,7 @@ crystal spec</code></pre>
 <h3>Phase B.7: case / when / else</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/1f6dd1e2aeeafe3de8a31248278ef8206e094090" data-subject="Phase B.7: case / when / else">1f6dd1e</a></p>
 <p>The last statement shape: <code>case</code>/<code>when</code>/<code>else</code>, which <code>sniper.cr</code> uses to pick a corner. The subject is evaluated once into a temporary, and each <code>when</code> compiles to an equality test inside the same nested <code>if</code> chain that <code>if</code>/<code>elsif</code> already uses.</p>
+<div class="diff-view" data-diff="c-b-7"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/1f6dd1e2aeeafe3de8a31248278ef8206e094090">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 1f6dd1e
@@ -585,6 +607,7 @@ crystal spec
 shards build
 printf 'x = 2\ncase x\nwhen 1\n  puts 10\nwhen 2\n  puts 20\nelse\n  puts 30\nend\n' &gt; b7.cr
 bin/crystal-robots -i b7.cr</code></pre>
+<p class="cmd-note">The new robot chooses the <code>when 2</code> branch. Look for 20.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>92 examples, 0 failures, 0 errors, 38 pending
 20</code></pre>
@@ -596,6 +619,7 @@ bin/crystal-robots -i b7.cr</code></pre>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/3f8858c46ac351216c8a26c4f8ca0156b30ecf9d" data-subject="Phase B.8: the six example robots parse -- grammar parity reached">3f8858c</a></p>
 <p>The payoff for Phase B: <code>counter</code>, <code>rabbit</code>, <code>rook</code>, <code>sniper</code> and <code>target</code> come back word for word, and every one parses, passes the checker and compiles to WebAssembly on the first try. Each earlier commit in this phase existed because one of these robots needed it.</p>
 <p>None of them is <em>run</em> yet. They all loop forever (<code>while true</code>), because a robot is meant to share a battlefield with others under a cycle limit, not run to completion on its own. That battlefield is the next chapter. The tail of <code>sniper.cr</code>'s 40-pass parse shows the whole robot collapsing to one program glyph.</p>
+<div class="diff-view" data-diff="c-b-8"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/3f8858c46ac351216c8a26c4f8ca0156b30ecf9d">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 3f8858c
@@ -603,6 +627,7 @@ crystal spec
 shards build
 for r in counter rabbit rook sniper target; do printf "%s: " $r; bin/crystal-robots -k examples/$r.cr; done
 bin/crystal-robots -t examples/sniper.cr | tail -4</code></pre>
+<p class="cmd-note">The <code>for</code> command repeats the checker for each named robot; <code>tail -4</code> shows the last four trace lines. Look for clean checks and the final program glyph.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>99 examples, 0 failures, 0 errors, 38 pending
 counter: no issues found
@@ -627,11 +652,13 @@ target: no issues found
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/715ddde7793b838ffab2a7d128ac49eceab41325" data-subject="Phase C.1: cycle charging">715ddde</a></p>
 <p>In CROBOTS, robots don't run as fast as the computer allows. They take turns, and each turn is a budget of virtual <em>cycles</em>: reading a value costs one, an operator one, a builtin call two, a call to your own function three. That is what makes a clever robot different from a busy one, and it is what makes battles fair.</p>
 <p><code>Interpreter::Costs</code> maps CROBOTS's per-instruction costs onto this interpreter's tree nodes. The WebAssembly side has to agree, or a compiled robot would get more or fewer turns than an interpreted one, so the emitter can now import <code>env.tick</code> and call it with the number of cycles to charge at exactly the places the interpreter charges them. The differential specs gain a check that both engines charge identical totals.</p>
+<div class="diff-view" data-diff="c-c-1"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/715ddde7793b838ffab2a7d128ac49eceab41325">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 715ddde
 crystal spec -Dwasmer
 crystal eval 'require "./src/compiler/parser"; require "./src/compiler/interpreter"; include CrystalRobots::Compiler; src = File.read("examples/functions.cr"); host = NullHost.new; cycles = Interpreter.execute(Parser.new(src).program, host); puts "printed #{host.puts_out}, charged #{cycles} cycles"; puts "statements only: #{Interpreter.execute(Parser.new(src).program, NullHost.new, Interpreter::Costs.statements)}"'</code></pre>
+<p class="cmd-note"><code>crystal eval</code> runs the Crystal code in quotes without making a file. Look for the total cycles charged, then the smaller statements-only total.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>105 examples, 0 failures, 0 errors, 0 pending
 printed [5, 30, 35], charged 46 cycles
@@ -644,10 +671,12 @@ statements only: 10</code></pre>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/8abbbd212ccf265affc30147b87fdb48a4205c89" data-subject="Phase C.2: robot motion physics">8abbbd2</a></p>
 <p>Now the robots need somewhere to be. <code>src/battle/field.cr</code> is the battlefield, ported from the real CROBOTS C source (<code>motion.c</code> and <code>main.c</code>) rather than reconstructed from memory. The field is 1000 by 1000 meters; robots start in separate quarters of it; speed changes gradually toward what the robot asked for; and a robot can only change direction when it is going at half speed or slower. Ask for a turn while going faster and the drive disengages instead, the same trade CROBOTS makes. Hitting a wall or another robot stops you and hurts.</p>
 <p>Even the trigonometry is CROBOTS's: sine and cosine scaled up by 100000 and kept as whole numbers, rounding the way the C code rounds. Matching the original's arithmetic exactly is what lets decades-old robot strategies work unchanged.</p>
+<div class="diff-view" data-diff="c-c-2"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/8abbbd212ccf265affc30147b87fdb48a4205c89">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 8abbbd2
 crystal spec spec/battle/field_spec.cr -v</code></pre>
+<p class="cmd-note">The path names the field tests, and <code>-v</code> prints their names. Look for movement, turning and collision cases.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>CrystalRobots::Battle::Field
   places each robot in its own quadrant of the field
@@ -669,17 +698,12 @@ Finished in 420 microseconds
 <p>“A battlefield where nobody can shoot is just a parking lot.” Firing, flight and explosions, ported from CROBOTS's <code>c_cannon</code> and <code>move_miss</code>. A robot has two missile slots and has to wait for its cannon to reload; a missile flies to the distance it was aimed at and explodes, damaging every robot nearby, more the closer they are.</p>
 <p>Porting faithfully means porting the quirks too. In the C original, asking to fire at a negative distance returns “success” without firing anything, because of where an early <code>return</code> sits. crystal-robots keeps that on purpose, with a spec that names it.</p>
 <p class="code-label">src/battle/field.cr</p>
-<pre><code>def fire_missile(i : Int32, degree : Int32, distance : Int32) : Bool
-  distance = MIS_RANGE if distance &gt; MIS_RANGE
-  return true if distance &lt; 0          # CROBOTS: "succeeds" without firing
-  ...
-  return false if r.reload &gt; 0
-  slot = @missiles[i].find(&amp;.status.avail?)
-  return false unless slot</code></pre>
+<div class="diff-view" data-diff="c-c-3"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/f9b378d798f9d8fee2b24e50b07c0080f598d867">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout f9b378d
 crystal spec spec/battle/field_spec.cr -v</code></pre>
+<p class="cmd-note">Look for missile tests that cover firing, reload and an explosion near a robot.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   fires a missile, then refuses while reloading
@@ -697,10 +721,12 @@ Finished in 20.24 milliseconds
 <h3>Phase C.4: the scanner and a real Host bound to the battlefield</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/7866b2cf359147c3020d192eba48188948d7d85f" data-subject="Phase C.4: the scanner and a real Host bound to the battlefield">7866b2c</a></p>
 <p>Until now every builtin a robot called landed in <code>NullHost</code>, which returned made-up numbers. <code>RobotHost</code> replaces it: one robot's view of a real <code>Field</code>. <code>scan</code> is a port of CROBOTS's <code>c_scan</code>, down to working out the compass quarter by hand around a plain arctangent, because that is what the C does and the robots' own math assumes it. The payoff spec runs a real robot's source through the interpreter and watches the field's own robot move.</p>
+<div class="diff-view" data-diff="c-c-4"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/7866b2cf359147c3020d192eba48188948d7d85f">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 7866b2c
 crystal spec spec/battle/robot_host_spec.cr -v</code></pre>
+<p class="cmd-note">Look for host tests that read a robot’s position and use the field’s scanner.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>CrystalRobots::Battle::RobotHost
 ...
@@ -715,18 +741,13 @@ Finished in 1.85 milliseconds
 <p>A match is several robot programs sharing one field and taking turns, one step each, with the physics updated every so many steps. Crystal has <em>fibers</em>, lightweight threads you can pause and resume, which looked like exactly the right tool. It wasn't, at least not the obvious way.</p>
 <p>A minimal experiment showed that a fiber calling <code>Fiber.yield</code> in a loop ran to completion inside the first <code>resume</code> instead of pausing at each yield. So each robot's interpreter instead gets a pair of <em>channels</em>, one-slot mailboxes: after every step it sends “done” and waits for permission to continue.</p>
 <p class="code-label">src/compiler/interpreter.cr</p>
-<pre><code>private def sync_step : Nil
-  d = @done_channel
-  s = @step_channel
-  return unless d &amp;&amp; s
-  d.send(nil)     # "I finished a step"
-  s.receive       # wait for my next turn
-end</code></pre>
 <p>A second trap showed up while building the match loop: checking whether a robot's fiber was already dead raced the scheduler and hung the tests. The match now decides from the robot's own alive/dead state, which it controls. Because this is concurrency, the transcript runs the match spec five times in a row.</p>
+<div class="diff-view" data-diff="c-c-5"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/87deecbcb18c8af867923a1184e31f83b5a2935e">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 87deecb
 for i in 1 2 3 4 5; do crystal spec spec/battle/match_spec.cr | grep examples; done</code></pre>
+<p class="cmd-note">The shell loop runs the match spec five times; <code>grep examples</code> keeps each run’s result line. Look for five clean runs.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>5 examples, 0 failures, 0 errors, 0 pending
 5 examples, 0 failures, 0 errors, 0 pending
@@ -739,21 +760,17 @@ for i in 1 2 3 4 5; do crystal spec spec/battle/match_spec.cr | grep examples; d
 <section class="commit" id="c-c-6">
 <h3>Phase C.6: CLI wiring for matches, and a real crash-safety fix</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/06b2fe90c276d3c23e2088aae279a902fb094f25" data-subject="Phase C.6: CLI wiring for matches, and a real crash-safety fix">06b2fe9</a></p>
-<p><code>bin/crystal-robots -m 3 robot1.cr robot2.cr ...</code> now runs seeded matches, CROBOTS style, and prints each robot's damage and the winner. The first real match exposed a real bug: a robot that crashed (dividing by zero, which at this point still raised an error) stopped its fiber before it could say “done”, and the match waited forever for an answer that would never come.</p>
+<p><code>bin/crystal-robots -m 3 robot1.cr robot2.cr ...</code> now runs matches with a fixed <a href="#word-seed">seed</a>, CROBOTS style, and prints each robot's damage and the winner. The first real match exposed a real bug: a robot that crashed (dividing by zero, which at this point still raised an error) stopped its fiber before it could say “done”, and the match waited forever for an answer that would never come.</p>
 <p>It first looked like a slow debug build. It wasn't: 100,000 rounds take 2.4 seconds in a release build. The fix is in the crashed robot's error handler, which now marks the robot dead <em>and</em> sends the pending “done” itself, so the round in progress finishes and later rounds skip it.</p>
 <p class="code-label">src/battle/match.cr</p>
-<pre><code>rescue
-  # A robot's own runtime error stops it, not the match -- but `run`
-  # never reached its next sync_step to report that ...
-  robot.status = :dead
-  done_ch.send(nil)
-end</code></pre>
 <p>Nobody wins the matches below: <code>counter</code> is destroyed every time, and <code>sniper</code> and <code>rabbit</code> are still alive at the cycle limit.</p>
+<div class="diff-view" data-diff="c-c-6"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/06b2fe90c276d3c23e2088aae279a902fb094f25">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 06b2fe9
 shards build --release
 bin/crystal-robots -m 3 --seed 1 examples/sniper.cr examples/rabbit.cr examples/counter.cr</code></pre>
+<p class="cmd-note"><code>--release</code> builds a faster command, <code>-m 3</code> asks for three matches, and <code>--seed 1</code> repeats the same starting random choices. Look for three match results and a final score.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>match 1: 500000 rounds, sniper 10%, rabbit 0%, counter 100% (dead) -- no winner
 match 2: 500000 rounds, sniper 2%, rabbit 0%, counter 100% (dead) -- no winner
@@ -773,12 +790,12 @@ match 3: 500000 rounds, sniper 9%, rabbit 0%, counter 100% (dead) -- no winner</
 <p>Pools hold four robots, or three when the numbers don't divide evenly (nine robots make three pools of three, not 4 + 4 + 1). Everyone in a pool fights everyone else once: +1 for a win, -1 for a loss. A fight with no winner is refought with the next random seed, and after three tries it counts as 0-0 so the tournament always finishes. Ties in the standings are broken by a mini round-robin among just the tied robots.</p>
 <p>The engine never runs a battle itself. It is handed a function, “given these robots, this seed and this limit, who won?”, so the specs can script exact outcomes and the real battlefield plugs in later.</p>
 <p class="code-label">src/tournament/tournament.cr</p>
-<pre><code>alias FightFn = Proc(Array(String), Int32, Int32, String?)
-RETRY_LIMIT = 3</code></pre>
+<div class="diff-view" data-diff="c-t-1"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/7724a62e739081ab60d2ec40db8e0e05b428a953">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 7724a62
 crystal spec spec/tournament/tournament_spec.cr -v</code></pre>
+<p class="cmd-note">Look for named pool tests covering grouping, scoring, refights and ranking.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>CrystalRobots::Tournament
     makes one pool for 5 or fewer entrants
@@ -802,10 +819,12 @@ Finished in 818 microseconds
 <p>The robots that come out of the pools meet in a single-elimination bracket, seeded so the best pool finishers meet last and get the byes when the numbers aren't a power of two. Bracket matches are best of three.</p>
 <p>A real bug from testing the format by hand is fixed here the way the wiki records it: refights are capped at three for a whole match, not three per game, or one stubborn match could balloon into a dozen fights. A match still tied after that goes to the higher seed.</p>
 <p>The transcript ends with a real tournament: five example robots, on a real field, from a single <code>crystal eval</code>.</p>
+<div class="diff-view" data-diff="c-t-2"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/e1bf3e9b85243d42e699c89ab64bc8acff931cc0">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout e1bf3e9
 crystal eval '...'   # the full one-liner is in the commit message</code></pre>
+<p class="cmd-note"><code>crystal eval</code> runs the quoted tournament setup directly. Look for pool standings followed by bracket rounds and a champion.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>pool: 1. sniper 1
 pool: 2. rabbit 1
@@ -828,11 +847,13 @@ champion: sniper</code></pre>
 <h3>Phase U.1: version reports the check-in it was built from</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/0cd958cebaf75c02d198b4ba4310a7309d6c016b" data-subject="Phase U.1: version reports the check-in it was built from">0cd958c</a></p>
 <p>When a binary or a published page misbehaves, the first question is “built from what?” The version line now includes the commit it came from, read at compile time from a small file (<code>manifest.uuid</code>) that the project's version control keeps up to date.</p>
+<div class="diff-view" data-diff="c-u-1"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/0cd958cebaf75c02d198b4ba4310a7309d6c016b">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 0cd958c
 shards build
 bin/crystal-robots --version</code></pre>
+<p class="cmd-note"><code>--version</code> now prints a short check-in identifier beside the version number. Look for both on one line.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>crystal-robots 0.0.1 (check-in 492fcf474b)</code></pre>
 </div>
@@ -843,15 +864,18 @@ bin/crystal-robots --version</code></pre>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/83b949dc8b4c10cf5d330a7151faf0023bef7a3d" data-subject="Phase U.2: crystal and riscv emitter placeholders">83b949d</a></p>
 <p>Two empty files reserve room for ideas the maintainer jotted down early on: a back end that turns robots into Crystal source, and one that targets RISC-V processors. Nothing uses them yet.</p>
 
+<div class="diff-view" data-diff="c-u-2"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/83b949dc8b4c10cf5d330a7151faf0023bef7a3d">See the whole change on GitHub</a>.</p></div>
 </section>
 <section class="commit" id="c-u-3">
 <h3>Phase U.3: versioned robots/*.md</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/54dd239b3915518f271de9d72157f40412dce507" data-subject="Phase U.3: versioned robots/*.md">54dd239</a></p>
 <p>Five more robots ship with the project, each as a short Markdown page: a description of its strategy and the CROBOTS-era idea behind it, followed by exactly one code block, the robot. <code>hunter</code>, <code>circler</code>, <code>dodger</code>, <code>turret</code> and <code>wallhugger</code> are better opponents than the bare examples, and their prose doubles as tactics notes for new robot writers. A spec checks that each file has exactly one code block and that it parses and passes the checker.</p>
+<div class="diff-view" data-diff="c-u-3"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/54dd239b3915518f271de9d72157f40412dce507">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 54dd239
 crystal spec spec/robots_spec.cr -v</code></pre>
+<p class="cmd-note">The path runs only the shipped-robot tests; <code>-v</code> names each one. Look for all five strategies to parse and check cleanly.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>robots/*.md
   ships a handful of them
@@ -869,10 +893,12 @@ Finished in 28.55 milliseconds
 <h3>Phase U.4: the robot API reference</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/dbe3f42a5b3cfa124e0405cbaf086d7cd7acfa14" data-subject="Phase U.4: the robot API reference">dbe3f42</a></p>
 <p>“What can my robot call?” is the question every new robot writer asks first. <code>RobotAPI</code> answers it in one table: every builtin with a plain-worded description, what it gives back, its cycle cost and an example, grouped as Sense, Move, Shoot, Math and Output. Because that table is written by hand, a spec compares it against the list of builtins the interpreter really handles, so a builtin can't go undocumented and a documented one can't be made up. The browser editor and the manual later read their reference from this same table.</p>
+<div class="diff-view" data-diff="c-u-4"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/dbe3f42a5b3cfa124e0405cbaf086d7cd7acfa14">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout dbe3f42
 crystal spec spec/web/robot_api_spec.cr -v</code></pre>
+<p class="cmd-note">The path runs the reference tests; <code>-v</code> names each one. Look for the check that its builtin names match the interpreter.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>CrystalRobots::Web::RobotAPI
 ...
@@ -887,10 +913,12 @@ Finished in 3.49 milliseconds
 <h3>Phase U.6: scripts/ci.sh as the one CI command</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/7d865ea36e3df1f56a2ef90dc551d0c2de392567" data-subject="Phase U.6: scripts/ci.sh as the one CI command">7d865ea</a></p>
 <p>A project built on a laptop, a CI server and later a web host needs one command that means “this revision is good”. <code>scripts/ci.sh</code> installs dependencies, builds, runs the specs, checks formatting and smoke-tests the command line. With <code>--with-wasmer</code> it also installs wasmer inside the checkout and runs the WebAssembly specs for real. Without it they are reported as pending, which is a visible signal, never a quietly tolerated failure.</p>
+<div class="diff-view" data-diff="c-u-6"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/7d865ea36e3df1f56a2ef90dc551d0c2de392567">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 7d865ea
 scripts/ci.sh --with-wasmer</code></pre>
+<p class="cmd-note"><code>--with-wasmer</code> includes the compiled-robot specs in this one check command. Look for no failures or pending specs and the final green line.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>== shards install
 == bootstrap build

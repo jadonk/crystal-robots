@@ -1,0 +1,730 @@
+{
+  "sha": "26c7fe9e081729871d2def303feab806935b5ad4",
+  "subject": "Phase T.2: tournament bracket",
+  "summary": "Pool winners can meet in a seeded elimination bracket.",
+  "files": [
+    {
+      "path": "spec/tournament/tournament_spec.cr",
+      "added": 93,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "src/tournament/tournament.cr",
+      "added": 139,
+      "removed": 4,
+      "role": "Runs the project command."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/tournament/tournament.cr",
+      "note": "The [[bracket|#word-bracket]] places the highest ranked robots apart and gives an empty slot, called a bye, to a top seed when needed. This carries the pool standings into the final rounds.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 187
+        },
+        {
+          "kind": "+",
+          "text": "  # The standard seeded-bracket slot order (1 vs N, 2 vs N-1, ...",
+          "old": null,
+          "new": 188
+        },
+        {
+          "kind": "+",
+          "text": "  # without seed 2 ever meeting seed 1 before the final): for n=4,",
+          "old": null,
+          "new": 189
+        },
+        {
+          "kind": "+",
+          "text": "  # [1,4,2,3]; for n=8, [1,8,4,5,2,7,3,6].",
+          "old": null,
+          "new": 190
+        },
+        {
+          "kind": "+",
+          "text": "  private def self.seed_order(n : Int32) : Array(Int32)",
+          "old": null,
+          "new": 191
+        },
+        {
+          "kind": "+",
+          "text": "    return [1] if n <= 1",
+          "old": null,
+          "new": 192
+        },
+        {
+          "kind": "+",
+          "text": "    seed_order(n // 2).flat_map { |s| [s, n + 1 - s] }",
+          "old": null,
+          "new": 193
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 194
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 195
+        },
+        {
+          "kind": "+",
+          "text": "  # Seeds beyond `advancers.size` are byes (nil): with 3 advancers",
+          "old": null,
+          "new": 196
+        },
+        {
+          "kind": "+",
+          "text": "  # this gives \"2 vs 3, winner vs 1\" (seed 1 gets the bye, matching",
+          "old": null,
+          "new": 197
+        },
+        {
+          "kind": "+",
+          "text": "  # the wiki page's 5-or-fewer answer exactly); with 6 advancers in",
+          "old": null,
+          "new": 198
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  # an 8-slot bracket, seeds 1 and 2 get the byes.",
+          "old": null,
+          "new": 199
+        },
+        {
+          "kind": "+",
+          "text": "  private def self.bracket_slots(advancers : Array(String), size : Int32) : Array(String?)",
+          "old": null,
+          "new": 200
+        },
+        {
+          "kind": "+",
+          "text": "    seed_order(size).map { |s| s <= advancers.size ? advancers[s - 1] : nil }",
+          "old": null,
+          "new": 201
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 202
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 203
+        },
+        {
+          "kind": "+",
+          "text": "  # One bracket match: a bye (one slot empty) auto-advances the other",
+          "old": null,
+          "new": 204
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "  # entrant with no games played. Otherwise up to RETRY_LIMIT attempts",
+          "old": null,
+          "new": 205
+        },
+        {
+          "kind": "+",
+          "text": "  # total -- the same shared budget a pool pairing gets, not a fresh",
+          "old": null,
+          "new": 206
+        },
+        {
+          "kind": "+",
+          "text": "  # RETRY_LIMIT for each of up to 3 games -- stopping as soon as",
+          "old": null,
+          "new": 207
+        },
+        {
+          "kind": "+",
+          "text": "  # either entrant reaches 2 wins. A match still tied (including 0-0,",
+          "old": null,
+          "new": 208
+        },
+        {
+          "kind": "+",
+          "text": "  # every attempt a no-winner) after that budget is spent falls back",
+          "old": null,
+          "new": 209
+        },
+        {
+          "kind": "+",
+          "text": "  # to the first-listed, higher-seeded entrant: this needs no further",
+          "old": null,
+          "new": 210
+        },
+        {
+          "kind": "+",
+          "text": "  # information from a fight, the same way pool play's 0-0 does not,",
+          "old": null,
+          "new": 211
+        },
+        {
+          "kind": "+",
+          "text": "  # unlike the wiki page's very first idea (\"less damage wins\").",
+          "old": null,
+          "new": 212
+        },
+        {
+          "kind": "+",
+          "text": "  def self.play_match(a : String?, b : String?, cursor : Cursor, limit : Int32, fight : FightFn) : BracketMatch",
+          "old": null,
+          "new": 213
+        },
+        {
+          "kind": "+",
+          "text": "    log = [] of FightRecord",
+          "old": null,
+          "new": 214
+        },
+        {
+          "kind": "+",
+          "text": "    if a.nil? || b.nil?",
+          "old": null,
+          "new": 215
+        },
+        {
+          "kind": "+",
+          "text": "      winner = a || b || raise ArgumentError.new(\"bracket match with both slots empty\")",
+          "old": null,
+          "new": 216
+        }
+      ],
+      "line_notes": {
+        " : nil }": "`nil` means this bracket slot has no robot, so the paired robot gets a bye."
+      }
+    },
+    {
+      "file": "src/tournament/tournament.cr",
+      "note": "A bracket match uses at most three fight attempts and stops when one robot has two wins. If those attempts leave a tie, the higher seed advances, so the tournament always finishes.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "    seed_order(size).map { |s| s <= advancers.size ? advancers[s - 1] : nil }",
+          "old": null,
+          "new": 201
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 202
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 203
+        },
+        {
+          "kind": "+",
+          "text": "  # One bracket match: a bye (one slot empty) auto-advances the other",
+          "old": null,
+          "new": 204
+        },
+        {
+          "kind": "+",
+          "text": "  # entrant with no games played. Otherwise up to RETRY_LIMIT attempts",
+          "old": null,
+          "new": 205
+        },
+        {
+          "kind": "+",
+          "text": "  # total -- the same shared budget a pool pairing gets, not a fresh",
+          "old": null,
+          "new": 206
+        },
+        {
+          "kind": "+",
+          "text": "  # RETRY_LIMIT for each of up to 3 games -- stopping as soon as",
+          "old": null,
+          "new": 207
+        },
+        {
+          "kind": "+",
+          "text": "  # either entrant reaches 2 wins. A match still tied (including 0-0,",
+          "old": null,
+          "new": 208
+        },
+        {
+          "kind": "+",
+          "text": "  # every attempt a no-winner) after that budget is spent falls back",
+          "old": null,
+          "new": 209
+        },
+        {
+          "kind": "+",
+          "text": "  # to the first-listed, higher-seeded entrant: this needs no further",
+          "old": null,
+          "new": 210
+        },
+        {
+          "kind": "+",
+          "text": "  # information from a fight, the same way pool play's 0-0 does not,",
+          "old": null,
+          "new": 211
+        },
+        {
+          "kind": "+",
+          "text": "  # unlike the wiki page's very first idea (\"less damage wins\").",
+          "old": null,
+          "new": 212
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  def self.play_match(a : String?, b : String?, cursor : Cursor, limit : Int32, fight : FightFn) : BracketMatch",
+          "old": null,
+          "new": 213
+        },
+        {
+          "kind": "+",
+          "text": "    log = [] of FightRecord",
+          "old": null,
+          "new": 214
+        },
+        {
+          "kind": "+",
+          "text": "    if a.nil? || b.nil?",
+          "old": null,
+          "new": 215
+        },
+        {
+          "kind": "+",
+          "text": "      winner = a || b || raise ArgumentError.new(\"bracket match with both slots empty\")",
+          "old": null,
+          "new": 216
+        },
+        {
+          "kind": "+",
+          "text": "      return BracketMatch.new([a, b], log, winner)",
+          "old": null,
+          "new": 217
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 218
+        },
+        {
+          "kind": "+",
+          "text": "    wins = Hash(String, Int32).new(0)",
+          "old": null,
+          "new": 219
+        },
+        {
+          "kind": "+",
+          "text": "    RETRY_LIMIT.times do",
+          "old": null,
+          "new": 220
+        },
+        {
+          "kind": "+",
+          "text": "      seed_used = cursor.next!",
+          "old": null,
+          "new": 221
+        },
+        {
+          "kind": "+",
+          "text": "      game_winner = fight.call([a, b], seed_used, limit)",
+          "old": null,
+          "new": 222
+        },
+        {
+          "kind": "+",
+          "text": "      log << FightRecord.new([a, b], seed_used, game_winner)",
+          "old": null,
+          "new": 223
+        },
+        {
+          "kind": "+",
+          "text": "      wins[game_winner] += 1 if game_winner",
+          "old": null,
+          "new": 224
+        },
+        {
+          "kind": "+",
+          "text": "      break if wins[a] >= 2 || wins[b] >= 2",
+          "old": null,
+          "new": 225
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 226
+        },
+        {
+          "kind": "+",
+          "text": "    winner = wins[a] > wins[b] ? a : (wins[b] > wins[a] ? b : a)",
+          "old": null,
+          "new": 227
+        },
+        {
+          "kind": "+",
+          "text": "    BracketMatch.new([a, b] of String?, log, winner)",
+          "old": null,
+          "new": 228
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 229
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 230
+        },
+        {
+          "kind": "+",
+          "text": "  private def self.round_label(total_rounds : Int32, index : Int32) : String",
+          "old": null,
+          "new": 231
+        },
+        {
+          "kind": "+",
+          "text": "    case total_rounds - index",
+          "old": null,
+          "new": 232
+        },
+        {
+          "kind": "+",
+          "text": "    when 1 then \"Final\"",
+          "old": null,
+          "new": 233
+        },
+        {
+          "kind": "+",
+          "text": "    when 2 then \"Semifinal\"",
+          "old": null,
+          "new": 234
+        },
+        {
+          "kind": "+",
+          "text": "    when 3 then \"Quarterfinal\"",
+          "old": null,
+          "new": 235
+        },
+        {
+          "kind": "+",
+          "text": "    else        \"Round of #{2 ** (total_rounds - index)}\"",
+          "old": null,
+          "new": 236
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 237
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 238
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 239
+        },
+        {
+          "kind": "+",
+          "text": "  private def self.total_rounds_for(advancer_count : Int32) : Int32",
+          "old": null,
+          "new": 240
+        },
+        {
+          "kind": "+",
+          "text": "    size = next_pow2(advancer_count)",
+          "old": null,
+          "new": 241
+        }
+      ],
+      "line_notes": {
+        "RETRY_LIMIT.times": "The entire match gets at most three fight attempts, including refights with no winner."
+      }
+    },
+    {
+      "file": "spec/tournament/tournament_spec.cr",
+      "note": "The test checks a three-robot bracket: second plays third, then that winner meets first. It proves that the top seed gets the bye.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "      pools = T.play_pools([\"X\", \"Y\", \"Z\"], 1, 100, default_fight)",
+          "old": 106,
+          "new": 106
+        },
+        {
+          "kind": " ",
+          "text": "      T.advancers(pools).should eq [\"X\", \"Y\", \"Z\"]",
+          "old": 107,
+          "new": 107
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 108,
+          "new": 108
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 109,
+          "new": 109
+        },
+        {
+          "kind": " ",
+          "text": "    it \"takes every pool's winner, then every runner-up, in pool order\" do",
+          "old": 110,
+          "new": 110
+        },
+        {
+          "kind": " ",
+          "text": "      names = (0..8).map { |i| \"E#{i}\" } # 9 entrants -> 3 pools of 3",
+          "old": 111,
+          "new": 111
+        },
+        {
+          "kind": " ",
+          "text": "      pools = T.play_pools(names, 1, 100, default_fight)",
+          "old": 112,
+          "new": 112
+        },
+        {
+          "kind": " ",
+          "text": "      T.advancers(pools).should eq [\"E0\", \"E3\", \"E6\", \"E1\", \"E4\", \"E7\"]",
+          "old": 113,
+          "new": 113
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 114,
+          "new": 114
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 115,
+          "new": 115
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 116
+        },
+        {
+          "kind": "+",
+          "text": "  describe \".run (pools then the bracket)\" do",
+          "old": null,
+          "new": 117
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "    it \"builds the 3-entrant bracket: 2nd vs 3rd, winner meets 1st in the final\" do",
+          "old": null,
+          "new": 118
+        },
+        {
+          "kind": "+",
+          "text": "      names = [\"X\", \"Y\", \"Z\"]",
+          "old": null,
+          "new": 119
+        },
+        {
+          "kind": "+",
+          "text": "      pools, rounds, champion = T.run(names, 1, 100, default_fight)",
+          "old": null,
+          "new": 120
+        },
+        {
+          "kind": "+",
+          "text": "      rounds.size.should eq 2",
+          "old": null,
+          "new": 121
+        },
+        {
+          "kind": "+",
+          "text": "      rounds[0].label.should eq \"Semifinal\"",
+          "old": null,
+          "new": 122
+        },
+        {
+          "kind": "+",
+          "text": "      rounds[1].label.should eq \"Final\"",
+          "old": null,
+          "new": 123
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 124
+        },
+        {
+          "kind": "+",
+          "text": "      bye, second = rounds[0].matches",
+          "old": null,
+          "new": 125
+        },
+        {
+          "kind": "+",
+          "text": "      bye.entrants.should eq [\"X\", nil] # X vs an empty slot (a bye)",
+          "old": null,
+          "new": 126
+        },
+        {
+          "kind": "+",
+          "text": "      bye.games.should be_empty",
+          "old": null,
+          "new": 127
+        },
+        {
+          "kind": "+",
+          "text": "      bye.winner.should eq \"X\"",
+          "old": null,
+          "new": 128
+        },
+        {
+          "kind": "+",
+          "text": "      second.entrants.should eq [\"Y\", \"Z\"]",
+          "old": null,
+          "new": 129
+        },
+        {
+          "kind": "+",
+          "text": "      second.games.size.should eq 2 # Y wins the first two games 2-0, no third game needed",
+          "old": null,
+          "new": 130
+        },
+        {
+          "kind": "+",
+          "text": "      second.winner.should eq \"Y\"",
+          "old": null,
+          "new": 131
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 132
+        },
+        {
+          "kind": "+",
+          "text": "      final = rounds[1].matches[0]",
+          "old": null,
+          "new": 133
+        },
+        {
+          "kind": "+",
+          "text": "      final.entrants.should eq [\"X\", \"Y\"]",
+          "old": null,
+          "new": 134
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      final.winner.should eq \"X\"",
+          "old": null,
+          "new": 135
+        },
+        {
+          "kind": "+",
+          "text": "      champion.should eq \"X\"",
+          "old": null,
+          "new": 136
+        },
+        {
+          "kind": "+",
+          "text": "      pools[0].fights.size.should eq 3",
+          "old": null,
+          "new": 137
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 138
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 139
+        },
+        {
+          "kind": "+",
+          "text": "    it \"gives the highest seeds byes in a quarter round for 6 advancers\" do",
+          "old": null,
+          "new": 140
+        },
+        {
+          "kind": "+",
+          "text": "      names = (0..8).map { |i| \"E#{i}\" } # 9 entrants -> 3 pools of 3",
+          "old": null,
+          "new": 141
+        },
+        {
+          "kind": "+",
+          "text": "      _, rounds, champion = T.run(names, 1, 100, default_fight)",
+          "old": null,
+          "new": 142
+        },
+        {
+          "kind": "+",
+          "text": "      rounds.size.should eq 3",
+          "old": null,
+          "new": 143
+        },
+        {
+          "kind": "+",
+          "text": "      rounds[0].label.should eq \"Quarterfinal\"",
+          "old": null,
+          "new": 144
+        },
+        {
+          "kind": "+",
+          "text": "      rounds[1].label.should eq \"Semifinal\"",
+          "old": null,
+          "new": 145
+        },
+        {
+          "kind": "+",
+          "text": "      rounds[2].label.should eq \"Final\"",
+          "old": null,
+          "new": 146
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

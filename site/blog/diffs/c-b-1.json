@@ -1,0 +1,403 @@
+{
+  "sha": "5729f6bd6bc3e479a6a78906a29ebb77c36b68ed",
+  "subject": "Phase B.1: comments and true/false literals",
+  "summary": "Robots can use comments and true or false in their programs.",
+  "files": [
+    {
+      "path": "spec/interpreter_spec.cr",
+      "added": 9,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 4,
+      "removed": 0,
+      "role": "Checks which robot programs the parser accepts."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 4,
+      "removed": 0,
+      "role": "Checks the instructions written for robot programs."
+    },
+    {
+      "path": "src/compiler/interpreter.cr",
+      "added": 2,
+      "removed": 0,
+      "role": "Runs robot steps directly so their behavior can be checked."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 7,
+      "removed": 3,
+      "role": "Groups the words and symbols in a robot program into meaningful steps."
+    },
+    {
+      "path": "src/compiler/program.cr",
+      "added": 2,
+      "removed": 0,
+      "role": "Builds or runs a robot program."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 2,
+      "removed": 0,
+      "role": "Turns robot steps into WebAssembly instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/parser.cr",
+      "note": "The parser now recognizes `true` and `false` as values, and skips text after `#`. A robot can label its plan in comments and write `while true` for a lasting loop.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "      getter name : Symbol, regex : Regex, type : Type",
+          "old": 23,
+          "new": 24
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 24,
+          "new": 25
+        },
+        {
+          "kind": " ",
+          "text": "      def initialize(@name : Symbol, @regex : Regex, @type : Type)",
+          "old": 25,
+          "new": 26
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 26,
+          "new": 27
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 27,
+          "new": 28
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 28,
+          "new": 29
+        },
+        {
+          "kind": " ",
+          "text": "    KEYWORDS = {",
+          "old": 29,
+          "new": 30
+        },
+        {
+          "kind": " ",
+          "text": "      \"global\" => Type::GlobalKeyword,",
+          "old": 30,
+          "new": 31
+        },
+        {
+          "kind": " ",
+          "text": "      \"while\" => Type::WhileKeyword, \"until\" => Type::UntilKeyword,",
+          "old": 31,
+          "new": 32
+        },
+        {
+          "kind": " ",
+          "text": "      \"end\" => Type::EndKeyword, \"break\" => Type::BreakKeyword,",
+          "old": 32,
+          "new": 33
+        },
+        {
+          "kind": " ",
+          "text": "      \"if\" => Type::IfKeyword, \"elsif\" => Type::ElsifKeyword, \"else\" => Type::ElseKeyword,",
+          "old": 33,
+          "new": 34
+        },
+        {
+          "kind": " ",
+          "text": "      \"def\" => Type::DefKeyword, \"return\" => Type::ReturnKeyword,",
+          "old": 34,
+          "new": 35
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "      \"main\" => Type::MainKeyword, \"do\" => Type::DoKeyword,",
+          "old": 35,
+          "new": 36
+        },
+        {
+          "kind": "+",
+          "text": "      \"true\" => Type::TrueKeyword, \"false\" => Type::FalseKeyword,",
+          "old": null,
+          "new": 37
+        },
+        {
+          "kind": " ",
+          "text": "      \"damage\" => Type::ZeroArgMethod, \"speed\" => Type::ZeroArgMethod, \"loc_x\" => Type::ZeroArgMethod,",
+          "old": 36,
+          "new": 38
+        },
+        {
+          "kind": " ",
+          "text": "      \"loc_y\" => Type::ZeroArgMethod, \"sleep\" => Type::ZeroArgMethod,",
+          "old": 37,
+          "new": 39
+        },
+        {
+          "kind": " ",
+          "text": "      \"puts\" => Type::OneArgMethod, \"rand\" => Type::OneArgMethod, \"sqrt\" => Type::OneArgMethod,",
+          "old": 38,
+          "new": 40
+        },
+        {
+          "kind": " ",
+          "text": "      \"sin\" => Type::OneArgMethod, \"cos\" => Type::OneArgMethod, \"tan\" => Type::OneArgMethod,",
+          "old": 39,
+          "new": 41
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "      \"atan\" => Type::OneArgMethod,",
+          "old": 40,
+          "new": 42
+        },
+        {
+          "kind": " ",
+          "text": "      \"scan\" => Type::TwoArgMethod, \"cannon\" => Type::TwoArgMethod, \"drive\" => Type::TwoArgMethod,",
+          "old": 41,
+          "new": 43
+        },
+        {
+          "kind": " ",
+          "text": "    }",
+          "old": 42,
+          "new": 44
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 43,
+          "new": 45
+        },
+        {
+          "kind": " ",
+          "text": "    OPERATORS = {",
+          "old": 44,
+          "new": 46
+        },
+        {
+          "kind": " ",
+          "text": "      \"//\" => Type::FloorDivOperator, \"==\" => Type::EqOperator, \"!=\" => Type::NeOperator,",
+          "old": 45,
+          "new": 47
+        },
+        {
+          "kind": " ",
+          "text": "      \"<=\" => Type::LeOperator, \">=\" => Type::GeOperator,",
+          "old": 46,
+          "new": 48
+        },
+        {
+          "kind": " ",
+          "text": "      \"+\" => Type::AddOperator, \"-\" => Type::SubOperator, \"*\" => Type::MulOperator,",
+          "old": 47,
+          "new": 49
+        },
+        {
+          "kind": " ",
+          "text": "      \"/\" => Type::DivOperator, \"%\" => Type::ModOperator, \"=\" => Type::Assign,",
+          "old": 48,
+          "new": 50
+        },
+        {
+          "kind": " ",
+          "text": "      \"<\" => Type::LtOperator, \">\" => Type::GtOperator,",
+          "old": 49,
+          "new": 51
+        },
+        {
+          "kind": " ",
+          "text": "      \"(\" => Type::OpenParen, \")\" => Type::CloseParen, \",\" => Type::Comma,",
+          "old": 50,
+          "new": 52
+        },
+        {
+          "kind": " ",
+          "text": "    }",
+          "old": 51,
+          "new": 53
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/interpreter_spec.cr",
+      "note": "This [[spec|#word-test-spec]] runs a program with both kinds of comment and both values. The printed 1 and 0 show that comments do not change what the robot does.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    source = <<-ROBOT",
+          "old": 41,
+          "new": 41
+        },
+        {
+          "kind": " ",
+          "text": "      def fact(n)",
+          "old": 42,
+          "new": 42
+        },
+        {
+          "kind": " ",
+          "text": "      if n == 0",
+          "old": 43,
+          "new": 43
+        },
+        {
+          "kind": " ",
+          "text": "      return 1",
+          "old": 44,
+          "new": 44
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 45,
+          "new": 45
+        },
+        {
+          "kind": " ",
+          "text": "      n * fact(n - 1)",
+          "old": 46,
+          "new": 46
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 47,
+          "new": 47
+        },
+        {
+          "kind": " ",
+          "text": "      puts fact(5)",
+          "old": 48,
+          "new": 48
+        },
+        {
+          "kind": " ",
+          "text": "      ROBOT",
+          "old": 49,
+          "new": 49
+        },
+        {
+          "kind": " ",
+          "text": "    interpret_puts(source).should eq [120]",
+          "old": 50,
+          "new": 50
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 51,
+          "new": 51
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 52,
+          "new": 52
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  it \"treats true and false as 1 and 0, and ignores comments\" do",
+          "old": null,
+          "new": 53
+        },
+        {
+          "kind": "+",
+          "text": "    source = <<-ROBOT",
+          "old": null,
+          "new": 54
+        },
+        {
+          "kind": "+",
+          "text": "      # a leading comment",
+          "old": null,
+          "new": 55
+        },
+        {
+          "kind": "+",
+          "text": "      puts true # trailing",
+          "old": null,
+          "new": 56
+        },
+        {
+          "kind": "+",
+          "text": "      puts false",
+          "old": null,
+          "new": 57
+        },
+        {
+          "kind": "+",
+          "text": "      ROBOT",
+          "old": null,
+          "new": 58
+        },
+        {
+          "kind": "+",
+          "text": "    interpret_puts(source).should eq [1, 0]",
+          "old": null,
+          "new": 59
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 60
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 61
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "  it \"runs main last\" do",
+          "old": 53,
+          "new": 62
+        },
+        {
+          "kind": " ",
+          "text": "    interpret_puts(\"puts 1\\nmain(\\\"Test\\\") do\\nputs 2\\nend\\n\").should eq [1, 2]",
+          "old": 54,
+          "new": 63
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 55,
+          "new": 64
+        },
+        {
+          "kind": " ",
+          "text": "end",
+          "old": 56,
+          "new": 65
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

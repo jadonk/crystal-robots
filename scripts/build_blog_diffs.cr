@@ -30,6 +30,13 @@ if file = map_file
   end
 end
 
+# The Fossil CGI (src/web/ and spec/web/, apart from the robot API reference
+# the public site's cheat sheet is built from) stays out of the public story.
+def private_source?(path : String) : Bool
+  return false if path.ends_with?("robot_api.cr") || path.ends_with?("robot_api_spec.cr")
+  path.starts_with?("src/web/") || path.starts_with?("spec/web/") || path.includes?("fossil/cgi")
+end
+
 def git(*args : String) : String
   git_output = IO::Memory.new
   err = IO::Memory.new
@@ -55,21 +62,24 @@ entries.each do |id_any, entry_any|
   subject_match = section[1].match(/data-subject="([^"]+)"/)
   abort "#{id}: subject missing" unless subject_match
   subject = HTML.unescape(subject_match[1])
-  sha = overrides[subject]? || sha_for[subject]? || abort "#{id}: subject not on #{ref}: #{subject} (use --source or --map)"
+  mapped_sha = overrides[subject]?
+  sha = mapped_sha || sha_for[subject]? || abort "#{id}: subject not on #{ref}: #{subject} (use --source or --map)"
   actual = git("show", "-s", "--format=%s", sha).strip
-  abort "#{id}: #{sha} has subject #{actual.inspect}, expected #{subject.inspect}" unless actual == subject
+  abort "#{id}: #{sha} has subject #{actual.inspect}, expected #{subject.inspect}" unless mapped_sha || actual == subject
+  parent = git("rev-list", "--parents", "-n", "1", sha).split[1]? || git("hash-object", "-t", "tree", "--stdin").strip
   files = [] of NamedTuple(path: String, added: Int32, removed: Int32, role: String)
-  git("show", "--format=", "--numstat", sha).each_line do |line|
+  git("diff", "--numstat", parent, sha).each_line do |line|
     added, removed, path = line.rstrip.split('\t', 3)
-    next if {"manifest.uuid", "shard.lock"}.includes?(path)
+    next if {"manifest.uuid", "shard.lock"}.includes?(path) || private_source?(path)
     role = roles[path]?.try(&.to_s) || roles.find { |prefix, _| path.starts_with?(prefix.to_s) }.try(&.[1].to_s) || "Project file."
     files << {path: path, added: added.to_i? || 0, removed: removed.to_i? || 0, role: role}
   end
   excerpts = [] of NamedTuple(file: String, note: String, lines: Array(DiffLine), before: Array(DiffLine), after: Array(DiffLine), line_notes: Hash(String, String))
   entry["excerpts"].as_a.each do |ex|
     path = ex["file"].to_s
+    abort "#{id}: private source #{path}" if private_source?(path)
     anchor = ex["anchor"].to_s
-    diff = git("show", "--format=", "--unified=12", sha, "--", path)
+    diff = git("diff", "--unified=12", parent, sha, "--", path)
     hunks = [] of Array(DiffLine)
     current = nil.as(Array(DiffLine)?)
     old_no = 0

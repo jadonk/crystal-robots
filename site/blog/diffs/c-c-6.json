@@ -1,0 +1,471 @@
+{
+  "sha": "cf0bd543ace50a610dbb511fe6d2004ad09dab3e",
+  "subject": "Phase C.6: CLI wiring for matches, and a real crash-safety fix",
+  "summary": "The command can run seeded matches and finish when a robot crashes.",
+  "files": [
+    {
+      "path": "spec/battle/match_spec.cr",
+      "added": 10,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/cli_spec.cr",
+      "added": 9,
+      "removed": 0,
+      "role": "Checks what the command prints."
+    },
+    {
+      "path": "src/battle/match.cr",
+      "added": 11,
+      "removed": 3,
+      "role": "Runs the project command."
+    },
+    {
+      "path": "src/cli.cr",
+      "added": 41,
+      "removed": 1,
+      "role": "Reads command options and starts the requested action."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/battle/match.cr",
+      "note": "A crashing robot is marked dead and sends the waiting match its final answer. The other robots can finish the round instead of waiting forever.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "      @steps = @field.robots.map { Channel(Nil).new }",
+          "old": 34,
+          "new": 34
+        },
+        {
+          "kind": " ",
+          "text": "      @dones = @field.robots.map { Channel(Nil).new }",
+          "old": 35,
+          "new": 35
+        },
+        {
+          "kind": " ",
+          "text": "      @hosts = Array(RobotHost).new(@field.robots.size) { |i| RobotHost.new(@field, i) }",
+          "old": 36,
+          "new": 36
+        },
+        {
+          "kind": " ",
+          "text": "      programs.each_with_index do |program, i|",
+          "old": 37,
+          "new": 37
+        },
+        {
+          "kind": "-",
+          "text": "        step_ch, done_ch, host = @steps[i], @dones[i], @hosts[i]",
+          "old": 38,
+          "new": null
+        },
+        {
+          "kind": "-",
+          "text": "        spawn(name: @field.robots[i].name) do",
+          "old": 39,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "        step_ch, done_ch, host, robot = @steps[i], @dones[i], @hosts[i], @field.robots[i]",
+          "old": null,
+          "new": 38
+        },
+        {
+          "kind": "+",
+          "text": "        spawn(name: robot.name) do",
+          "old": null,
+          "new": 39
+        },
+        {
+          "kind": " ",
+          "text": "          interp = Compiler::Interpreter.new(program, host, costs)",
+          "old": 40,
+          "new": 40
+        },
+        {
+          "kind": " ",
+          "text": "          interp.step_channel = step_ch",
+          "old": 41,
+          "new": 41
+        },
+        {
+          "kind": " ",
+          "text": "          interp.done_channel = done_ch",
+          "old": 42,
+          "new": 42
+        },
+        {
+          "kind": " ",
+          "text": "          begin",
+          "old": 43,
+          "new": 43
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "            interp.run",
+          "old": 44,
+          "new": 44
+        },
+        {
+          "kind": " ",
+          "text": "          rescue",
+          "old": 45,
+          "new": 45
+        },
+        {
+          "kind": "-",
+          "text": "            # a robot's own runtime error just stops it, not the match",
+          "old": 46,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "            # A robot's own runtime error stops it, not the match -- but",
+          "old": null,
+          "new": 46
+        },
+        {
+          "kind": "+",
+          "text": "            # `run` never reached its next sync_step to report that, so",
+          "old": null,
+          "new": 47
+        },
+        {
+          "kind": "+",
+          "text": "            # `#run` below is (or will be) blocked on this round's",
+          "old": null,
+          "new": 48
+        },
+        {
+          "kind": "+",
+          "text": "            # `done_ch.receive` with nobody left to answer it. Marking",
+          "old": null,
+          "new": 49
+        },
+        {
+          "kind": "+",
+          "text": "            # the robot dead first means the *next* round's `alive?`",
+          "old": null,
+          "new": 50
+        },
+        {
+          "kind": "+",
+          "text": "            # check skips it either way; sending here unblocks the",
+          "old": null,
+          "new": 51
+        },
+        {
+          "kind": "+",
+          "text": "            # *current* one if that is where the crash landed.",
+          "old": null,
+          "new": 52
+        },
+        {
+          "kind": "+",
+          "text": "            robot.status = :dead",
+          "old": null,
+          "new": 53
+        },
+        {
+          "kind": "+",
+          "text": "            done_ch.send(nil)",
+          "old": null,
+          "new": 54
+        },
+        {
+          "kind": " ",
+          "text": "          end",
+          "old": 47,
+          "new": 55
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "        end",
+          "old": 48,
+          "new": 56
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 49,
+          "new": 57
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 50,
+          "new": 58
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 51,
+          "new": 59
+        },
+        {
+          "kind": " ",
+          "text": "    # Runs to completion: every robot dead but at most one, or the cycle",
+          "old": 52,
+          "new": 60
+        },
+        {
+          "kind": " ",
+          "text": "    # limit reached.",
+          "old": 53,
+          "new": 61
+        },
+        {
+          "kind": " ",
+          "text": "    def run : Nil",
+          "old": 54,
+          "new": 62
+        },
+        {
+          "kind": " ",
+          "text": "      countdown = MOTION_CYCLES",
+          "old": 55,
+          "new": 63
+        },
+        {
+          "kind": " ",
+          "text": "      while @field.robots.count(&.alive?) > 1 && @rounds < @cycle_limit",
+          "old": 56,
+          "new": 64
+        },
+        {
+          "kind": " ",
+          "text": "        @field.robots.each_with_index { |r, i| @dones[i].receive if r.alive? }",
+          "old": 57,
+          "new": 65
+        },
+        {
+          "kind": " ",
+          "text": "        @rounds += 1",
+          "old": 58,
+          "new": 66
+        }
+      ],
+      "line_notes": {
+        "done_ch.send(nil)": "Send the missing finish signal so the match does not wait forever after a crash."
+      }
+    },
+    {
+      "file": "spec/battle/match_spec.cr",
+      "note": "The test makes one robot divide by zero and lets another keep running. It checks that the match ends and the crashed robot is dead.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    field.robots[0].alive?.should be_false",
+          "old": 47,
+          "new": 47
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 48,
+          "new": 48
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 49,
+          "new": 49
+        },
+        {
+          "kind": " ",
+          "text": "  it \"runs a real robot (target.cr) cooperatively without hanging\" do",
+          "old": 50,
+          "new": 50
+        },
+        {
+          "kind": " ",
+          "text": "    source = File.read(\"examples/target.cr\")",
+          "old": 51,
+          "new": 51
+        },
+        {
+          "kind": " ",
+          "text": "    field = BattleField.new([\"Target\", \"Other\"], seed: 1)",
+          "old": 52,
+          "new": 52
+        },
+        {
+          "kind": " ",
+          "text": "    other = program(\"while true\\nend\\n\")",
+          "old": 53,
+          "new": 53
+        },
+        {
+          "kind": " ",
+          "text": "    match = Match.new(field, [program(source), other], cycle_limit: 50)",
+          "old": 54,
+          "new": 54
+        },
+        {
+          "kind": " ",
+          "text": "    match.run",
+          "old": 55,
+          "new": 55
+        },
+        {
+          "kind": " ",
+          "text": "    match.rounds.should eq 50",
+          "old": 56,
+          "new": 56
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 57,
+          "new": 57
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 58,
+          "new": 58
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  it \"marks a robot dead on a runtime crash, rather than hanging the match\" do",
+          "old": null,
+          "new": 59
+        },
+        {
+          "kind": "+",
+          "text": "    crasher = program(\"puts 1 / 0\\nwhile true\\nend\\n\") # divide by zero: a known interpreter gap, raises",
+          "old": null,
+          "new": 60
+        },
+        {
+          "kind": "+",
+          "text": "    survives = program(\"global(i, 0)\\nwhile true\\ni += 1\\nend\\n\")",
+          "old": null,
+          "new": 61
+        },
+        {
+          "kind": "+",
+          "text": "    field = BattleField.new([\"crasher\", \"survives\"], seed: 1)",
+          "old": null,
+          "new": 62
+        },
+        {
+          "kind": "+",
+          "text": "    match = Match.new(field, [crasher, survives], cycle_limit: 1000)",
+          "old": null,
+          "new": 63
+        },
+        {
+          "kind": "+",
+          "text": "    match.run",
+          "old": null,
+          "new": 64
+        },
+        {
+          "kind": "+",
+          "text": "    field.robots[0].alive?.should be_false",
+          "old": null,
+          "new": 65
+        },
+        {
+          "kind": "+",
+          "text": "    match.rounds.should be > 0",
+          "old": null,
+          "new": 66
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 67
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 68
+        },
+        {
+          "kind": " ",
+          "text": "  it \"drives a robot to actually move via the field\" do",
+          "old": 59,
+          "new": 69
+        },
+        {
+          "kind": " ",
+          "text": "    mover = program(<<-ROBOT)",
+          "old": 60,
+          "new": 70
+        },
+        {
+          "kind": " ",
+          "text": "      main(\"Mover\") do",
+          "old": 61,
+          "new": 71
+        },
+        {
+          "kind": " ",
+          "text": "      drive(0, 100)",
+          "old": 62,
+          "new": 72
+        },
+        {
+          "kind": " ",
+          "text": "      while true",
+          "old": 63,
+          "new": 73
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 64,
+          "new": 74
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 65,
+          "new": 75
+        },
+        {
+          "kind": " ",
+          "text": "      ROBOT",
+          "old": 66,
+          "new": 76
+        },
+        {
+          "kind": " ",
+          "text": "    waiter = program(\"while true\\nend\\n\")",
+          "old": 67,
+          "new": 77
+        },
+        {
+          "kind": " ",
+          "text": "    field = BattleField.new([\"Mover\", \"Waiter\"], seed: 1)",
+          "old": 68,
+          "new": 78
+        },
+        {
+          "kind": " ",
+          "text": "    starting_x = field.robots[0].x",
+          "old": 69,
+          "new": 79
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

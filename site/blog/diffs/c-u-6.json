@@ -1,0 +1,188 @@
+{
+  "sha": "771066e009f747f15545d40cff43757d475415c1",
+  "subject": "Phase U.6: scripts/ci.sh as the one CI command",
+  "summary": "One CI command can build and check the whole project.",
+  "files": [
+    {
+      "path": "scripts/ci.sh",
+      "added": 90,
+      "removed": 0,
+      "role": "Builds and checks the project in one command."
+    },
+    {
+      "path": "scripts/install_wasmer.sh",
+      "added": 453,
+      "removed": 0,
+      "role": "Helps build or check the project."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "scripts/ci.sh",
+      "note": "The [[CI|#word-ci]] script runs the specs and checks code formatting after building. With the Wasmer option, the compiled robot tests run too, so one command gives a clear result for a check-in.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "    # bin/wasmer is found, so a partial install is cleared first.",
+          "old": null,
+          "new": 65
+        },
+        {
+          "kind": "+",
+          "text": "    rm -rf ./.wasmer",
+          "old": null,
+          "new": 66
+        },
+        {
+          "kind": "+",
+          "text": "    mkdir -p \"$WASMER_DIR/tmp\"",
+          "old": null,
+          "new": 67
+        },
+        {
+          "kind": "+",
+          "text": "    : > \"$WASMER_DIR/profile.sh\"",
+          "old": null,
+          "new": 68
+        },
+        {
+          "kind": "+",
+          "text": "    PROFILE=\"$WASMER_DIR/profile.sh\" TMPDIR=\"$WASMER_DIR/tmp\" WASMER_INSTALL_LOG=quiet \\",
+          "old": null,
+          "new": 69
+        },
+        {
+          "kind": "+",
+          "text": "      sh scripts/install_wasmer.sh v4.4.0",
+          "old": null,
+          "new": 70
+        },
+        {
+          "kind": "+",
+          "text": "    rm -rf \"$WASMER_DIR/tmp\"",
+          "old": null,
+          "new": 71
+        },
+        {
+          "kind": "+",
+          "text": "  fi",
+          "old": null,
+          "new": 72
+        },
+        {
+          "kind": "+",
+          "text": "  export PATH=\"$WASMER_DIR/bin:$PATH\"",
+          "old": null,
+          "new": 73
+        },
+        {
+          "kind": "+",
+          "text": "  \"$WASMER_DIR/bin/wasmer\" --version",
+          "old": null,
+          "new": 74
+        },
+        {
+          "kind": "+",
+          "text": "  spec_flags=\"-Dwasmer\"",
+          "old": null,
+          "new": 75
+        },
+        {
+          "kind": "+",
+          "text": "fi",
+          "old": null,
+          "new": 76
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 77
+        },
+        {
+          "kind": "+",
+          "text": "step \"crystal spec $spec_flags\"",
+          "old": null,
+          "new": 78
+        },
+        {
+          "kind": "+",
+          "text": "crystal spec $spec_flags",
+          "old": null,
+          "new": 79
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 80
+        },
+        {
+          "kind": "+",
+          "text": "step \"crystal tool format --check\"",
+          "old": null,
+          "new": 81
+        },
+        {
+          "kind": "+",
+          "text": "crystal tool format --check src spec scripts",
+          "old": null,
+          "new": 82
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 83
+        },
+        {
+          "kind": "+",
+          "text": "step \"CLI smoke\"",
+          "old": null,
+          "new": 84
+        },
+        {
+          "kind": "+",
+          "text": "bin/crystal-robots -v >/dev/null",
+          "old": null,
+          "new": 85
+        },
+        {
+          "kind": "+",
+          "text": "bin/crystal-robots -t examples/hello.cr >/dev/null",
+          "old": null,
+          "new": 86
+        },
+        {
+          "kind": "+",
+          "text": "bin/crystal-robots -c examples/hello.cr -o bin/smoke.wasm",
+          "old": null,
+          "new": 87
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "bin/crystal-robots -m 1 -l 3000 examples/counter.cr examples/target.cr >/dev/null",
+          "old": null,
+          "new": 88
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 89
+        },
+        {
+          "kind": "+",
+          "text": "printf '\\n== ci.sh: all green%s\\n' \"$([ \"$with_wasmer\" = 1 ] && echo ' (with wasmer)')\"",
+          "old": null,
+          "new": 90
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

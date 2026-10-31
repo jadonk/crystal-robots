@@ -1,0 +1,610 @@
+{
+  "sha": "cb5890c34a138030d4c4a262f585790ce27f7dd3",
+  "subject": "Phase C.5: interleaving robots into real matches",
+  "summary": "Several robots can take turns in one real match.",
+  "files": [
+    {
+      "path": "spec/battle/match_spec.cr",
+      "added": 74,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/battle/robot_host_spec.cr",
+      "added": 0,
+      "removed": 1,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 3,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "src/battle/match.cr",
+      "added": 69,
+      "removed": 0,
+      "role": "Runs the project command."
+    },
+    {
+      "path": "src/compiler/interpreter.cr",
+      "added": 29,
+      "removed": 0,
+      "role": "Runs robot steps directly so their behavior can be checked."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/interpreter.cr",
+      "note": "Each interpreter reports that it finished a step, then waits for permission to continue. These one-place [[channels|#word-channel]] let the match alternate robots even when one has an endless loop.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 195,
+          "new": 214
+        },
+        {
+          "kind": " ",
+          "text": "      main_stmts.each { |s| exec_statement(s, scope) }",
+          "old": 196,
+          "new": 215
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 197,
+          "new": 216
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 198,
+          "new": 217
+        },
+        {
+          "kind": " ",
+          "text": "    private def body_of(block : Int32) : Array(Int32)",
+          "old": 199,
+          "new": 218
+        },
+        {
+          "kind": " ",
+          "text": "      @program.children(block).select { |i| @program.type(i) == Type::Statement }",
+          "old": 200,
+          "new": 219
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 201,
+          "new": 220
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 202,
+          "new": 221
+        },
+        {
+          "kind": " ",
+          "text": "    private def charge(n : Int32) : Nil",
+          "old": 203,
+          "new": 222
+        },
+        {
+          "kind": " ",
+          "text": "      @cycles += n",
+          "old": 204,
+          "new": 223
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 205,
+          "new": 224
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 206,
+          "new": 225
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "    private def sync_step : Nil",
+          "old": null,
+          "new": 226
+        },
+        {
+          "kind": "+",
+          "text": "      d = @done_channel",
+          "old": null,
+          "new": 227
+        },
+        {
+          "kind": "+",
+          "text": "      s = @step_channel",
+          "old": null,
+          "new": 228
+        },
+        {
+          "kind": "+",
+          "text": "      return unless d && s",
+          "old": null,
+          "new": 229
+        },
+        {
+          "kind": "+",
+          "text": "      d.send(nil)",
+          "old": null,
+          "new": 230
+        },
+        {
+          "kind": "+",
+          "text": "      s.receive",
+          "old": null,
+          "new": 231
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 232
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 233
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "    # The value of a statement is the value of its expression, or, for",
+          "old": 207,
+          "new": 234
+        },
+        {
+          "kind": " ",
+          "text": "    # `if`, whichever branch's last statement ran; a loop is not a value",
+          "old": 208,
+          "new": 235
+        },
+        {
+          "kind": " ",
+          "text": "    # and yields 0, matching `WASM_Emitter`'s reset of `Ctx#ret`.",
+          "old": 209,
+          "new": 236
+        },
+        {
+          "kind": " ",
+          "text": "    private def exec_statement(stmt : Int32, scope : Scope) : Int32",
+          "old": 210,
+          "new": 237
+        },
+        {
+          "kind": " ",
+          "text": "      charge(@costs.statement)",
+          "old": 211,
+          "new": 238
+        },
+        {
+          "kind": "+",
+          "text": "      sync_step",
+          "old": null,
+          "new": 239
+        },
+        {
+          "kind": " ",
+          "text": "      case @program[stmt].rule",
+          "old": 212,
+          "new": 240
+        },
+        {
+          "kind": " ",
+          "text": "      when :global",
+          "old": 213,
+          "new": 241
+        },
+        {
+          "kind": " ",
+          "text": "        @globals[@program.value(@program.arg(stmt, 2))] = eval(@program.arg(stmt, 4), scope)",
+          "old": 214,
+          "new": 242
+        },
+        {
+          "kind": " ",
+          "text": "      when :exprstmt",
+          "old": 215,
+          "new": 243
+        },
+        {
+          "kind": " ",
+          "text": "        return eval(@program.arg(stmt, 0), scope)",
+          "old": 216,
+          "new": 244
+        },
+        {
+          "kind": " ",
+          "text": "      when :while",
+          "old": 217,
+          "new": 245
+        }
+      ],
+      "line_notes": {
+        "d.send(nil)": "Send a signal saying this robot finished one step; the value itself carries no data."
+      }
+    },
+    {
+      "file": "src/battle/match.cr",
+      "note": "The match waits for each living robot, moves the field at regular intervals, then releases them for another step. It stops when one robot remains or the cycle limit is reached.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "          interp.done_channel = done_ch",
+          "old": null,
+          "new": 42
+        },
+        {
+          "kind": "+",
+          "text": "          begin",
+          "old": null,
+          "new": 43
+        },
+        {
+          "kind": "+",
+          "text": "            interp.run",
+          "old": null,
+          "new": 44
+        },
+        {
+          "kind": "+",
+          "text": "          rescue",
+          "old": null,
+          "new": 45
+        },
+        {
+          "kind": "+",
+          "text": "            # a robot's own runtime error just stops it, not the match",
+          "old": null,
+          "new": 46
+        },
+        {
+          "kind": "+",
+          "text": "          end",
+          "old": null,
+          "new": 47
+        },
+        {
+          "kind": "+",
+          "text": "        end",
+          "old": null,
+          "new": 48
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 49
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 50
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 51
+        },
+        {
+          "kind": "+",
+          "text": "    # Runs to completion: every robot dead but at most one, or the cycle",
+          "old": null,
+          "new": 52
+        },
+        {
+          "kind": "+",
+          "text": "    # limit reached.",
+          "old": null,
+          "new": 53
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "    def run : Nil",
+          "old": null,
+          "new": 54
+        },
+        {
+          "kind": "+",
+          "text": "      countdown = MOTION_CYCLES",
+          "old": null,
+          "new": 55
+        },
+        {
+          "kind": "+",
+          "text": "      while @field.robots.count(&.alive?) > 1 && @rounds < @cycle_limit",
+          "old": null,
+          "new": 56
+        },
+        {
+          "kind": "+",
+          "text": "        @field.robots.each_with_index { |r, i| @dones[i].receive if r.alive? }",
+          "old": null,
+          "new": 57
+        },
+        {
+          "kind": "+",
+          "text": "        @rounds += 1",
+          "old": null,
+          "new": 58
+        },
+        {
+          "kind": "+",
+          "text": "        countdown -= 1",
+          "old": null,
+          "new": 59
+        },
+        {
+          "kind": "+",
+          "text": "        if countdown == 0",
+          "old": null,
+          "new": 60
+        },
+        {
+          "kind": "+",
+          "text": "          @field.move_robots",
+          "old": null,
+          "new": 61
+        },
+        {
+          "kind": "+",
+          "text": "          @field.move_missiles",
+          "old": null,
+          "new": 62
+        },
+        {
+          "kind": "+",
+          "text": "          countdown = MOTION_CYCLES",
+          "old": null,
+          "new": 63
+        },
+        {
+          "kind": "+",
+          "text": "        end",
+          "old": null,
+          "new": 64
+        },
+        {
+          "kind": "+",
+          "text": "        @field.robots.each_with_index { |r, i| @steps[i].send(nil) if r.alive? }",
+          "old": null,
+          "new": 65
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 66
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 67
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 68
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 69
+        }
+      ],
+      "line_notes": {
+        "@dones[i].receive if r.alive?": "Wait for one completed step from each living robot before moving the field."
+      }
+    },
+    {
+      "file": "spec/battle/match_spec.cr",
+      "note": "This match test runs two endless robots for a fixed number of rounds and checks that the match stops there. It proves that both programs can share the scheduler without hanging.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "require \"../spec_helper\"",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "alias Match = CrystalRobots::Battle::Match",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "private def program(source : String) : CrystalRobots::Compiler::Program",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "  CrystalRobots::Compiler::Parser.new(source).program",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "describe Match do",
+          "old": null,
+          "new": 9
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  it \"interleaves two robots, each getting a turn every round\" do",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "    a = program(\"global(i, 0)\\nwhile true\\ni += 1\\nend\\n\")",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "    b = program(\"global(j, 0)\\nwhile true\\nj += 1\\nj += 1\\nend\\n\")",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "    field = BattleField.new([\"a\", \"b\"], seed: 1)",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "    match = Match.new(field, [a, b], cycle_limit: 20)",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "    match.run",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "    match.rounds.should eq 20",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 17
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "  it \"stops early once only one robot is left standing\" do",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "    dies = program(<<-ROBOT)",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "      global(i, 0)",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "      while true",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "      i += 1",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "      ROBOT",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "    survives = program(<<-ROBOT)",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "      global(i, 0)",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "      while true",
+          "old": null,
+          "new": 28
+        },
+        {
+          "kind": "+",
+          "text": "      i += 1",
+          "old": null,
+          "new": 29
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

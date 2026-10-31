@@ -1,0 +1,212 @@
+{
+  "sha": "3f8858c46ac351216c8a26c4f8ca0156b30ecf9d",
+  "subject": "Phase B.8: the six example robots parse -- grammar parity reached",
+  "summary": "The original example robots all parse and compile.",
+  "files": [
+    {
+      "path": "examples/counter.cr",
+      "added": 84,
+      "removed": 0,
+      "role": "Contains robot programs to try."
+    },
+    {
+      "path": "examples/rabbit.cr",
+      "added": 60,
+      "removed": 0,
+      "role": "Contains robot programs to try."
+    },
+    {
+      "path": "examples/rook.cr",
+      "added": 72,
+      "removed": 0,
+      "role": "Contains robot programs to try."
+    },
+    {
+      "path": "examples/sniper.cr",
+      "added": 151,
+      "removed": 0,
+      "role": "Contains robot programs to try."
+    },
+    {
+      "path": "examples/target.cr",
+      "added": 7,
+      "removed": 0,
+      "role": "Contains robot programs to try."
+    },
+    {
+      "path": "spec/examples_spec.cr",
+      "added": 29,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "spec/examples_spec.cr",
+      "note": "This spec reads every shipped example, checks its program, and compiles it. The earlier grammar steps now add up to robots a reader can open and study.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "# checker clean, and compiles to WebAssembly without WASM_Emitter raising",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "# Unsupported -- the same milestone the original multipass-tokenizer",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "# design document (docs/PARSER.md) named for these five: \"all six example",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "# robots reduce to the single Program glyph with correct precedence and",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "# associativity.\"",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "#",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "# None of them are *run* here: counter, rabbit, rook, sniper and target",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "# all loop `while true`, meant to be interleaved on a battlefield with a",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "# cycle limit, not executed standalone -- that engine is the next piece",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "# of work, not this one.",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "EXAMPLES = %w[counter rabbit rook sniper target hello functions]",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 15
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "describe \"the shipped example robots\" do",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "  EXAMPLES.each do |name|",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "    it \"#{name}.cr parses, checks clean, and compiles\" do",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "      source = File.read(\"examples/#{name}.cr\")",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "      program = CrystalRobots::Compiler::Parser.new(source).program",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "      program.parsed?.should be_true",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "      issues = CrystalRobots::Compiler::Checker.check(program)",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "      issues.map(&.to_s).should eq [] of String",
+          "old": null,
+          "new": 24
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "      CrystalRobots::Compiler::WASM_Emitter.new(program).to_wasm.size.should be > 8",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 28
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 29
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}
