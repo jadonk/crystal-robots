@@ -1,0 +1,42 @@
+# Until the public main line is on GitHub, the blog's commits after B.8 come from
+# these equivalent commits on GitHub's tutorial and dev branches (same change,
+# sometimes a different subject). Use: crystal run scripts/build_blog_diffs.cr --
+# origin/rewrite-from-initial-commit --map site/blog/diffs/sources.map
+# Once main is pushed, run against origin/main without --map and delete this file.
+Phase C.1: cycle charging=ce748a4ae16ceaa6485c6573a4496ce00c6c0541
+Phase C.2: robot motion physics=4d194841741649eadba5240b0e22371de1d5944a
+Phase C.3: missiles=8f32efb47e58e82464c9e8c9d6be6c3f16965ba5
+Phase C.4: the scanner and a real Host bound to the battlefield=155b626f03a7b4a6ea9cd8c8e41593c97522cb0e
+Phase C.5: interleaving robots into real matches=cb5890c34a138030d4c4a262f585790ce27f7dd3
+Phase C.6: CLI wiring for matches, and a real crash-safety fix=cf0bd543ace50a610dbb511fe6d2004ad09dab3e
+Phase T.1: tournament pool play=dbbb4de3d8f00e13826f21ed4ad06efb24db8f1f
+Phase T.2: tournament bracket=26c7fe9e081729871d2def303feab806935b5ad4
+Phase U.1: version reports the check-in it was built from=f7b753a101bc04e2ebe542ebfb59255be0ffe3a2
+Phase U.2: crystal and riscv emitter placeholders=f6def84e0dfc80b37f844ff74243c273870806e4
+Phase U.3: versioned robots/*.md=fa5389f9872caf44bee87c26575433f7f2cc346b
+Phase U.4: the robot API reference=154dc0aba875010d27437caab5bcbc7ec3752f2b
+Phase U.6: scripts/ci.sh as the one CI command=771066e009f747f15545d40cff43757d475415c1
+Phase W.0: compile and interpret in one call=c9b9d64c3abcfd0a8c6c1b1524155b9068e26f73
+Phase W.1: the wasm32 spike=cd45b6a9edd4576b22ffe24a660c4114e53c8ea4
+Phase W.2: the static page and WASI shim=a162371068e5bfc2aaaa287cb6ee2b7cc7f3587e
+Phase W.3: the wasm32 spec and the ci.sh flag=c2e2bd94e386da40d7733ad60dd2d947ac599f3e
+Phase W.4: the GitHub Pages deploy workflow=1d7b1fadaddd69e7936c1d17ddd542062c88a75b
+Phase W.5: pin the Pages workflow with Crystal's own YAML=7c2560876d87f99703b76d1bf23a4f66f9240efe
+Phase W.6: ci.cr replaces ci.sh=2f1b9209cf7ef136f2731edef520e3e2186f6d78
+# Catch-up: adopt the shipping implementation at the tutorial's parity point : no git equivalent; summary only
+Phase 5b-2: battle entirely in the browser, no server=34306a5d170adf641037f8d4182d70f319826f86
+Phase 6: the browser robot editor=346132a0aee45f3c30d3a7a95e4aa4ceed730873
+Fix the editor's line-number gutter drifting on scroll and wrapped lines=ffb8951bd19bae22371ffabe8d125501d7e0495b
+Phase 6: battle playback at real frame rate, with event-guaranteed frames=6de959d4288154b4239c908961e4b9dbb6f49d40
+Pages battle: draw robots and missiles in meters, not clicks=32780feb7a0fc90106fa48784308ee337ba528a4
+Pages deploy: mark site/*.js as ES modules so the playback spec runs on older Node=45ae2dc9bfe51bd24e8e4207beecc7da0fce61b9
+Pages deploy: run the headless editor gutter spec with the runner's Google Chrome=da837acbb30a8b1ed125d9649f65fde00285375b
+Pages: a robot manual and the shared site stylesheet=105c003f56016b52db31e244ed6c3f75dc659023
+Browser: a whole tournament inside crystal-robots.wasm=85fa59ef74da2b3d0f5be85a42dfbde8a58533ef
+Pages: a landing page that opens on a live battle and peels back to the WebAssembly=2138429ab10e2d296870300772277f1a5b9125d8
+Pages: a tournament page and a seven-level robot challenge=d6b81d333b223c7696c7cf2f4d34f4100a108c48
+Replays show what each robot prints=6afe3f25ecde4629e300fbd5261dbdeb07a9c144
+A resumable WebAssembly emitter: compiled robots that pause at every cycle=91a124ce25eaab8fb58f992e4e8a24502fc37cc0
+Compiled robots fight in the browser=212ec2b3b0c574d0b64e45655884d150b10fb118
+Plain language for first-time programmers, and a CROBOTS-style manual=5d99e2581fee6bc7adb30885db42e3e4c5bd2218
+Pages: a favicon=637365a928bd5d53780a3bc585d39ac52f6fa0c5
