@@ -1,0 +1,423 @@
+{
+  "sha": "91a124ce25eaab8fb58f992e4e8a24502fc37cc0",
+  "subject": "A resumable WebAssembly emitter: compiled robots that pause at every cycle",
+  "summary": "Compiled robots can pause after each cycle and resume on their next turn.",
+  "files": [
+    {
+      "path": "docs/PLAN.md",
+      "added": 12,
+      "removed": 0,
+      "role": "Tracks the steps of the tutorial."
+    },
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 5,
+      "removed": 1,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/wasm_resumable_spec.cr",
+      "added": 146,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "src/battle/step_robot.cr",
+      "added": 17,
+      "removed": 3,
+      "role": "Runs the project command."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 26,
+      "removed": 3,
+      "role": "Turns robot steps into WebAssembly instructions."
+    },
+    {
+      "path": "src/compiler/wasm_resumable.cr",
+      "added": 423,
+      "removed": 0,
+      "role": "Builds or runs a robot program."
+    },
+    {
+      "path": "src/crystal-robots.cr",
+      "added": 7,
+      "removed": 2,
+      "role": "Runs the project command."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/wasm_resumable.cr",
+      "note": "Each running call gets space to remember its position and unfinished values. This frame lets a compiled robot return after one cycle and continue later, even inside another function.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "# The resumable encoder keeps every live value in linear memory. Each",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "# activation occupies one fixed-size frame; the only native stack in step()",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "# is emptied before a charged cycle returns to its host.",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "# step() returns 0 for a pause, 1 when main completes, and 2 for a runtime",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "# error. error_code is the one-based index of the function whose call exceeded",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "# MAX_CALL_DEPTH (the only runtime error a checked, numeric WASM program has).",
+          "old": null,
+          "new": 6
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "module CrystalRobots::Compiler",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "  class WASM_Emitter",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "    private FRAME_BYTES = 2048",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "    private SLOT_PC     =    0",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "    private SLOT_DEST   =    1",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "    private SLOT_VALUE  =    2",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "    private class ResumeCtx",
+          "old": null,
+          "new": 14
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      getter vars = {} of String => Int32",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "      getter constant_flags = {} of String => Int32",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "      getter top_level : Bool",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "      property slot = 3",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "      def initialize(@top_level = false)",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "      def temp : Int32",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "        old = @slot",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "        raise WASM_Emitter::Unsupported.new(\"too many locals and temporaries\") if old >= FRAME_BYTES // 4",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "        @slot += 1",
+          "old": null,
+          "new": 26
+        }
+      ],
+      "line_notes": {
+        "private SLOT_PC": "This slot remembers which numbered block the robot should run when it gets another turn."
+      }
+    },
+    {
+      "file": "spec/wasm_resumable_spec.cr",
+      "note": "The test fights the same robots through compiled and interpreted paths and compares the result. It checks that pausing changes how a robot runs without changing the battle.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "    source = \"def dive\\n dive\\nend\\nmain(\\\"deep\\\") do\\n dive\\nend\\n\"",
+          "old": null,
+          "new": 109
+        },
+        {
+          "kind": "+",
+          "text": "    compare_battles([{\"deep\", source}, {\"idle\", \"main(\\\"idle\\\") do\\n while true\\n  sleep\\n end\\nend\\n\"}], 1_u64, 6000_i64)",
+          "old": null,
+          "new": 110
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 111
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 112
+        },
+        {
+          "kind": "+",
+          "text": "  wasmer_it \"pauses a loop that calls no builtins\" do",
+          "old": null,
+          "new": 113
+        },
+        {
+          "kind": "+",
+          "text": "    source = \"main(\\\"loop\\\") do\\n while true\\n  1 + 2\\n end\\nend\\n\"",
+          "old": null,
+          "new": 114
+        },
+        {
+          "kind": "+",
+          "text": "    compare_battles([{\"loop\", source}, {\"idle\", \"main(\\\"idle\\\") do\\n while true\\n  sleep\\n end\\nend\\n\"}], 1_u64, 90_i64)",
+          "old": null,
+          "new": 115
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 116
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 117
+        },
+        {
+          "kind": "+",
+          "text": "  wasmer_it \"returns zero for division and modulo by zero\" do",
+          "old": null,
+          "new": 118
+        },
+        {
+          "kind": "+",
+          "text": "    source = \"main(\\\"zero\\\") do\\n puts 4 // 0\\n puts 4 % 0\\n puts (-2147483647 - 1) // -1\\n puts (-2147483647 - 1) % -1\\nend\\n\"",
+          "old": null,
+          "new": 119
+        },
+        {
+          "kind": "+",
+          "text": "    compare_battles([{\"zero\", source}, {\"idle\", \"main(\\\"idle\\\") do\\n while true\\n  sleep\\n end\\nend\\n\"}], 1_u64, 90_i64)",
+          "old": null,
+          "new": 120
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 121
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 122
+        },
+        {
+          "kind": "+",
+          "text": "  wasmer_it \"matches stepwise battles for every compilable bundled robot\" do",
+          "old": null,
+          "new": 123
+        },
+        {
+          "kind": "+",
+          "text": "    files = Dir.glob(\"examples/*.cr\").sort + Dir.glob(\"robots/*.md\").sort",
+          "old": null,
+          "new": 124
+        },
+        {
+          "kind": "+",
+          "text": "    sources = files.compact_map do |file|",
+          "old": null,
+          "new": 125
+        },
+        {
+          "kind": "+",
+          "text": "      text = File.read(file)",
+          "old": null,
+          "new": 126
+        },
+        {
+          "kind": "+",
+          "text": "      source = file.ends_with?(\".md\") ? (text.match(/```crystal\\n(.*?)```/m).try(&.[1]) || \"\") : text",
+          "old": null,
+          "new": 127
+        },
+        {
+          "kind": "+",
+          "text": "      begin",
+          "old": null,
+          "new": 128
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "        program = C::Parser.new(source).program",
+          "old": null,
+          "new": 129
+        },
+        {
+          "kind": "+",
+          "text": "        C::WASM_Emitter.new(program, C::Interpreter::Costs.crobots, resumable: true).to_wasm",
+          "old": null,
+          "new": 130
+        },
+        {
+          "kind": "+",
+          "text": "        {File.basename(file), source}",
+          "old": null,
+          "new": 131
+        },
+        {
+          "kind": "+",
+          "text": "      rescue C::WASM_Emitter::Unsupported",
+          "old": null,
+          "new": 132
+        },
+        {
+          "kind": "+",
+          "text": "        nil",
+          "old": null,
+          "new": 133
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 134
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 135
+        },
+        {
+          "kind": "+",
+          "text": "    sources.should_not be_empty",
+          "old": null,
+          "new": 136
+        },
+        {
+          "kind": "+",
+          "text": "    opponent = sources.find { |name, _| name == \"sniper.cr\" } || sources.first",
+          "old": null,
+          "new": 137
+        },
+        {
+          "kind": "+",
+          "text": "    others = sources.reject { |entry| entry == opponent }",
+          "old": null,
+          "new": 138
+        },
+        {
+          "kind": "+",
+          "text": "    sources.each do |entry|",
+          "old": null,
+          "new": 139
+        },
+        {
+          "kind": "+",
+          "text": "      (1_u64..3_u64).each do |seed|",
+          "old": null,
+          "new": 140
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

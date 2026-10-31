@@ -59,6 +59,20 @@ entries.each do |id_any, entry_any|
   entry = entry_any
   section = html.match(Regex.new(%(<section class="commit[^"]*" id="#{Regex.escape(id)}">(.*?)</section>), Regex::Options::MULTILINE))
   abort "#{id}: section missing" unless section
+  if note = entry["note"]?
+    abort "#{id}: a summary-only view cannot have excerpts" unless entry["excerpts"].as_a.empty?
+    output = JSON.build do |json|
+      json.object do
+        json.field "summary", entry["summary"].to_s
+        json.field "note", note.to_s
+        json.field "files", [] of String
+        json.field "excerpts", [] of String
+      end
+    end
+    File.write("site/blog/diffs/#{id}.json", JSON.parse(output).to_pretty_json + "\n")
+    puts "#{id}: summary only"
+    next
+  end
   subject_match = section[1].match(/data-subject="([^"]+)"/)
   abort "#{id}: subject missing" unless subject_match
   subject = HTML.unescape(subject_match[1])

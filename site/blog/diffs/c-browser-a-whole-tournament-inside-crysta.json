@@ -1,0 +1,451 @@
+{
+  "sha": "85fa59ef74da2b3d0f5be85a42dfbde8a58533ef",
+  "subject": "Browser: a whole tournament inside crystal-robots.wasm",
+  "summary": "The browser module can run a complete replayable tournament.",
+  "files": [
+    {
+      "path": "docs/PLAN.md",
+      "added": 7,
+      "removed": 0,
+      "role": "Tracks the steps of the tutorial."
+    },
+    {
+      "path": "site/wasi-shim.js",
+      "added": 10,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "spec/browser_tournament_spec.cr",
+      "added": 77,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/support/wasm32_tournament_check.mjs",
+      "added": 9,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/wasm32_spec.cr",
+      "added": 29,
+      "removed": 0,
+      "role": "Checks the compiler built for the browser."
+    },
+    {
+      "path": "src/browser.cr",
+      "added": 114,
+      "removed": 0,
+      "role": "Runs the project command."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/browser.cr",
+      "note": "The browser module now accepts a group of robots and returns pool and bracket results. A page can run the whole tournament locally, then replay a fight using its recorded seed.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 367
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 368
+        },
+        {
+          "kind": "+",
+          "text": "  def tournament_result_len : Int32",
+          "old": null,
+          "new": 369
+        },
+        {
+          "kind": "+",
+          "text": "    @@tournament_result.size",
+          "old": null,
+          "new": 370
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 371
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 372
+        },
+        {
+          "kind": "+",
+          "text": "  private def tournament_error(message : String) : Int32",
+          "old": null,
+          "new": 373
+        },
+        {
+          "kind": "+",
+          "text": "    @@tournament_result = {error: message}.to_json.to_slice",
+          "old": null,
+          "new": 374
+        },
+        {
+          "kind": "+",
+          "text": "    @@tournament_result.size",
+          "old": null,
+          "new": 375
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 376
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 377
+        },
+        {
+          "kind": "+",
+          "text": "  # Like battle_run, traps only on a request that is not JSON at all (the",
+          "old": null,
+          "new": 378
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  # page's own bug; it builds the request with JSON.stringify). Everything a",
+          "old": null,
+          "new": 379
+        },
+        {
+          "kind": "+",
+          "text": "  # robot author can get wrong comes back as data.",
+          "old": null,
+          "new": 380
+        },
+        {
+          "kind": "+",
+          "text": "  def tournament_run : Int32",
+          "old": null,
+          "new": 381
+        },
+        {
+          "kind": "+",
+          "text": "    payload = JSON.parse(String.new(@@tournament_input))",
+          "old": null,
+          "new": 382
+        },
+        {
+          "kind": "+",
+          "text": "    request = payload.as_h?",
+          "old": null,
+          "new": 383
+        },
+        {
+          "kind": "+",
+          "text": "    return tournament_error(\"a tournament request must be an object\") unless request",
+          "old": null,
+          "new": 384
+        },
+        {
+          "kind": "+",
+          "text": "    robots = request[\"robots\"]?.try(&.as_a?)",
+          "old": null,
+          "new": 385
+        },
+        {
+          "kind": "+",
+          "text": "    return tournament_error(\"robots must be an array\") unless robots",
+          "old": null,
+          "new": 386
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    return tournament_error(\"a tournament needs 3 to 8 robots, got #{robots.size}\") unless (3..8).includes?(robots.size)",
+          "old": null,
+          "new": 387
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 388
+        },
+        {
+          "kind": "+",
+          "text": "    raw_seed = request[\"seed\"]?.try(&.as_i64?) || 1_i64",
+          "old": null,
+          "new": 389
+        },
+        {
+          "kind": "+",
+          "text": "    return tournament_error(\"seed must be non-negative\") if raw_seed < 0",
+          "old": null,
+          "new": 390
+        },
+        {
+          "kind": "+",
+          "text": "    # The engine advances one seed per fight. Keep every recorded seed in",
+          "old": null,
+          "new": 391
+        },
+        {
+          "kind": "+",
+          "text": "    # battle_run's signed JSON range so its replay uses the same value.",
+          "old": null,
+          "new": 392
+        },
+        {
+          "kind": "+",
+          "text": "    return tournament_error(\"seed is too large to replay every fight\") if raw_seed > Int64::MAX - 256",
+          "old": null,
+          "new": 393
+        },
+        {
+          "kind": "+",
+          "text": "    seed = raw_seed.to_u64",
+          "old": null,
+          "new": 394
+        },
+        {
+          "kind": "+",
+          "text": "    limit = (request[\"limit\"]?.try(&.as_i64?) || BATTLE_LIMIT_MAX).clamp(BATTLE_LIMIT_MIN, BATTLE_LIMIT_MAX).to_i32",
+          "old": null,
+          "new": 395
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 396
+        },
+        {
+          "kind": "+",
+          "text": "    entries = [] of {String, String}",
+          "old": null,
+          "new": 397
+        },
+        {
+          "kind": "+",
+          "text": "    names = Set(String).new",
+          "old": null,
+          "new": 398
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/browser_tournament_spec.cr",
+      "note": "The spec runs a tournament and replays recorded fights from both stages. It checks that the browser result can be watched again with the same winner.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "private def tournament_robots : Array(NamedTuple(name: String, source: String))",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "  %w(sniper rook rabbit counter).map { |name| {name: name, source: File.read(\"examples/#{name}.cr\")} }",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "private def replay_winner(fight : JSON::Any, sources : Hash(String, String), limit : Int64) : String?",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "  robots = fight[\"entrants\"].as_a.map { |name| {name: name.as_s, source: sources[name.as_s]} }",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "  request = {robots: robots, seed: fight[\"seed\"].as_i64, limit: limit}.to_json",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "  ptr = CrystalRobots::Browser.battle_alloc(request.bytesize)",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "  ptr.copy_from(request.to_unsafe, request.bytesize)",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "  CrystalRobots::Browser.battle_run",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "  JSON.parse(String.new(Bytes.new(CrystalRobots::Browser.battle_result_ptr, CrystalRobots::Browser.battle_result_len)))[\"winner\"].as_s?",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 22
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "describe \"CrystalRobots::Browser.tournament_run\" do",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "  it \"runs pools and a bracket, and records replayable fight seeds\" do",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "    robots = tournament_robots",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "    report = tournament_report({robots: robots, seed: 3, limit: 3000}.to_json)",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"error\"]?.should be_nil",
+          "old": null,
+          "new": 28
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"entrants\"].as_a.map(&.as_s).should eq robots.map(&.[:name])",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"seed\"].as_i.should eq 3",
+          "old": null,
+          "new": 30
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    report[\"limit\"].as_i.should eq 3000",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"rejected\"].as_a.should be_empty",
+          "old": null,
+          "new": 32
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"pools\"].as_a.size.should eq 1",
+          "old": null,
+          "new": 33
+        },
+        {
+          "kind": "+",
+          "text": "    pool = report[\"pools\"].as_a.first",
+          "old": null,
+          "new": 34
+        },
+        {
+          "kind": "+",
+          "text": "    pool[\"entrants\"].as_a.size.should eq 4",
+          "old": null,
+          "new": 35
+        },
+        {
+          "kind": "+",
+          "text": "    pool[\"standings\"].as_a.map { |s| s[\"rank\"].as_i }.should eq [1, 2, 3, 4]",
+          "old": null,
+          "new": 36
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"rounds\"].as_a.last[\"label\"].as_s.should eq \"Final\"",
+          "old": null,
+          "new": 37
+        },
+        {
+          "kind": "+",
+          "text": "    games = report[\"rounds\"].as_a.flat_map { |r| r[\"matches\"].as_a.flat_map { |m| m[\"games\"].as_a } }",
+          "old": null,
+          "new": 38
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"fight_count\"].as_i.should eq pool[\"fights\"].as_a.size + games.size",
+          "old": null,
+          "new": 39
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"entrants\"].as_a.map(&.as_s).includes?(report[\"champion\"].as_s).should be_true",
+          "old": null,
+          "new": 40
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 41
+        },
+        {
+          "kind": "+",
+          "text": "    sources = robots.to_h { |r| {r[:name], r[:source]} }",
+          "old": null,
+          "new": 42
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

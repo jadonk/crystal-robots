@@ -1,0 +1,230 @@
+{
+  "sha": "cd45b6a9edd4576b22ffe24a660c4114e53c8ea4",
+  "subject": "Phase W.1: the wasm32 spike",
+  "summary": "The Crystal compiler can be built as a WebAssembly program for the page.",
+  "files": [
+    {
+      "path": "spec/interpreter_spec.cr",
+      "added": 3,
+      "removed": 3,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "src/browser.cr",
+      "added": 179,
+      "removed": 0,
+      "role": "Runs the project command."
+    },
+    {
+      "path": "src/compiler/interpreter.cr",
+      "added": 8,
+      "removed": 4,
+      "role": "Runs robot steps directly so their behavior can be checked."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/browser.cr",
+      "note": "The page asks for memory to hold a robot program, then writes the program there. This is the first doorway from JavaScript into the Crystal compiler running as WebAssembly.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "# same reason: a `while true` fight loop -- how every real robot's",
+          "old": null,
+          "new": 42
+        },
+        {
+          "kind": "+",
+          "text": "# `main` block is written -- hits the interpreter's cycle limit and",
+          "old": null,
+          "new": 43
+        },
+        {
+          "kind": "+",
+          "text": "# traps. Giving it its own call means that trap cannot also take down",
+          "old": null,
+          "new": 44
+        },
+        {
+          "kind": "+",
+          "text": "# the derivation and checker report `crd_run` already produced.",
+          "old": null,
+          "new": 45
+        },
+        {
+          "kind": "+",
+          "text": "module CrystalRobots::Browser",
+          "old": null,
+          "new": 46
+        },
+        {
+          "kind": "+",
+          "text": "  extend self",
+          "old": null,
+          "new": 47
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 48
+        },
+        {
+          "kind": "+",
+          "text": "  @@input = Bytes.empty",
+          "old": null,
+          "new": 49
+        },
+        {
+          "kind": "+",
+          "text": "  @@result = Bytes.empty",
+          "old": null,
+          "new": 50
+        },
+        {
+          "kind": "+",
+          "text": "  @@wasm = Bytes.empty",
+          "old": null,
+          "new": 51
+        },
+        {
+          "kind": "+",
+          "text": "  @@interpret_result = Bytes.empty",
+          "old": null,
+          "new": 52
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 53
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  # Reserves `len` bytes for the next call's source; the shim writes",
+          "old": null,
+          "new": 54
+        },
+        {
+          "kind": "+",
+          "text": "  # the UTF-8 source into the returned offset before calling `crd_run`.",
+          "old": null,
+          "new": 55
+        },
+        {
+          "kind": "+",
+          "text": "  def alloc(len : Int32) : Pointer(UInt8)",
+          "old": null,
+          "new": 56
+        },
+        {
+          "kind": "+",
+          "text": "    @@input = Bytes.new(len)",
+          "old": null,
+          "new": 57
+        },
+        {
+          "kind": "+",
+          "text": "    @@input.to_unsafe",
+          "old": null,
+          "new": 58
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 59
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 60
+        },
+        {
+          "kind": "+",
+          "text": "  def result_ptr : Pointer(UInt8)",
+          "old": null,
+          "new": 61
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    @@result.to_unsafe",
+          "old": null,
+          "new": 62
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 63
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 64
+        },
+        {
+          "kind": "+",
+          "text": "  def result_len : Int32",
+          "old": null,
+          "new": 65
+        },
+        {
+          "kind": "+",
+          "text": "    @@result.size",
+          "old": null,
+          "new": 66
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 67
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 68
+        },
+        {
+          "kind": "+",
+          "text": "  def wasm_ptr : Pointer(UInt8)",
+          "old": null,
+          "new": 69
+        },
+        {
+          "kind": "+",
+          "text": "    @@wasm.to_unsafe",
+          "old": null,
+          "new": 70
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 71
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 72
+        },
+        {
+          "kind": "+",
+          "text": "  def wasm_len : Int32",
+          "old": null,
+          "new": 73
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

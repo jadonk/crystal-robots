@@ -1,0 +1,523 @@
+{
+  "sha": "1d7b1fadaddd69e7936c1d17ddd542062c88a75b",
+  "subject": "Phase W.4: the GitHub Pages deploy workflow",
+  "summary": "A passing CI run can publish the browser page through GitHub Pages.",
+  "files": [
+    {
+      "path": ".github/workflows/pages.yml",
+      "added": 53,
+      "removed": 0,
+      "role": "Sets up the project."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": ".github/workflows/pages.yml",
+      "note": "The workflow runs when a change reaches either publishing branch. The build job checks the page before the deploy job makes it available through GitHub Pages.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "# Publishes the Phase 5b-1 browser compiler (crystal-robots.wasm plus the",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "# static page in site/) to GitHub Pages at https://jadonk.github.io/crystal-robots/.",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "#",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "# The GitHub repository is a read-only mirror: trunk is developed on",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "# Fossil and pushed here through a Forgejo push mirror (see docs/PLAN.md,",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "# Phase 7). This workflow only reacts to that mirrored history landing on",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "# `main` or `dev`; it does not build anything ci.sh does not already build --",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "# `scripts/ci.sh --with-wasm32` is the one command, so a developer running",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "# it locally sees exactly what this workflow publishes.",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "# Fossil trunk lands on the mirror's `dev` branch, not `main`.",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "name: Deploy browser compiler to GitHub Pages",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 12
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "on:",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "  push:",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "    branches: [main, dev]",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "  workflow_dispatch:",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "permissions:",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "  contents: read",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "  pages: write",
+          "old": null,
+          "new": 20
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "  id-token: write",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "concurrency:",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "  group: pages",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "  cancel-in-progress: true",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "jobs:",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "  build:",
+          "old": null,
+          "new": 28
+        },
+        {
+          "kind": "+",
+          "text": "    runs-on: ubuntu-latest",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": "+",
+          "text": "    steps:",
+          "old": null,
+          "new": 30
+        },
+        {
+          "kind": "+",
+          "text": "      - uses: actions/checkout@v4",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 32
+        }
+      ],
+      "line_notes": {
+        "branches: [main, dev]": "These are the two branches whose pushes start the publishing steps."
+      }
+    },
+    {
+      "file": ".github/workflows/pages.yml",
+      "note": "The build job runs the same wasm32 check a developer can run locally, then uploads the finished site folder. A failing check stops publication before readers see a broken page.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "  cancel-in-progress: true",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "jobs:",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "  build:",
+          "old": null,
+          "new": 28
+        },
+        {
+          "kind": "+",
+          "text": "    runs-on: ubuntu-latest",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": "+",
+          "text": "    steps:",
+          "old": null,
+          "new": 30
+        },
+        {
+          "kind": "+",
+          "text": "      - uses: actions/checkout@v4",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 32
+        },
+        {
+          "kind": "+",
+          "text": "      - uses: oprypin/install-crystal@v1",
+          "old": null,
+          "new": 33
+        },
+        {
+          "kind": "+",
+          "text": "        with:",
+          "old": null,
+          "new": 34
+        },
+        {
+          "kind": "+",
+          "text": "          crystal: \"1.18.2\"",
+          "old": null,
+          "new": 35
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 36
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "      - run: sudo apt-get update && sudo apt-get install -y lld",
+          "old": null,
+          "new": 37
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 38
+        },
+        {
+          "kind": "+",
+          "text": "      - run: scripts/ci.sh --with-wasm32",
+          "old": null,
+          "new": 39
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 40
+        },
+        {
+          "kind": "+",
+          "text": "      - uses: actions/upload-pages-artifact@v3",
+          "old": null,
+          "new": 41
+        },
+        {
+          "kind": "+",
+          "text": "        with:",
+          "old": null,
+          "new": 42
+        },
+        {
+          "kind": "+",
+          "text": "          path: site",
+          "old": null,
+          "new": 43
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 44
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "  deploy:",
+          "old": null,
+          "new": 45
+        },
+        {
+          "kind": "+",
+          "text": "    needs: build",
+          "old": null,
+          "new": 46
+        },
+        {
+          "kind": "+",
+          "text": "    runs-on: ubuntu-latest",
+          "old": null,
+          "new": 47
+        },
+        {
+          "kind": "+",
+          "text": "    environment:",
+          "old": null,
+          "new": 48
+        },
+        {
+          "kind": "+",
+          "text": "      name: github-pages",
+          "old": null,
+          "new": 49
+        },
+        {
+          "kind": "+",
+          "text": "      url: ${{ steps.deployment.outputs.page_url }}",
+          "old": null,
+          "new": 50
+        },
+        {
+          "kind": "+",
+          "text": "    steps:",
+          "old": null,
+          "new": 51
+        },
+        {
+          "kind": "+",
+          "text": "      - id: deployment",
+          "old": null,
+          "new": 52
+        },
+        {
+          "kind": "+",
+          "text": "        uses: actions/deploy-pages@v4",
+          "old": null,
+          "new": 53
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": ".github/workflows/pages.yml",
+      "note": "After the checked site is uploaded, this final action publishes it. That completes the path from a local browser build to a page readers can open.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 36
+        },
+        {
+          "kind": "+",
+          "text": "      - run: sudo apt-get update && sudo apt-get install -y lld",
+          "old": null,
+          "new": 37
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 38
+        },
+        {
+          "kind": "+",
+          "text": "      - run: scripts/ci.sh --with-wasm32",
+          "old": null,
+          "new": 39
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 40
+        },
+        {
+          "kind": "+",
+          "text": "      - uses: actions/upload-pages-artifact@v3",
+          "old": null,
+          "new": 41
+        },
+        {
+          "kind": "+",
+          "text": "        with:",
+          "old": null,
+          "new": 42
+        },
+        {
+          "kind": "+",
+          "text": "          path: site",
+          "old": null,
+          "new": 43
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 44
+        },
+        {
+          "kind": "+",
+          "text": "  deploy:",
+          "old": null,
+          "new": 45
+        },
+        {
+          "kind": "+",
+          "text": "    needs: build",
+          "old": null,
+          "new": 46
+        },
+        {
+          "kind": "+",
+          "text": "    runs-on: ubuntu-latest",
+          "old": null,
+          "new": 47
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "    environment:",
+          "old": null,
+          "new": 48
+        },
+        {
+          "kind": "+",
+          "text": "      name: github-pages",
+          "old": null,
+          "new": 49
+        },
+        {
+          "kind": "+",
+          "text": "      url: ${{ steps.deployment.outputs.page_url }}",
+          "old": null,
+          "new": 50
+        },
+        {
+          "kind": "+",
+          "text": "    steps:",
+          "old": null,
+          "new": 51
+        },
+        {
+          "kind": "+",
+          "text": "      - id: deployment",
+          "old": null,
+          "new": 52
+        },
+        {
+          "kind": "+",
+          "text": "        uses: actions/deploy-pages@v4",
+          "old": null,
+          "new": 53
+        }
+      ],
+      "after": [],
+      "line_notes": {}
+    }
+  ]
+}

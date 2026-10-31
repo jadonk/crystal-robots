@@ -1,0 +1,321 @@
+{
+  "sha": "212ec2b3b0c574d0b64e45655884d150b10fb118",
+  "subject": "Compiled robots fight in the browser",
+  "summary": "Browser battles can run compiled robots and fall back for unsupported programs.",
+  "files": [
+    {
+      "path": "site/battle-client.js",
+      "added": 14,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/battle-worker.js",
+      "added": 14,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/challenge/challenge.js",
+      "added": 3,
+      "removed": 3,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/editor/editor.js",
+      "added": 2,
+      "removed": 1,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/index.html",
+      "added": 1,
+      "removed": 1,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/landing.js",
+      "added": 15,
+      "removed": 6,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/load-module.js",
+      "added": 1,
+      "removed": 1,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/site.css",
+      "added": 3,
+      "removed": 1,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/tournament/tournament.js",
+      "added": 5,
+      "removed": 4,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/tournament/worker.js",
+      "added": 4,
+      "removed": 2,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/wasi-shim.js",
+      "added": 48,
+      "removed": 10,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/wasm-view.js",
+      "added": 43,
+      "removed": 3,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/workbench/battle.js",
+      "added": 2,
+      "removed": 1,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "spec/support/challenge_tournament_check.mjs",
+      "added": 2,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/support/landing_check.mjs",
+      "added": 11,
+      "removed": 1,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/support/wasm32_compiled_check.mjs",
+      "added": 71,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/wasm32_compiled_spec.cr",
+      "added": 15,
+      "removed": 0,
+      "role": "Checks compiled robot battles in the browser."
+    },
+    {
+      "path": "src/browser.cr",
+      "added": 148,
+      "removed": 4,
+      "role": "Runs the project command."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 32,
+      "removed": 0,
+      "role": "Turns robot steps into WebAssembly instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "site/battle-worker.js",
+      "note": "A worker prepares each robot module before the battle, keeping the page free to draw frames. A robot the compiler cannot handle can still fight through the interpreter.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "import { battle, prepareRobotModules } from \"./wasi-shim.js\";",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "import { loadModule } from \"./load-module.js\";",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "self.onmessage = async ({ data }) => {",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "  try {",
+          "old": null,
+          "new": 5
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "    const module = await loadModule();",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "    const engine = data.engine === \"interpreter\" ? \"interpreter\" : \"compiled\";",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "    const robotModules = engine === \"compiled\" ? await prepareRobotModules(module, data.robots) : [];",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "    const report = await battle(module, data.robots, data.seed, data.limit, data.cps, {",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "      maxFrames: data.maxFrames, engine, robotModules,",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "    });",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "    self.postMessage({ report }, report.frameBuffer ? [report.frameBuffer] : []);",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "  } catch (error) { self.postMessage({ error: error.message }); }",
+          "old": null,
+          "new": 13
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "};",
+          "old": null,
+          "new": 14
+        }
+      ],
+      "line_notes": {
+        "const robotModules =": "Prepare compiled robot modules only when this battle uses the compiled engine."
+      }
+    },
+    {
+      "file": "spec/wasm32_compiled_spec.cr",
+      "note": "This check compares compiled and interpreted battles and a tournament. It guards the step from seeing compiled bytes to actually fighting with them.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "require \"./spec_helper\"",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 2
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "{% if flag?(:crd_wasm32) %}",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "  describe \"browser compiled robots\" do",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "    it \"matches interpreted battles and a full tournament, falls back per robot, and stays within the timing budget\" do",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "      output = IO::Memory.new",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "      errors = IO::Memory.new",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "      status = Process.run(\"node\", [\"spec/support/wasm32_compiled_check.mjs\", \"site/crystal-robots.wasm\"], output: output, error: errors)",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "      status.success?.should be_true, \"wasm32_compiled_check.mjs failed: #{output}\\n#{errors}\"",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "      result = JSON.parse(output.to_s)",
+          "old": null,
+          "new": 10
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      result[\"ok\"].as_bool.should be_true",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "      puts \"compiled #{result[\"milliseconds\"][\"compiled\"]} ms; interpreter #{result[\"milliseconds\"][\"interpreter\"]} ms for the 4-robot 60,000-cycle battle\"",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "{% end %}",
+          "old": null,
+          "new": 15
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

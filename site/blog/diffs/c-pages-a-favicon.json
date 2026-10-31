@@ -1,0 +1,133 @@
+{
+  "sha": "637365a928bd5d53780a3bc585d39ac52f6fa0c5",
+  "subject": "Pages: a favicon",
+  "summary": "The site has a robot icon in browser tabs.",
+  "files": [
+    {
+      "path": "site/apple-touch-icon.png",
+      "added": 0,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/challenge/index.html",
+      "added": 4,
+      "removed": 1,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/editor/index.html",
+      "added": 3,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/favicon.ico",
+      "added": 0,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/favicon.svg",
+      "added": 10,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/index.html",
+      "added": 3,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/manual/index.html",
+      "added": 3,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/tournament/index.html",
+      "added": 4,
+      "removed": 1,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/workbench/index.html",
+      "added": 3,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "site/favicon.svg",
+      "note": "A small robot marks the site in a browser tab. It gives the finished set of pages a recognizable place to return to.",
+      "before": [],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\">",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "  <!-- crystal-robots: a robot on the battlefield, turret aimed, missile in flight.",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "       Colors from src/battle/svg_replay.cr ROBOT_COLORS (blue, orange). -->",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "  <rect width=\"64\" height=\"64\" rx=\"13\" fill=\"#17263a\"/>",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "  <path d=\"M27 39 L58 8 L60 26 Z\" fill=\"#4C97FF\" opacity=\".28\"/>",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "  <line x1=\"27\" y1=\"39\" x2=\"45\" y2=\"21\" stroke=\"#edf4ff\" stroke-width=\"6\" stroke-linecap=\"round\"/>",
+          "old": null,
+          "new": 6
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "  <circle cx=\"27\" cy=\"39\" r=\"15\" fill=\"#4C97FF\" stroke=\"#0b1522\" stroke-width=\"3\"/>",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "  <circle cx=\"27\" cy=\"39\" r=\"5\" fill=\"#0b1522\"/>",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "  <circle cx=\"52\" cy=\"14\" r=\"5.5\" fill=\"#FF8C1A\"/>",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "</svg>",
+          "old": null,
+          "new": 10
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

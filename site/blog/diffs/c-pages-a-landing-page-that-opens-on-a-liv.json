@@ -1,0 +1,495 @@
+{
+  "sha": "2138429ab10e2d296870300772277f1a5b9125d8",
+  "subject": "Pages: a landing page that opens on a live battle and peels back to the WebAssembly",
+  "summary": "The front page starts a battle and lets readers inspect each layer of a robot.",
+  "files": [
+    {
+      "path": "ci.cr",
+      "added": 1,
+      "removed": 1,
+      "role": "Runs the project build and checks."
+    },
+    {
+      "path": "site/battle-playback.js",
+      "added": 6,
+      "removed": 2,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/editor/editor.js",
+      "added": 5,
+      "removed": 4,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/editor/index.html",
+      "added": 2,
+      "removed": 2,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/index.html",
+      "added": 44,
+      "removed": 92,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/landing.js",
+      "added": 204,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/site.css",
+      "added": 75,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/wasi-shim.js",
+      "added": 10,
+      "removed": 3,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/wasm-view.js",
+      "added": 131,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/{ => workbench}/app.js",
+      "added": 2,
+      "removed": 2,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/{ => workbench}/battle.js",
+      "added": 3,
+      "removed": 3,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/workbench/index.html",
+      "added": 100,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "spec/browser_ast_spec.cr",
+      "added": 30,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/landing_spec.cr",
+      "added": 25,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/support/landing_check.mjs",
+      "added": 111,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/support/wasm32_ast_check.mjs",
+      "added": 5,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/support/wasm_view_check.mjs",
+      "added": 15,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/wasm32_spec.cr",
+      "added": 24,
+      "removed": 0,
+      "role": "Checks the compiler built for the browser."
+    },
+    {
+      "path": "spec/wasm_view_spec.cr",
+      "added": 19,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "src/browser.cr",
+      "added": 51,
+      "removed": 0,
+      "role": "Runs the project command."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "site/landing.js",
+      "note": "As soon as the module and example robots are ready, the page runs a battle and mounts its replay. A reader sees the robots fighting first, then can open the code and compiler layers for a chosen one.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "  if (!report) return;",
+          "old": null,
+          "new": 57
+        },
+        {
+          "kind": "+",
+          "text": "  $(\"battle-legend\").querySelectorAll(\".legend-damage\").forEach((el, i) => {",
+          "old": null,
+          "new": 58
+        },
+        {
+          "kind": "+",
+          "text": "    const robot = report.robots[i];",
+          "old": null,
+          "new": 59
+        },
+        {
+          "kind": "+",
+          "text": "    el.textContent = `${robot.damage}% · ${report.winner === robot.name ? \"winner\" : robot.active ? \"survived\" : \"destroyed\"}`;",
+          "old": null,
+          "new": 60
+        },
+        {
+          "kind": "+",
+          "text": "  });",
+          "old": null,
+          "new": 61
+        },
+        {
+          "kind": "+",
+          "text": "}",
+          "old": null,
+          "new": 62
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 63
+        },
+        {
+          "kind": "+",
+          "text": "async function rematch(nextSeed) {",
+          "old": null,
+          "new": 64
+        },
+        {
+          "kind": "+",
+          "text": "  $(\"rematch\").disabled = true;",
+          "old": null,
+          "new": 65
+        },
+        {
+          "kind": "+",
+          "text": "  if (playback) playback.stop();",
+          "old": null,
+          "new": 66
+        },
+        {
+          "kind": "+",
+          "text": "  $(\"battle-replay\").replaceChildren();",
+          "old": null,
+          "new": 67
+        },
+        {
+          "kind": "+",
+          "text": "  $(\"battle-loading\").hidden = false;",
+          "old": null,
+          "new": 68
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  $(\"seed-readout\").textContent = `Seed ${nextSeed}`;",
+          "old": null,
+          "new": 69
+        },
+        {
+          "kind": "+",
+          "text": "  status(\"Running the match…\");",
+          "old": null,
+          "new": 70
+        },
+        {
+          "kind": "+",
+          "text": "  const result = await battle(compiledModule, examples, nextSeed, 60000, 450, { maxFrames: 5000 });",
+          "old": null,
+          "new": 71
+        },
+        {
+          "kind": "+",
+          "text": "  if (result.trapped || result.error) throw new Error(result.stderr || result.error || \"Battle failed\");",
+          "old": null,
+          "new": 72
+        },
+        {
+          "kind": "+",
+          "text": "  report = result;",
+          "old": null,
+          "new": 73
+        },
+        {
+          "kind": "+",
+          "text": "  renderLegend();",
+          "old": null,
+          "new": 74
+        },
+        {
+          "kind": "+",
+          "text": "  playback = mountBattlePlayback($(\"battle-replay\"), result, 450, {",
+          "old": null,
+          "new": 75
+        },
+        {
+          "kind": "+",
+          "text": "    autoplay: !reducedMotion.matches,",
+          "old": null,
+          "new": 76
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    onFrame: updateDamage,",
+          "old": null,
+          "new": 77
+        },
+        {
+          "kind": "+",
+          "text": "    onEnd: showFinalStandings,",
+          "old": null,
+          "new": 78
+        },
+        {
+          "kind": "+",
+          "text": "  });",
+          "old": null,
+          "new": 79
+        },
+        {
+          "kind": "+",
+          "text": "  $(\"battle-loading\").hidden = true;",
+          "old": null,
+          "new": 80
+        },
+        {
+          "kind": "+",
+          "text": "  $(\"rematch\").disabled = false;",
+          "old": null,
+          "new": 81
+        },
+        {
+          "kind": "+",
+          "text": "  status(`${result.cycles.toLocaleString()} cycles recorded · select a robot to inspect its layers`);",
+          "old": null,
+          "new": 82
+        },
+        {
+          "kind": "+",
+          "text": "  renderEngine();",
+          "old": null,
+          "new": 83
+        },
+        {
+          "kind": "+",
+          "text": "}",
+          "old": null,
+          "new": 84
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 85
+        },
+        {
+          "kind": "+",
+          "text": "function showLayer(next) {",
+          "old": null,
+          "new": 86
+        },
+        {
+          "kind": "+",
+          "text": "  layer = next;",
+          "old": null,
+          "new": 87
+        },
+        {
+          "kind": "+",
+          "text": "  tabs.forEach((tab) => { tab.setAttribute(\"aria-selected\", String(tab.dataset.layer === next)); tab.tabIndex = tab.dataset.layer === next ? 0 : -1; });",
+          "old": null,
+          "new": 88
+        }
+      ],
+      "line_notes": {
+        "const result = await battle(": "`await` waits for the battle result before the page draws its first replay."
+      }
+    },
+    {
+      "file": "spec/landing_spec.cr",
+      "note": "A browser check opens the landing page and its layers. It proves the new front door works at phone width as well as on a desktop.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "require \"./spec_helper\"",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "require \"json\"",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "LANDING_CHROMIUM_BIN = if (configured_bin = ENV[\"CHROMIUM_BIN\"]?) && !configured_bin.empty?",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "                         Process.find_executable(configured_bin)",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "                       else",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "                         Process.find_executable(\"chromium\") ||",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "                           Process.find_executable(\"chromium-browser\") ||",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "                           Process.find_executable(\"google-chrome\") ||",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "                           Process.find_executable(\"google-chrome-stable\")",
+          "old": null,
+          "new": 10
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "                       end",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "describe \"site landing (headless)\" do",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "  if bin = LANDING_CHROMIUM_BIN",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "    wasm32_it \"mounts the battle, opens all five layers, and fits 360px\" do",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "      output = IO::Memory.new",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "      errors = IO::Memory.new",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "      status = Process.run(\"node\", [\"spec/support/landing_check.mjs\", bin], output: output, error: errors)",
+          "old": null,
+          "new": 18
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      status.success?.should be_true, \"landing_check.mjs failed: #{output}\\n#{errors}\"",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "      JSON.parse(output.to_s)[\"ok\"].as_bool.should be_true",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "  else",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "    pending \"mounts the battle, opens all five layers, and fits 360px (no browser found via CHROMIUM_BIN or chromium, chromium-browser, google-chrome, google-chrome-stable)\"",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 25
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

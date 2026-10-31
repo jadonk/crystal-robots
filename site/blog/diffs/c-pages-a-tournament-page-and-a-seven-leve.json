@@ -1,0 +1,426 @@
+{
+  "sha": "d6b81d333b223c7696c7cf2f4d34f4100a108c48",
+  "subject": "Pages: a tournament page and a seven-level robot challenge",
+  "summary": "Readers can run a tournament and work through seven robot challenges.",
+  "files": [
+    {
+      "path": "scripts/build_robots_json.cr",
+      "added": 17,
+      "removed": 1,
+      "role": "Helps build or check the project."
+    },
+    {
+      "path": "site/challenge/challenge.js",
+      "added": 89,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/challenge/checks.js",
+      "added": 22,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/challenge/index.html",
+      "added": 6,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/editor/editor.js",
+      "added": 12,
+      "removed": 127,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/editor/index.html",
+      "added": 10,
+      "removed": 8,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/editor/shared.js",
+      "added": 60,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/index.html",
+      "added": 7,
+      "removed": 3,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/load-module.js",
+      "added": 6,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/manual/index.html",
+      "added": 8,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/robot-store.js",
+      "added": 6,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/site.css",
+      "added": 60,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/tournament/index.html",
+      "added": 7,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/tournament/tournament.js",
+      "added": 98,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/tournament/worker.js",
+      "added": 11,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/workbench/index.html",
+      "added": 7,
+      "removed": 5,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "spec/challenge_checks_spec.cr",
+      "added": 12,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/challenge_tournament_spec.cr",
+      "added": 25,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/site_robots_spec.cr",
+      "added": 22,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/support/challenge_checks_check.mjs",
+      "added": 17,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/support/challenge_tournament_check.mjs",
+      "added": 117,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "site/challenge/checks.js",
+      "note": "Each challenge checks a real battle and gives a short reason for its result. The levels turn the tournament engine into a path from making a robot move to entering a match.",
+      "before": [],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "import { decodeFrames } from \"../battle-playback.js\";",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "export function evaluateBattle(level, report) {",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "  const { frames, missileSlots } = decodeFrames(report.frameBuffer);",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "  const first = frames[0].robots[0], last = frames.at(-1).robots[0];",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "  const distance = Math.hypot(last.x - first.x, last.y - first.y);",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "  const fired = frames.some((frame) => frame.robots[0].fired || frame.missiles.slice(0, missileSlots).some((missile) => missile.present));",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "  const targetDamage = report.robots[1]?.damage || 0;",
+          "old": null,
+          "new": 8
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "  const won = report.winner === \"Your robot\";",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "  if (level === 1) return { pass: distance > 100, reason: `Your robot moved ${Math.round(distance)} m; the goal is more than 100 m.` };",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "  if (level === 2) return { pass: fired, reason: fired ? \"Your robot fired a missile after looking for the target.\" : \"No missile appeared; scan for the target and fire when you find it.\" };",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "  if (level === 3) return { pass: targetDamage > 0, reason: targetDamage > 0 ? `The target took ${targetDamage}% damage.` : \"The target took no damage; adjust your aim or range.\" };",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "  if (level === 4) return { pass: won && targetDamage >= 100, reason: won && targetDamage >= 100 ? \"You destroyed the target before the cycle limit.\" : `The target finished with ${targetDamage}% damage; destroy it to pass.` };",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "  return { pass: won, reason: won ? \"Your robot won this fight.\" : `This fight went to ${report.winner || \"a draw\"}.` };",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "}",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "export function evaluateSeries(wins, opponent) {",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "  return { pass: wins >= 2, reason: `Your robot beat ${opponent} in ${wins} of 3 seeded fights; 2 wins are needed.` };",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "}",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "export function evaluateTournament(report) {",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "  const reached = report.rounds?.some((round) => round.matches.some((match) => match.entrants.includes(\"Your robot\"))) || false;",
+          "old": null,
+          "new": 20
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/challenge_tournament_spec.cr",
+      "note": "The browser test enters a seeded tournament, opens a replay and checks the first challenge. It also checks that the page fits on a narrow screen.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "require \"./spec_helper\"",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "require \"json\"",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "CHALLENGE_CHROMIUM_BIN = if (configured_bin = ENV[\"CHROMIUM_BIN\"]?) && !configured_bin.empty?",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "                           Process.find_executable(configured_bin)",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "                         else",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "                           Process.find_executable(\"chromium\") ||",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "                             Process.find_executable(\"chromium-browser\") ||",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "                             Process.find_executable(\"google-chrome\") ||",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "                             Process.find_executable(\"google-chrome-stable\")",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "                         end",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 12
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "describe \"site tournament and challenge (headless)\" do",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "  if bin = CHALLENGE_CHROMIUM_BIN",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "    wasm32_it \"runs a seeded tournament, replays a fight, passes level 1, and fits 360px\" do",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "      output = IO::Memory.new",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "      errors = IO::Memory.new",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "      status = Process.run(\"node\", [\"spec/support/challenge_tournament_check.mjs\", bin], output: output, error: errors)",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "      status.success?.should be_true, \"challenge_tournament_check.mjs failed: #{output}\\n#{errors}\"",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "      JSON.parse(output.to_s)[\"ok\"].as_bool.should be_true",
+          "old": null,
+          "new": 20
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "  else",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "    pending \"tournament and challenge headless check (no browser found via CHROMIUM_BIN or chromium, chromium-browser, google-chrome, google-chrome-stable)\"",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 25
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

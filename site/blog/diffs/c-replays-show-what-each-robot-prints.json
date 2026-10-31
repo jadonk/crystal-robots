@@ -1,0 +1,463 @@
+{
+  "sha": "6afe3f25ecde4629e300fbd5261dbdeb07a9c144",
+  "subject": "Replays show what each robot prints",
+  "summary": "A replay can show each robot’s printed lines at the cycle they appeared.",
+  "files": [
+    {
+      "path": "site/battle-playback.js",
+      "added": 60,
+      "removed": 1,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/challenge/challenge.js",
+      "added": 1,
+      "removed": 1,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/site.css",
+      "added": 5,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "spec/battle_spec.cr",
+      "added": 16,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/browser_spec.cr",
+      "added": 10,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/support/landing_check.mjs",
+      "added": 40,
+      "removed": 1,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/wasm32_spec.cr",
+      "added": 5,
+      "removed": 1,
+      "role": "Checks the compiler built for the browser."
+    },
+    {
+      "path": "src/battle/field.cr",
+      "added": 7,
+      "removed": 1,
+      "role": "Runs the project command."
+    },
+    {
+      "path": "src/battle/step_robot.cr",
+      "added": 1,
+      "removed": 0,
+      "role": "Runs the project command."
+    },
+    {
+      "path": "src/browser.cr",
+      "added": 2,
+      "removed": 1,
+      "role": "Runs the project command."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "site/battle-playback.js",
+      "note": "The player adds a place for robot output below the arena and updates it with the current frame. A reader can pause or scrub backward and see only the lines printed by then.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "      robotEls[i].label.setAttribute(\"x\", x > 500 ? \"-24\" : \"24\");",
+          "old": null,
+          "new": 229
+        },
+        {
+          "kind": "+",
+          "text": "      robotEls[i].label.setAttribute(\"text-anchor\", x > 500 ? \"end\" : \"start\");",
+          "old": null,
+          "new": 230
+        },
+        {
+          "kind": "+",
+          "text": "      robotEls[i].label.setAttribute(\"y\", y > 915 ? \"65\" : \"-68\");",
+          "old": null,
+          "new": 231
+        },
+        {
+          "kind": " ",
+          "text": "    });",
+          "old": 216,
+          "new": 232
+        },
+        {
+          "kind": " ",
+          "text": "  }",
+          "old": 217,
+          "new": 233
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 218,
+          "new": 234
+        },
+        {
+          "kind": " ",
+          "text": "  let playing = autoplay && frames.length > 1;",
+          "old": 219,
+          "new": 235
+        },
+        {
+          "kind": " ",
+          "text": "  playButton.textContent = playing ? \"Pause\" : \"Play\";",
+          "old": 220,
+          "new": 236
+        },
+        {
+          "kind": " ",
+          "text": "  let speed = Math.max(1, Number(speedInput.value) || initialCps || 1);",
+          "old": 221,
+          "new": 237
+        },
+        {
+          "kind": " ",
+          "text": "  let cycle = 0;",
+          "old": 222,
+          "new": 238
+        },
+        {
+          "kind": " ",
+          "text": "  let raf = null;",
+          "old": 223,
+          "new": 239
+        },
+        {
+          "kind": " ",
+          "text": "  let lastNow = null;",
+          "old": 224,
+          "new": 240
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  let shownPrints = 0;",
+          "old": null,
+          "new": 241
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 242
+        },
+        {
+          "kind": "+",
+          "text": "  function renderPrints() {",
+          "old": null,
+          "new": 243
+        },
+        {
+          "kind": "+",
+          "text": "    let upto = 0;",
+          "old": null,
+          "new": 244
+        },
+        {
+          "kind": "+",
+          "text": "    while (upto < prints.length && prints[upto].cycle <= cycle) upto++;",
+          "old": null,
+          "new": 245
+        },
+        {
+          "kind": "+",
+          "text": "    if (upto < shownPrints) {",
+          "old": null,
+          "new": 246
+        },
+        {
+          "kind": "+",
+          "text": "      while (output.children.length > upto) output.lastChild.remove();",
+          "old": null,
+          "new": 247
+        },
+        {
+          "kind": "+",
+          "text": "    } else if (upto > shownPrints) {",
+          "old": null,
+          "new": 248
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      for (let i = shownPrints; i < upto; i++) {",
+          "old": null,
+          "new": 249
+        },
+        {
+          "kind": "+",
+          "text": "        const line = document.createElement(\"div\");",
+          "old": null,
+          "new": 250
+        },
+        {
+          "kind": "+",
+          "text": "        line.className = \"battle-output-line\";",
+          "old": null,
+          "new": 251
+        },
+        {
+          "kind": "+",
+          "text": "        line.style.color = robotEls[prints[i].robot].body.getAttribute(\"fill\");",
+          "old": null,
+          "new": 252
+        },
+        {
+          "kind": "+",
+          "text": "        const name = document.createElement(\"span\");",
+          "old": null,
+          "new": 253
+        },
+        {
+          "kind": "+",
+          "text": "        name.className = \"battle-output-name\";",
+          "old": null,
+          "new": 254
+        },
+        {
+          "kind": "+",
+          "text": "        name.textContent = `${report.robots[prints[i].robot].name}: `;",
+          "old": null,
+          "new": 255
+        },
+        {
+          "kind": "+",
+          "text": "        line.append(name, prints[i].text);",
+          "old": null,
+          "new": 256
+        },
+        {
+          "kind": "+",
+          "text": "        output.appendChild(line);",
+          "old": null,
+          "new": 257
+        },
+        {
+          "kind": "+",
+          "text": "      }",
+          "old": null,
+          "new": 258
+        },
+        {
+          "kind": "+",
+          "text": "      output.scrollTop = output.scrollHeight;",
+          "old": null,
+          "new": 259
+        },
+        {
+          "kind": "+",
+          "text": "    }",
+          "old": null,
+          "new": 260
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/browser_spec.cr",
+      "note": "This spec checks that printed lines carry a cycle and that a silent robot has no lines. The replay can then show each line at the right moment.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "BROWSER_SPEC_SHOOTER = \"main(\\\"S\\\") do\\n  while true\\n    cannon(0, 5)\\n    sleep\\n  end\\nend\\n\"",
+          "old": 28,
+          "new": 28
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 29,
+          "new": 29
+        },
+        {
+          "kind": " ",
+          "text": "private def idle_pair_request(limit : Int64, max_frames : Int32? = nil) : String",
+          "old": 30,
+          "new": 30
+        },
+        {
+          "kind": " ",
+          "text": "  h = {robots: [{name: \"a\", source: BROWSER_SPEC_IDLE}, {name: \"b\", source: BROWSER_SPEC_IDLE}], seed: 1_u64, limit: limit}",
+          "old": 31,
+          "new": 31
+        },
+        {
+          "kind": " ",
+          "text": "  (max_frames ? h.merge({max_frames: max_frames}) : h).to_json",
+          "old": 32,
+          "new": 32
+        },
+        {
+          "kind": " ",
+          "text": "end",
+          "old": 33,
+          "new": 33
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 34,
+          "new": 34
+        },
+        {
+          "kind": " ",
+          "text": "private def shooter_pair_request(limit : Int64, max_frames : Int32) : String",
+          "old": 35,
+          "new": 35
+        },
+        {
+          "kind": " ",
+          "text": "  {robots: [{name: \"s\", source: BROWSER_SPEC_SHOOTER}, {name: \"i\", source: BROWSER_SPEC_IDLE}], seed: 1_u64, limit: limit, max_frames: max_frames}.to_json",
+          "old": 36,
+          "new": 36
+        },
+        {
+          "kind": " ",
+          "text": "end",
+          "old": 37,
+          "new": 37
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "",
+          "old": 38,
+          "new": 38
+        },
+        {
+          "kind": " ",
+          "text": "describe \"CrystalRobots::Browser.battle_run\" do",
+          "old": 39,
+          "new": 39
+        },
+        {
+          "kind": "+",
+          "text": "  it \"reports each robot's printed lines with cycles and leaves silent robots empty\" do",
+          "old": null,
+          "new": 40
+        },
+        {
+          "kind": "+",
+          "text": "    printer = \"main(\\\"Printer\\\") do\\n  while true\\n    puts 7\\n    sleep\\n  end\\nend\\n\"",
+          "old": null,
+          "new": 41
+        },
+        {
+          "kind": "+",
+          "text": "    request = {robots: [{name: \"printer\", source: printer}, {name: \"idle\", source: BROWSER_SPEC_IDLE}], seed: 1_u64, limit: 300_i64}.to_json",
+          "old": null,
+          "new": 42
+        },
+        {
+          "kind": "+",
+          "text": "    report, _ = run_battle(request)",
+          "old": null,
+          "new": 43
+        },
+        {
+          "kind": "+",
+          "text": "    lines = report[\"robots\"][0][\"output\"].as_a",
+          "old": null,
+          "new": 44
+        },
+        {
+          "kind": "+",
+          "text": "    lines.size.should be > 1",
+          "old": null,
+          "new": 45
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    lines.all? { |line| line[\"text\"].as_s == \"7\" && line[\"cycle\"].as_i64 > 0 }.should be_true",
+          "old": null,
+          "new": 46
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"robots\"][1][\"output\"].as_a.should be_empty",
+          "old": null,
+          "new": 47
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 48
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 49
+        },
+        {
+          "kind": " ",
+          "text": "  it \"reports a frame_count matching the binary log's own header\" do",
+          "old": 40,
+          "new": 50
+        },
+        {
+          "kind": " ",
+          "text": "    report, frames = run_battle(idle_pair_request(300_000_i64, 300))",
+          "old": 41,
+          "new": 51
+        },
+        {
+          "kind": " ",
+          "text": "    _version, robot_count, _slots, frame_count = frame_header(frames)",
+          "old": 42,
+          "new": 52
+        },
+        {
+          "kind": " ",
+          "text": "    frame_count.should eq report[\"frame_count\"].as_i",
+          "old": 43,
+          "new": 53
+        },
+        {
+          "kind": " ",
+          "text": "    robot_count.should eq 2",
+          "old": 44,
+          "new": 54
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 45,
+          "new": 55
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 46,
+          "new": 56
+        },
+        {
+          "kind": " ",
+          "text": "  it \"records roughly the requested budget's worth of frames when nothing eventful happens\" do",
+          "old": 47,
+          "new": 57
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

@@ -1,0 +1,136 @@
+{
+  "sha": "45ae2dc9bfe51bd24e8e4207beecc7da0fce61b9",
+  "subject": "Pages deploy: mark site/*.js as ES modules so the playback spec runs on older Node",
+  "summary": "Older Node versions can load the site player for its test.",
+  "files": [
+    {
+      "path": "site/package.json",
+      "added": 1,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "spec/support/battle_playback_check.mjs",
+      "added": 1,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "site/package.json",
+      "note": "The whole fix is this one line. The site's JavaScript files are written as modules (they use `import` and `export`), and a browser knows that from the page. Node, which runs the tests, has to be told; older versions guessed wrong and refused to load the playback code. This file tells Node that every `.js` file in `site/` is a module.",
+      "before": [],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "{\"type\": \"module\"}",
+          "old": null,
+          "new": 1
+        }
+      ],
+      "after": [],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/support/battle_playback_check.mjs",
+      "note": "The playback check loads the site's code straight into Node, so it was the test that broke. This comment records why it works now.",
+      "before": [],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "// Decodes a native Browser.battle_run frame log with the module used by",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "kind": " ",
+          "text": "// the battle and editor Fight pages. Exits 0 with {\"ok\":true} on success.",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "// site/package.json marks site/*.js as ES modules so Node of any version imports them as ESM.",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": " ",
+          "text": "//",
+          "old": 3,
+          "new": 4
+        },
+        {
+          "kind": " ",
+          "text": "//   node spec/support/battle_playback_check.mjs frame-log.bin",
+          "old": 4,
+          "new": 5
+        },
+        {
+          "kind": " ",
+          "text": "import assert from \"node:assert/strict\";",
+          "old": 5,
+          "new": 6
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "import { readFile } from \"node:fs/promises\";",
+          "old": 6,
+          "new": 7
+        },
+        {
+          "kind": " ",
+          "text": "import { decodeFrames } from \"../../site/battle-playback.js\";",
+          "old": 7,
+          "new": 8
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 8,
+          "new": 9
+        },
+        {
+          "kind": " ",
+          "text": "const bytes = await readFile(process.argv[2]);",
+          "old": 9,
+          "new": 10
+        },
+        {
+          "kind": " ",
+          "text": "const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);",
+          "old": 10,
+          "new": 11
+        },
+        {
+          "kind": " ",
+          "text": "const { robotCount, frames } = decodeFrames(buffer);",
+          "old": 11,
+          "new": 12
+        },
+        {
+          "kind": " ",
+          "text": "assert.equal(robotCount, 2);",
+          "old": 12,
+          "new": 13
+        },
+        {
+          "kind": " ",
+          "text": "assert.ok(frames.length > 1, \"battle must produce multiple frames\");",
+          "old": 13,
+          "new": 14
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 14,
+          "new": 15
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

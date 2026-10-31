@@ -79,6 +79,13 @@ describe "blog diff data" do
       status.success?.should be_false
       errors.includes?("anchor").should be_true
       errors.includes?("missing text").should be_true
+      File.write(File.join(dir, "site/blog/index.html"), %(<section class="commit" id="c-change"><a class="commit-link" data-subject="Change number"></a></section><section class="commit" id="c-catch-up"><p>A large code swap.</p></section>))
+      File.write(notes_path, notes.sub(%("c-change":), %("c-catch-up":{"summary":"The code catches up.","note":"This code was built separately.","excerpts":[]},"c-change":)))
+      blog_build(dir)[0].success?.should be_true
+      catch_up = JSON.parse(File.read(File.join(dir, "site/blog/diffs/c-catch-up.json")))
+      catch_up["summary"].as_s.should eq("The code catches up.")
+      catch_up["note"].as_s.should eq("This code was built separately.")
+      catch_up["excerpts"].as_a.should be_empty
     ensure
       FileUtils.rm_rf(dir)
     end
@@ -88,7 +95,7 @@ describe "blog diff data" do
     html = File.read(File.join(BLOG_ROOT, "site/blog/index.html"))
     notes = YAML.parse(File.read(File.join(BLOG_ROOT, "site/blog/diffs/notes.yml")))["commits"].as_h
     ids = html.scan(/data-diff="([^"]+)"/).map(&.[1])
-    ids.size.should eq(37)
+    ids.size.should eq(61)
     ids.each do |id|
       notes.has_key?(YAML::Any.new(id)).should be_true
       File.exists?(File.join(BLOG_ROOT, "site/blog/diffs/#{id}.json")).should be_true

@@ -1,0 +1,6 @@
+{
+  "summary": "The project switches to the code that had been built alongside this retelling.",
+  "note": "There is no excerpt here on purpose. This commit replaces most of the project's files at once, so a line-by-line view would run to thousands of lines; the intermission above describes what changed shape. From the next commit on, each change is small enough to read again.",
+  "files": [],
+  "excerpts": []
+}

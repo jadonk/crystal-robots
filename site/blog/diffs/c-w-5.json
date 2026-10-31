@@ -1,0 +1,220 @@
+{
+  "sha": "7c2560876d87f99703b76d1bf23a4f66f9240efe",
+  "subject": "Phase W.5: pin the Pages workflow with Crystal's own YAML",
+  "summary": "A test guards the publishing steps and Crystal version.",
+  "files": [
+    {
+      "path": "spec/pages_workflow_spec.cr",
+      "added": 49,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "spec/pages_workflow_spec.cr",
+      "note": "Crystal reads this YAML key as true, so the test checks the actual trigger the workflow parser sees. It keeps publication tied to the intended branches after W.4 added the workflow.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "# .github/workflows/pages.yml is not Crystal code, so there is nothing",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "# for `crystal spec` to run against it directly; this instead parses",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "# it with the stdlib (`require \"yaml\"`, backed by libyaml, present in",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "# this environment -- confirmed directly, no external tool needed) and",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "# pins its trigger and step order, so a future edit cannot silently",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "# change what the deploy publishes or when.",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "#",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "# YAML 1.1's bareword booleans bite here: an unquoted `on:` key parses",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "# as the boolean `true`, not the string \"on\" -- `doc[true]`, not",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "# `doc[\"on\"]`, is genuinely how this reads back.",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "describe \".github/workflows/pages.yml\" do",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "  workflow = YAML.parse(File.read(\".github/workflows/pages.yml\"))",
+          "old": null,
+          "new": 15
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "  it \"triggers only on a push to main or dev (YAML 1.1 parses the bare `on:` key as true, not \\\"on\\\")\" do",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "    workflow[true][\"push\"][\"branches\"].as_a.map(&.as_s).should eq [\"main\", \"dev\"]",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "  it \"also allows a manual dispatch\" do",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "    workflow[true].as_h.keys.map(&.as_s).should contain \"workflow_dispatch\"",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 23
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "  it \"runs the build steps in order: checkout, install Crystal, apt lld, ci.sh --with-wasm32, upload the Pages artifact\" do",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "    steps = workflow[\"jobs\"][\"build\"][\"steps\"].as_a",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "    identifiers = steps.map do |s|",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "      h = s.as_h",
+          "old": null,
+          "new": 28
+        },
+        {
+          "kind": "+",
+          "text": "      h[\"uses\"]?.try(&.as_s) || h[\"run\"]?.try(&.as_s) || raise \"step has neither uses nor run: #{s}\"",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 30
+        },
+        {
+          "kind": "+",
+          "text": "    identifiers.should eq [",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": "+",
+          "text": "      \"actions/checkout@v4\",",
+          "old": null,
+          "new": 32
+        },
+        {
+          "kind": "+",
+          "text": "      \"oprypin/install-crystal@v1\",",
+          "old": null,
+          "new": 33
+        },
+        {
+          "kind": "+",
+          "text": "      \"sudo apt-get update && sudo apt-get install -y lld\",",
+          "old": null,
+          "new": 34
+        },
+        {
+          "kind": "+",
+          "text": "      \"scripts/ci.sh --with-wasm32\",",
+          "old": null,
+          "new": 35
+        }
+      ],
+      "line_notes": {
+        "workflow[true][\"push\"]": "Crystal’s YAML reader treats the unquoted `on` key as true. This line checks the branches under that key."
+      }
+    }
+  ]
+}

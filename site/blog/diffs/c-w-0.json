@@ -1,0 +1,354 @@
+{
+  "sha": "c9b9d64c3abcfd0a8c6c1b1524155b9068e26f73",
+  "subject": "Phase W.0: compile and interpret in one call",
+  "summary": "The page can compile a robot or run it directly from its source text.",
+  "files": [
+    {
+      "path": "scripts/install_wasm32_wasi_libs.sh",
+      "added": 42,
+      "removed": 0,
+      "role": "Helps build or check the project."
+    },
+    {
+      "path": "spec/compiler_spec.cr",
+      "added": 21,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/interpreter_spec.cr",
+      "added": 17,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "src/compiler/compiler.cr",
+      "added": 27,
+      "removed": 0,
+      "role": "Builds or runs a robot program."
+    },
+    {
+      "path": "src/compiler/interpreter.cr",
+      "added": 18,
+      "removed": 4,
+      "role": "Runs robot steps directly so their behavior can be checked."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/compiler.cr",
+      "note": "The page can hand the compiler one string and receive runnable WebAssembly bytes. This joins the parsing and emitting steps used earlier, so a button can ask for one complete result.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "require \"./parser\"",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "require \"./checker\"",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "require \"./interpreter\"",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "require \"./wasm_emitter\"",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "module CrystalRobots::Compiler",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "  # Parse and run `source` in the interpreter against a `NullHost`.",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "  # Returns the total cycles charged.",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "  def self.interpret(source : String) : Int64",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "    program = Parser.new(source).program",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "    Interpreter.execute(program, NullHost.new)",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 20
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "  # Parse `source` and emit a WebAssembly module.",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "  def self.compile_to_wasm(source : String) : Bytes",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "    program = Parser.new(source).program",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "    WASM_Emitter.new(program).to_wasm",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 27
+        }
+      ],
+      "after": [],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/interpreter_spec.cr",
+      "note": "A robot that repeats forever must still give the page control again. This test checks that the interpreter stops soon after its allowed work is spent.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    program = CrystalRobots::Compiler::Parser.new(\"global(i, 0)\\nwhile i < 5\\ni += 1\\nend\\nputs i\\n\").program",
+          "old": 137,
+          "new": 137
+        },
+        {
+          "kind": " ",
+          "text": "    cycles = CrystalRobots::Compiler::Interpreter.execute(",
+          "old": 138,
+          "new": 138
+        },
+        {
+          "kind": " ",
+          "text": "      program, CrystalRobots::Compiler::NullHost.new, CrystalRobots::Compiler::Interpreter::Costs.statements",
+          "old": 139,
+          "new": 139
+        },
+        {
+          "kind": " ",
+          "text": "    )",
+          "old": 140,
+          "new": 140
+        },
+        {
+          "kind": " ",
+          "text": "    # global(i, 0); the while statement itself; 5 loop bodies (i += 1);",
+          "old": 141,
+          "new": 141
+        },
+        {
+          "kind": " ",
+          "text": "    # puts i: 8 statements total.",
+          "old": 142,
+          "new": 142
+        },
+        {
+          "kind": " ",
+          "text": "    cycles.should eq 8_i64",
+          "old": 143,
+          "new": 143
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 144,
+          "new": 144
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 145,
+          "new": 145
+        },
+        {
+          "kind": " ",
+          "text": "  it \"runs main last\" do",
+          "old": 146,
+          "new": 146
+        },
+        {
+          "kind": " ",
+          "text": "    interpret_puts(\"puts 1\\nmain(\\\"Test\\\") do\\nputs 2\\nend\\n\").should eq [1, 2]",
+          "old": 147,
+          "new": 147
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 148,
+          "new": 148
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 149
+        },
+        {
+          "kind": "+",
+          "text": "  it \"a standalone cycle limit stops a bare while true instead of looping forever\" do",
+          "old": null,
+          "new": 150
+        },
+        {
+          "kind": "+",
+          "text": "    program = CrystalRobots::Compiler::Parser.new(\"global(i, 0)\\nmain(\\\"Loop\\\") do\\nwhile true\\ni += 1\\nend\\nend\\n\").program",
+          "old": null,
+          "new": 151
+        },
+        {
+          "kind": "+",
+          "text": "    host = CrystalRobots::Compiler::NullHost.new",
+          "old": null,
+          "new": 152
+        },
+        {
+          "kind": "+",
+          "text": "    interpreter = Interpreter.new(program, host, limit: 500_i64)",
+          "old": null,
+          "new": 153
+        },
+        {
+          "kind": "+",
+          "text": "    interpreter.run",
+          "old": null,
+          "new": 154
+        },
+        {
+          "kind": "+",
+          "text": "    interpreter.cycles.should be >= 500",
+          "old": null,
+          "new": 155
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    interpreter.cycles.should be < 1000 # stops soon after crossing the limit, not thousands of cycles later",
+          "old": null,
+          "new": 156
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 157
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 158
+        },
+        {
+          "kind": "+",
+          "text": "  it \"a run that finishes on its own, under the limit, is unaffected\" do",
+          "old": null,
+          "new": 159
+        },
+        {
+          "kind": "+",
+          "text": "    program = CrystalRobots::Compiler::Parser.new(\"puts 1 + 2\\n\").program",
+          "old": null,
+          "new": 160
+        },
+        {
+          "kind": "+",
+          "text": "    host = CrystalRobots::Compiler::NullHost.new",
+          "old": null,
+          "new": 161
+        },
+        {
+          "kind": "+",
+          "text": "    interpreter = Interpreter.new(program, host, limit: 500_000_i64)",
+          "old": null,
+          "new": 162
+        },
+        {
+          "kind": "+",
+          "text": "    interpreter.run",
+          "old": null,
+          "new": 163
+        },
+        {
+          "kind": "+",
+          "text": "    host.puts_out.should eq [3]",
+          "old": null,
+          "new": 164
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 165
+        },
+        {
+          "kind": " ",
+          "text": "end",
+          "old": 149,
+          "new": 166
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

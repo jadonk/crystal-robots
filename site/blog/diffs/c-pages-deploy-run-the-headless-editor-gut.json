@@ -1,0 +1,403 @@
+{
+  "sha": "da837acbb30a8b1ed125d9649f65fde00285375b",
+  "subject": "Pages deploy: run the headless editor gutter spec with the runner's Google Chrome",
+  "summary": "The publishing build runs the editor check with an available browser.",
+  "files": [
+    {
+      "path": ".github/workflows/pages.yml",
+      "added": 8,
+      "removed": 0,
+      "role": "Sets up the project."
+    },
+    {
+      "path": "spec/editor_gutter_spec.cr",
+      "added": 12,
+      "removed": 5,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/support/editor_gutter_check.mjs",
+      "added": 11,
+      "removed": 3,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/workflow_spec.cr",
+      "added": 5,
+      "removed": 2,
+      "role": "Checks that a piece of the project behaves as expected."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": ".github/workflows/pages.yml",
+      "note": "The workflow finds Google Chrome on its build machine and passes its path to the editor test. That keeps the line-number check running during publication instead of silently skipping it.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    runs-on: ubuntu-latest",
+          "old": 33,
+          "new": 33
+        },
+        {
+          "kind": " ",
+          "text": "    steps:",
+          "old": 34,
+          "new": 34
+        },
+        {
+          "kind": " ",
+          "text": "      - uses: actions/checkout@v4",
+          "old": 35,
+          "new": 35
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 36,
+          "new": 36
+        },
+        {
+          "kind": " ",
+          "text": "      - uses: oprypin/install-crystal@v1",
+          "old": 37,
+          "new": 37
+        },
+        {
+          "kind": " ",
+          "text": "        with:",
+          "old": 38,
+          "new": 38
+        },
+        {
+          "kind": " ",
+          "text": "          crystal: \"1.18.2\"",
+          "old": 39,
+          "new": 39
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 40,
+          "new": 40
+        },
+        {
+          "kind": " ",
+          "text": "      - run: sudo apt-get update && sudo apt-get install -y lld libyaml-dev",
+          "old": 41,
+          "new": 41
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 42,
+          "new": 42
+        },
+        {
+          "kind": "+",
+          "text": "      # GitHub's runner image ships Google Chrome as a deb; chromium/chromium-browser",
+          "old": null,
+          "new": 43
+        },
+        {
+          "kind": "+",
+          "text": "      # on newer Ubuntu are snap launchers that do not start reliably in Actions.",
+          "old": null,
+          "new": 44
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "      - name: Select Chrome for headless specs",
+          "old": null,
+          "new": 45
+        },
+        {
+          "kind": "+",
+          "text": "        run: |",
+          "old": null,
+          "new": 46
+        },
+        {
+          "kind": "+",
+          "text": "          CHROMIUM_BIN=$(command -v google-chrome || command -v google-chrome-stable || true)",
+          "old": null,
+          "new": 47
+        },
+        {
+          "kind": "+",
+          "text": "          echo \"CHROMIUM_BIN=$CHROMIUM_BIN\" >> \"$GITHUB_ENV\"",
+          "old": null,
+          "new": 48
+        },
+        {
+          "kind": "+",
+          "text": "          echo \"Using browser: $CHROMIUM_BIN\"",
+          "old": null,
+          "new": 49
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 50
+        },
+        {
+          "kind": " ",
+          "text": "      - run: crystal run ci.cr -- --with-wasm32",
+          "old": 43,
+          "new": 51
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 44,
+          "new": 52
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "      - uses: actions/upload-pages-artifact@v3",
+          "old": 45,
+          "new": 53
+        },
+        {
+          "kind": " ",
+          "text": "        with:",
+          "old": 46,
+          "new": 54
+        },
+        {
+          "kind": " ",
+          "text": "          path: site",
+          "old": 47,
+          "new": 55
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 48,
+          "new": 56
+        },
+        {
+          "kind": " ",
+          "text": "  deploy:",
+          "old": 49,
+          "new": 57
+        },
+        {
+          "kind": " ",
+          "text": "    needs: build",
+          "old": 50,
+          "new": 58
+        },
+        {
+          "kind": " ",
+          "text": "    runs-on: ubuntu-latest",
+          "old": 51,
+          "new": 59
+        },
+        {
+          "kind": " ",
+          "text": "    environment:",
+          "old": 52,
+          "new": 60
+        },
+        {
+          "kind": " ",
+          "text": "      name: github-pages",
+          "old": 53,
+          "new": 61
+        },
+        {
+          "kind": " ",
+          "text": "      url: ${{ steps.deployment.outputs.page_url }}",
+          "old": 54,
+          "new": 62
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/workflow_spec.cr",
+      "note": "The workflow spec checks that the publishing job passes Chrome to the browser test. A later runner change will fail the build if that step disappears.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    workflow[\"jobs\"].as_h.keys.should eq([\"build\", \"deploy\"])",
+          "old": 18,
+          "new": 18
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 19,
+          "new": 19
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 20,
+          "new": 20
+        },
+        {
+          "kind": " ",
+          "text": "  it \"builds the browser compiler in the exact expected step order\" do",
+          "old": 21,
+          "new": 21
+        },
+        {
+          "kind": " ",
+          "text": "    steps = workflow[\"jobs\"][\"build\"][\"steps\"].as_a",
+          "old": 22,
+          "new": 22
+        },
+        {
+          "kind": " ",
+          "text": "    steps[0][\"uses\"].as_s.should eq(\"actions/checkout@v4\")",
+          "old": 23,
+          "new": 23
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 24,
+          "new": 24
+        },
+        {
+          "kind": " ",
+          "text": "    steps[1][\"uses\"].as_s.should eq(\"oprypin/install-crystal@v1\")",
+          "old": 25,
+          "new": 25
+        },
+        {
+          "kind": " ",
+          "text": "    steps[1][\"with\"][\"crystal\"].as_s.should eq(\"1.18.2\")",
+          "old": 26,
+          "new": 26
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 27,
+          "new": 27
+        },
+        {
+          "kind": " ",
+          "text": "    steps[2][\"run\"].as_s.should eq(\"sudo apt-get update && sudo apt-get install -y lld libyaml-dev\")",
+          "old": 28,
+          "new": 28
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "",
+          "old": 29,
+          "new": 29
+        },
+        {
+          "kind": "-",
+          "text": "    steps[3][\"run\"].as_s.should eq(\"crystal run ci.cr -- --with-wasm32\")",
+          "old": 30,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "    steps[3][\"run\"].as_s.includes?(\"CHROMIUM_BIN=$(command -v google-chrome || command -v google-chrome-stable || true)\").should be_true",
+          "old": null,
+          "new": 30
+        },
+        {
+          "kind": "+",
+          "text": "    steps[3][\"run\"].as_s.includes?(\"echo \\\"CHROMIUM_BIN=$CHROMIUM_BIN\\\" >> \\\"$GITHUB_ENV\\\"\").should be_true",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 31,
+          "new": 32
+        },
+        {
+          "kind": "-",
+          "text": "    steps[4][\"uses\"].as_s.should eq(\"actions/upload-pages-artifact@v3\")",
+          "old": 32,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "    steps[4][\"run\"].as_s.should eq(\"crystal run ci.cr -- --with-wasm32\")",
+          "old": null,
+          "new": 33
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 34
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    steps[5][\"uses\"].as_s.should eq(\"actions/upload-pages-artifact@v3\")",
+          "old": null,
+          "new": 35
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 33,
+          "new": 36
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 34,
+          "new": 37
+        },
+        {
+          "kind": " ",
+          "text": "  it \"deploys with actions/deploy-pages under the github-pages environment\" do",
+          "old": 35,
+          "new": 38
+        },
+        {
+          "kind": " ",
+          "text": "    deploy = workflow[\"jobs\"][\"deploy\"]",
+          "old": 36,
+          "new": 39
+        },
+        {
+          "kind": " ",
+          "text": "    deploy[\"environment\"][\"name\"].as_s.should eq(\"github-pages\")",
+          "old": 37,
+          "new": 40
+        },
+        {
+          "kind": " ",
+          "text": "    deploy[\"steps\"].as_a.map(&.[\"uses\"].as_s).should eq([\"actions/deploy-pages@v4\"])",
+          "old": 38,
+          "new": 41
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 39,
+          "new": 42
+        },
+        {
+          "kind": " ",
+          "text": "end",
+          "old": 40,
+          "new": 43
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

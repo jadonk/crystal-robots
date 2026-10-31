@@ -1,0 +1,248 @@
+{
+  "sha": "2f1b9209cf7ef136f2731edef520e3e2186f6d78",
+  "subject": "Phase W.6: ci.cr replaces ci.sh",
+  "summary": "The project can run its checks with one Crystal command.",
+  "files": [
+    {
+      "path": ".github/workflows/pages.yml",
+      "added": 4,
+      "removed": 4,
+      "role": "Sets up the project."
+    },
+    {
+      "path": "ci.cr",
+      "added": 179,
+      "removed": 0,
+      "role": "Runs the project build and checks."
+    },
+    {
+      "path": "docs/PLAN.md",
+      "added": 1,
+      "removed": 1,
+      "role": "Tracks the steps of the tutorial."
+    },
+    {
+      "path": "scripts/ci.sh",
+      "added": 0,
+      "removed": 120,
+      "role": "Builds and checks the project in one command."
+    },
+    {
+      "path": "spec/pages_workflow_spec.cr",
+      "added": 2,
+      "removed": 2,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 2,
+      "removed": 2,
+      "role": "Checks that a piece of the project behaves as expected."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "ci.cr",
+      "note": "This helper runs each build or test command and stops if it fails. Moving the check sequence into Crystal keeps the same command useful locally and in the Pages workflow.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "# `install_wasmer.sh` and `install_wasm32_wasi_libs.sh` stay shell",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "# scripts under scripts/: one is a vendored third-party installer, the",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "# other a plain tarball fetch-and-extract with no Crystal-specific",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "# logic, and rewriting either would just be duplicating a POSIX-only",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "# tool in a language that has to shell out to `tar`/`curl` anyway.",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "# `rm`, `git` and `sh` themselves are shelled out to for the same",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "# reason: this script orchestrates other tools, it does not reimplement",
+          "old": null,
+          "new": 28
+        },
+        {
+          "kind": "+",
+          "text": "# a shell.",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": "+",
+          "text": "Dir.cd(__DIR__)",
+          "old": null,
+          "new": 30
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": "+",
+          "text": "def step(msg : String) : Nil",
+          "old": null,
+          "new": 32
+        },
+        {
+          "kind": "+",
+          "text": "  puts \"\\n== #{msg}\"",
+          "old": null,
+          "new": 33
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 34
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 35
+        },
+        {
+          "kind": "+",
+          "text": "def run!(command : String, args : Array(String) = [] of String, env : Process::Env = nil,",
+          "old": null,
+          "new": 36
+        },
+        {
+          "kind": "+",
+          "text": "         output : Process::Redirect = Process::Redirect::Inherit,",
+          "old": null,
+          "new": 37
+        },
+        {
+          "kind": "+",
+          "text": "         error : Process::Redirect = Process::Redirect::Inherit) : Nil",
+          "old": null,
+          "new": 38
+        },
+        {
+          "kind": "+",
+          "text": "  status = Process.run(command, args, env: env, output: output, error: error)",
+          "old": null,
+          "new": 39
+        },
+        {
+          "kind": "+",
+          "text": "  return if status.success?",
+          "old": null,
+          "new": 40
+        },
+        {
+          "kind": "+",
+          "text": "  code = status.exit_code",
+          "old": null,
+          "new": 41
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "  exit(code == 0 ? 1 : code)",
+          "old": null,
+          "new": 42
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 43
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 44
+        },
+        {
+          "kind": "+",
+          "text": "def rm_rf(path : String) : Nil",
+          "old": null,
+          "new": 45
+        },
+        {
+          "kind": "+",
+          "text": "  run!(\"rm\", [\"-rf\", path])",
+          "old": null,
+          "new": 46
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 47
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 48
+        },
+        {
+          "kind": "+",
+          "text": "with_wasmer = false",
+          "old": null,
+          "new": 49
+        },
+        {
+          "kind": "+",
+          "text": "with_wasm32 = false",
+          "old": null,
+          "new": 50
+        },
+        {
+          "kind": "+",
+          "text": "ARGV.each do |arg|",
+          "old": null,
+          "new": 51
+        },
+        {
+          "kind": "+",
+          "text": "  case arg",
+          "old": null,
+          "new": 52
+        },
+        {
+          "kind": "+",
+          "text": "  when \"--with-wasmer\" then with_wasmer = true",
+          "old": null,
+          "new": 53
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

@@ -1,0 +1,453 @@
+{
+  "sha": "a162371068e5bfc2aaaa287cb6ee2b7cc7f3587e",
+  "subject": "Phase W.2: the static page and WASI shim",
+  "summary": "A web page can run the compiler and recover from a failed call.",
+  "files": [
+    {
+      "path": ".fossil-settings/ignore-glob",
+      "added": 2,
+      "removed": 0,
+      "role": "Sets up the project."
+    },
+    {
+      "path": ".gitignore",
+      "added": 2,
+      "removed": 0,
+      "role": "Sets up the project."
+    },
+    {
+      "path": "site/app.js",
+      "added": 90,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/index.html",
+      "added": 57,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/wasi-shim.js",
+      "added": 175,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "site/wasi-shim.js",
+      "note": "The shim calls the compiler in a fresh WebAssembly instance and gathers its answer. A bad robot can stop that instance without preventing the next robot from being tried.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "  wasi.setMemory(instance.exports.memory);",
+          "old": null,
+          "new": 116
+        },
+        {
+          "kind": "+",
+          "text": "  try {",
+          "old": null,
+          "new": 117
+        },
+        {
+          "kind": "+",
+          "text": "    instance.exports._start();",
+          "old": null,
+          "new": 118
+        },
+        {
+          "kind": "+",
+          "text": "  } catch (e) {",
+          "old": null,
+          "new": 119
+        },
+        {
+          "kind": "+",
+          "text": "    if (!(e instanceof WasiExit && e.code === 0)) return { trapped: true, stderrBox };",
+          "old": null,
+          "new": 120
+        },
+        {
+          "kind": "+",
+          "text": "  }",
+          "old": null,
+          "new": 121
+        },
+        {
+          "kind": "+",
+          "text": "  return { instance, stderrBox };",
+          "old": null,
+          "new": 122
+        },
+        {
+          "kind": "+",
+          "text": "}",
+          "old": null,
+          "new": 123
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 124
+        },
+        {
+          "kind": "+",
+          "text": "// Writes `source` into a fresh instance and calls `entry` (`crd_run` or",
+          "old": null,
+          "new": 125
+        },
+        {
+          "kind": "+",
+          "text": "// `crd_interpret`), returning `{ trapped: true, stderr }` on a trap or",
+          "old": null,
+          "new": 126
+        },
+        {
+          "kind": "+",
+          "text": "// `{ instance, report }` (`report` parsed from `resultPtrFn`/`resultLenFn`)",
+          "old": null,
+          "new": 127
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "// otherwise -- the caller reads any further exports (e.g. the emitted",
+          "old": null,
+          "new": 128
+        },
+        {
+          "kind": "+",
+          "text": "// WASM bytes) from `instance` before it goes out of scope.",
+          "old": null,
+          "new": 129
+        },
+        {
+          "kind": "+",
+          "text": "async function callEntry(compiledModule, source, entry, resultPtrFn, resultLenFn, onStderr) {",
+          "old": null,
+          "new": 130
+        },
+        {
+          "kind": "+",
+          "text": "  const started = await instantiate(compiledModule, onStderr);",
+          "old": null,
+          "new": 131
+        },
+        {
+          "kind": "+",
+          "text": "  if (started.trapped) return { trapped: true, stderr: started.stderrBox.text };",
+          "old": null,
+          "new": 132
+        },
+        {
+          "kind": "+",
+          "text": "  const { instance, stderrBox } = started;",
+          "old": null,
+          "new": 133
+        },
+        {
+          "kind": "+",
+          "text": "  const { memory } = instance.exports;",
+          "old": null,
+          "new": 134
+        },
+        {
+          "kind": "+",
+          "text": "  try {",
+          "old": null,
+          "new": 135
+        },
+        {
+          "kind": "+",
+          "text": "    const bytes = new TextEncoder().encode(source);",
+          "old": null,
+          "new": 136
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    const ptr = instance.exports.crd_alloc(bytes.length);",
+          "old": null,
+          "new": 137
+        },
+        {
+          "kind": "+",
+          "text": "    new Uint8Array(memory.buffer, ptr, bytes.length).set(bytes);",
+          "old": null,
+          "new": 138
+        },
+        {
+          "kind": "+",
+          "text": "    instance.exports[entry]();",
+          "old": null,
+          "new": 139
+        },
+        {
+          "kind": "+",
+          "text": "    const rp = instance.exports[resultPtrFn]();",
+          "old": null,
+          "new": 140
+        },
+        {
+          "kind": "+",
+          "text": "    const rl = instance.exports[resultLenFn]();",
+          "old": null,
+          "new": 141
+        },
+        {
+          "kind": "+",
+          "text": "    const report = JSON.parse(new TextDecoder().decode(new Uint8Array(memory.buffer, rp, rl)));",
+          "old": null,
+          "new": 142
+        },
+        {
+          "kind": "+",
+          "text": "    return { instance, report };",
+          "old": null,
+          "new": 143
+        },
+        {
+          "kind": "+",
+          "text": "  } catch (e) {",
+          "old": null,
+          "new": 144
+        },
+        {
+          "kind": "+",
+          "text": "    return { trapped: true, stderr: stderrBox.text };",
+          "old": null,
+          "new": 145
+        },
+        {
+          "kind": "+",
+          "text": "  }",
+          "old": null,
+          "new": 146
+        },
+        {
+          "kind": "+",
+          "text": "}",
+          "old": null,
+          "new": 147
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 148
+        }
+      ],
+      "line_notes": {
+        "if (started.trapped) return": "If this call stopped, hand the error text back to the page. The next call starts with a fresh instance."
+      }
+    },
+    {
+      "file": "site/app.js",
+      "note": "The page loads the compiled Crystal program before enabling Run. Once it is ready, a reader can type a robot and see the parser, checker, interpreter and compiled bytes together.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "// in wasi-shim.js; this file just wires the textarea/button to it and",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "// renders the report `crd_run` returns (see `src/browser.cr`).",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "import { run } from \"./wasi-shim.js\";",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "const source = document.getElementById(\"source\");",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "const runButton = document.getElementById(\"run\");",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "const statusEl = document.getElementById(\"status\");",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "const derivationEl = document.getElementById(\"derivation\");",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "const problemsEl = document.getElementById(\"problems\");",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "const interpreterEl = document.getElementById(\"interpreter\");",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "const wasmEl = document.getElementById(\"wasm\");",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 13
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "let compiledModule;",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "async function loadModule() {",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "  statusEl.textContent = \"Loading crystal-robots.wasm…\";",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "  const response = await fetch(\"./crystal-robots.wasm\");",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "  if (!response.ok) {",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "    throw new Error(`fetch crystal-robots.wasm: ${response.status}`);",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "  }",
+          "old": null,
+          "new": 21
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "  try {",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "    compiledModule = await WebAssembly.compileStreaming(response.clone());",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "  } catch {",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "    // Falls back to a full buffer compile if the server does not send",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "    // `Content-Type: application/wasm` (compileStreaming requires it).",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "    compiledModule = await WebAssembly.compile(await response.arrayBuffer());",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "  }",
+          "old": null,
+          "new": 28
+        },
+        {
+          "kind": "+",
+          "text": "  statusEl.textContent = \"Ready.\";",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": "+",
+          "text": "}",
+          "old": null,
+          "new": 30
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": "+",
+          "text": "function toHex(bytes) {",
+          "old": null,
+          "new": 32
+        },
+        {
+          "kind": "+",
+          "text": "  return Array.from(bytes.slice(0, 64))",
+          "old": null,
+          "new": 33
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

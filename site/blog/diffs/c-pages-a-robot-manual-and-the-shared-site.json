@@ -1,0 +1,384 @@
+{
+  "sha": "105c003f56016b52db31e244ed6c3f75dc659023",
+  "subject": "Pages: a robot manual and the shared site stylesheet",
+  "summary": "A beginner can read and try a checked robot manual.",
+  "files": [
+    {
+      "path": "site/manual/index.html",
+      "added": 134,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/manual/manual.js",
+      "added": 43,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/site.css",
+      "added": 63,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "spec/manual_spec.cr",
+      "added": 22,
+      "removed": 0,
+      "role": "Checks examples in the robot manual."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "site/manual/index.html",
+      "note": "The manual opens the way the CROBOTS manual did: with a whole robot you can paste in and run, then a plain walk through each line. Scout drives east, looks east, and fires whenever it sees something. It's short enough to read in a minute and complete enough to fight.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "      <li><a href=\"#works\">How it works</a></li>",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "      <li><a href=\"#local\">Running it yourself</a></li>",
+          "old": null,
+          "new": 28
+        },
+        {
+          "kind": "+",
+          "text": "      <li><a href=\"#references\">References</a></li>",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": "+",
+          "text": "    </ol></nav>",
+          "old": null,
+          "new": 30
+        },
+        {
+          "kind": "+",
+          "text": "  </details>",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": "+",
+          "text": "  <main class=\"manual-content\">",
+          "old": null,
+          "new": 32
+        },
+        {
+          "kind": "+",
+          "text": "    <h1>Robot manual</h1>",
+          "old": null,
+          "new": 33
+        },
+        {
+          "kind": "+",
+          "text": "    <p class=\"lede\">A field guide to writing programs that fight on a virtual battlefield.</p>",
+          "old": null,
+          "new": 34
+        },
+        {
+          "kind": "+",
+          "text": "    <section id=\"intro\"><h2>What crystal-robots is</h2>",
+          "old": null,
+          "new": 35
+        },
+        {
+          "kind": "+",
+          "text": "      <p>crystal-robots is a Crystal-flavored take on Tom Poindexter’s <a href=\"http://tpoindex.github.io/crobots/\">CROBOTS</a> (1985). Its WebAssembly compiler grows out of Colin Eberhardt’s <a href=\"https://github.com/ColinEberhardt/chasm\">chasm</a>. Here, the compiler and the battle run entirely in your browser.</p>",
+          "old": null,
+          "new": 36
+        },
+        {
+          "kind": "+",
+          "text": "      <p>You write a small robot program, test it against others, and watch the match. The language is a focused subset, so use the forms described below rather than assuming all of Crystal is available.</p>",
+          "old": null,
+          "new": 37
+        },
+        {
+          "kind": "+",
+          "text": "    </section>",
+          "old": null,
+          "new": 38
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "    <section id=\"first\"><h2>Your first robot</h2>",
+          "old": null,
+          "new": 39
+        },
+        {
+          "kind": "+",
+          "text": "      <p>Paste this complete program into the <a href=\"../editor/\">robot editor</a> and choose Fight:</p>",
+          "old": null,
+          "new": 40
+        },
+        {
+          "kind": "+",
+          "text": "<pre><code class=\"language-crystal-robots\">main(\"Scout\") do",
+          "old": null,
+          "new": 41
+        },
+        {
+          "kind": "+",
+          "text": "  drive(0, 50)",
+          "old": null,
+          "new": 42
+        },
+        {
+          "kind": "+",
+          "text": "  while true",
+          "old": null,
+          "new": 43
+        },
+        {
+          "kind": "+",
+          "text": "    range = scan(0, 10)",
+          "old": null,
+          "new": 44
+        },
+        {
+          "kind": "+",
+          "text": "    if range > 0",
+          "old": null,
+          "new": 45
+        },
+        {
+          "kind": "+",
+          "text": "      cannon(0, range)",
+          "old": null,
+          "new": 46
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 47
+        },
+        {
+          "kind": "+",
+          "text": "    sleep",
+          "old": null,
+          "new": 48
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 49
+        },
+        {
+          "kind": "+",
+          "text": "end</code></pre>",
+          "old": null,
+          "new": 50
+        },
+        {
+          "kind": "+",
+          "text": "      <p><code>main(\"Scout\") do</code> names your robot and opens its program. <code>drive(0, 50)</code> asks it to head east at speed 50. <code>while true</code> repeats the body. <code>scan(0, 10)</code> looks east within ten degrees; it returns the closest robot’s distance, or zero. When the distance is positive, <code>cannon(0, range)</code> fires toward it. <code>sleep</code> spends a turn while motion continues. Each <code>end</code> closes its matching block. Try another angle or speed and watch the replay.</p>",
+          "old": null,
+          "new": 51
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    </section>",
+          "old": null,
+          "new": 52
+        },
+        {
+          "kind": "+",
+          "text": "    <section id=\"language\"><h2>The language</h2>",
+          "old": null,
+          "new": 53
+        },
+        {
+          "kind": "+",
+          "text": "      <p>Programs use integer expressions and line endings or semicolons between statements. Comments start with <code>#</code> and run to the end of a line. The only string literal used by this subset is the robot name in <code>main(\"Name\") do … end</code>. A top-level <code>def</code> declares a function; <code>return</code> may give back a value. <code>global(name, init)</code> declares mutable shared state; a top-level assignment also makes an implicit global constant. Function definitions are collected before checking calls, so source order does not matter.</p>",
+          "old": null,
+          "new": 54
+        },
+        {
+          "kind": "+",
+          "text": "<pre><code class=\"language-crystal-robots\"># Keep a shared shot count.",
+          "old": null,
+          "new": 55
+        },
+        {
+          "kind": "+",
+          "text": "global(shots, 0)",
+          "old": null,
+          "new": 56
+        },
+        {
+          "kind": "+",
+          "text": "LIMIT = 3",
+          "old": null,
+          "new": 57
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 58
+        },
+        {
+          "kind": "+",
+          "text": "def double(value)",
+          "old": null,
+          "new": 59
+        },
+        {
+          "kind": "+",
+          "text": "  return value * 2",
+          "old": null,
+          "new": 60
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 61
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 62
+        },
+        {
+          "kind": "+",
+          "text": "main(\"Counter\") do",
+          "old": null,
+          "new": 63
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/manual_spec.cr",
+      "note": "The spec takes complete robot examples from the manual and asks the real checker to accept them. Readers can copy an example knowing it still matches the language the editor runs.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "  html = File.read(\"site/manual/index.html\")",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "  blocks = html.scan(/<pre><code class=\"language-crystal-robots\"(.*?)>(.*?)<\\/code><\\/pre>/m)",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "  it \"contains complete robot examples\" do",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "    blocks.size.should be >= 3",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "  blocks.each_with_index do |block, index|",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "    next if block[1].includes?(\"data-fragment\")",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "    it \"parses and checks example #{index + 1}\" do",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "      source = HTML.unescape(block[2])",
+          "old": null,
+          "new": 16
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "      program = C::Program.new(source)",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "      C::Parser.try_parse(program).should be_nil",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "      C::Checker.check(program).should be_empty",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 22
+        }
+      ],
+      "after": [],
+      "line_notes": {}
+    }
+  ]
+}

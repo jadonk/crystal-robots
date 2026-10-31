@@ -1,0 +1,654 @@
+{
+  "sha": "34306a5d170adf641037f8d4182d70f319826f86",
+  "subject": "Phase 5b-2: battle entirely in the browser, no server",
+  "summary": "Two to four robots can fight and be replayed inside a web page.",
+  "files": [
+    {
+      "path": ".fossil-settings/ignore-glob",
+      "added": 1,
+      "removed": 0,
+      "role": "Sets up the project."
+    },
+    {
+      "path": ".github/workflows/pages.yml",
+      "added": 12,
+      "removed": 5,
+      "role": "Sets up the project."
+    },
+    {
+      "path": ".gitignore",
+      "added": 1,
+      "removed": 0,
+      "role": "Sets up the project."
+    },
+    {
+      "path": "docs/PLAN.md",
+      "added": 13,
+      "removed": 4,
+      "role": "Tracks the steps of the tutorial."
+    },
+    {
+      "path": "scripts/build_robots_json.cr",
+      "added": 18,
+      "removed": 0,
+      "role": "Helps build or check the project."
+    },
+    {
+      "path": "site/app.js",
+      "added": 9,
+      "removed": 3,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/battle.js",
+      "added": 168,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/index.html",
+      "added": 39,
+      "removed": 1,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/wasi-shim.js",
+      "added": 52,
+      "removed": 14,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 27,
+      "removed": 2,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/support/wasm32_battle_check.mjs",
+      "added": 21,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/wasm32_spec.cr",
+      "added": 54,
+      "removed": 0,
+      "role": "Checks the compiler built for the browser."
+    },
+    {
+      "path": "src/battle/step_robot.cr",
+      "added": 786,
+      "removed": 0,
+      "role": "Runs the project command."
+    },
+    {
+      "path": "src/battle/svg_replay.cr",
+      "added": 141,
+      "removed": 0,
+      "role": "Runs the project command."
+    },
+    {
+      "path": "src/browser.cr",
+      "added": 94,
+      "removed": 0,
+      "role": "Runs the project command."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 33,
+      "removed": 8,
+      "role": "Groups the words and symbols in a robot program into meaningful steps."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/battle/step_robot.cr",
+      "note": "A robot spends one cycle and saves the rest of its work for its next turn. That lets the page alternate robots without depending on Crystal fibers or exceptions.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "        if (a = int(args[0])) && (b = int(args[1]))",
+          "old": null,
+          "new": 711
+        },
+        {
+          "kind": "+",
+          "text": "          cont.call(host.drive(a, b))",
+          "old": null,
+          "new": 712
+        },
+        {
+          "kind": "+",
+          "text": "        end",
+          "old": null,
+          "new": 713
+        },
+        {
+          "kind": "+",
+          "text": "      else",
+          "old": null,
+          "new": 714
+        },
+        {
+          "kind": "+",
+          "text": "        runtime_error(\"unknown builtin #{name}\")",
+          "old": null,
+          "new": 715
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 716
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 717
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 718
+        },
+        {
+          "kind": "+",
+          "text": "    # Charges exactly one cycle and pauses -- unless `n <= 0`, nothing to",
+          "old": null,
+          "new": 719
+        },
+        {
+          "kind": "+",
+          "text": "    # charge, run straight through. The pause is `@resume`: a closure that",
+          "old": null,
+          "new": 720
+        },
+        {
+          "kind": "+",
+          "text": "    # re-enters here with `n - 1` and the same `after`, so a `tick(n)` call",
+          "old": null,
+          "new": 721
+        },
+        {
+          "kind": "+",
+          "text": "    # (a builtin costs 2, a call costs 3, and so on) still pauses once per",
+          "old": null,
+          "new": 722
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "    # unit, matching `field.cr`'s fiber granularity (whose `on_step` hook",
+          "old": null,
+          "new": 723
+        },
+        {
+          "kind": "+",
+          "text": "    # likewise charges `@cycles` once per unit, not once per `tick` call).",
+          "old": null,
+          "new": 724
+        },
+        {
+          "kind": "+",
+          "text": "    private def tick(n : Int32, &after : -> Nil) : Nil",
+          "old": null,
+          "new": 725
+        },
+        {
+          "kind": "+",
+          "text": "      return if @halted",
+          "old": null,
+          "new": 726
+        },
+        {
+          "kind": "+",
+          "text": "      if n <= 0",
+          "old": null,
+          "new": 727
+        },
+        {
+          "kind": "+",
+          "text": "        after.call",
+          "old": null,
+          "new": 728
+        },
+        {
+          "kind": "+",
+          "text": "        return",
+          "old": null,
+          "new": 729
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 730
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      @cycles += 1",
+          "old": null,
+          "new": 731
+        },
+        {
+          "kind": "+",
+          "text": "      remaining = n - 1",
+          "old": null,
+          "new": 732
+        },
+        {
+          "kind": "+",
+          "text": "      @resume = -> { tick(remaining, &after) }",
+          "old": null,
+          "new": 733
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 734
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 735
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 736
+        },
+        {
+          "kind": "+",
+          "text": "  class Field",
+          "old": null,
+          "new": 737
+        },
+        {
+          "kind": "+",
+          "text": "    # `run`'s non-fiber twin: drives every robot with `Robot#step!`",
+          "old": null,
+          "new": 738
+        },
+        {
+          "kind": "+",
+          "text": "    # instead of `Robot#cycle`, otherwise identical (same physics, same",
+          "old": null,
+          "new": 739
+        },
+        {
+          "kind": "+",
+          "text": "    # frame recording, same cycle/motion accounting). Kept as a separate",
+          "old": null,
+          "new": 740
+        },
+        {
+          "kind": "+",
+          "text": "    # method rather than a flag on `run` so the fiber path -- the CLI, and",
+          "old": null,
+          "new": 741
+        },
+        {
+          "kind": "+",
+          "text": "    # every other spec in this suite -- is untouched by this file. Used by",
+          "old": null,
+          "new": 742
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "site/wasi-shim.js",
+      "note": "The page sends its chosen robots and match settings to the browser module. It gets standings and replay data back from the same battlefield introduced earlier.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "  return report;",
+          "old": 174,
+          "new": 192
+        },
+        {
+          "kind": " ",
+          "text": "}",
+          "old": 175,
+          "new": 193
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 194
+        },
+        {
+          "kind": "+",
+          "text": "// Runs one match entirely in the module: `robots` is 2 to 4",
+          "old": null,
+          "new": 195
+        },
+        {
+          "kind": "+",
+          "text": "// `{ name, source }` pairs, `seed`/`limit` the same meaning as",
+          "old": null,
+          "new": 196
+        },
+        {
+          "kind": "+",
+          "text": "// `bin/crystal-robots`'s own `--seed`/`-l`, `cps` the replay's real-time",
+          "old": null,
+          "new": 197
+        },
+        {
+          "kind": "+",
+          "text": "// pace in CROBOTS cycles per second (see `Browser.battle_run` in",
+          "old": null,
+          "new": 198
+        },
+        {
+          "kind": "+",
+          "text": "// `src/browser.cr`). Returns `{ seed, limit, cycles, winner, robots, svg }`",
+          "old": null,
+          "new": 199
+        },
+        {
+          "kind": "+",
+          "text": "// -- `svg` the whole match as one SMIL-animated SVG string",
+          "old": null,
+          "new": 200
+        },
+        {
+          "kind": "+",
+          "text": "// (`CrystalRobots::Battle.svg_animation`, `src/battle/svg_replay.cr`), the",
+          "old": null,
+          "new": 201
+        },
+        {
+          "kind": "+",
+          "text": "// same renderer the served `/battle` page uses -- or",
+          "old": null,
+          "new": 202
+        },
+        {
+          "kind": "+",
+          "text": "// `{ trapped: true, stderr }` if the request itself was malformed (a page",
+          "old": null,
+          "new": 203
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "// bug, not a robot's: an individual robot's parse/check/runtime failure is",
+          "old": null,
+          "new": 204
+        },
+        {
+          "kind": "+",
+          "text": "// reported per-robot in `robots[].error` instead).",
+          "old": null,
+          "new": 205
+        },
+        {
+          "kind": "+",
+          "text": "export async function battle(compiledModule, robots, seed, limit, cps, { onStderr } = {}) {",
+          "old": null,
+          "new": 206
+        },
+        {
+          "kind": "+",
+          "text": "  const payload = JSON.stringify({ robots, seed, limit, cps });",
+          "old": null,
+          "new": 207
+        },
+        {
+          "kind": "+",
+          "text": "  const result = await callEntry(",
+          "old": null,
+          "new": 208
+        },
+        {
+          "kind": "+",
+          "text": "    compiledModule, payload, \"crd_battle_alloc\", \"crd_battle_run\", \"crd_battle_result_ptr\", \"crd_battle_result_len\", onStderr,",
+          "old": null,
+          "new": 209
+        },
+        {
+          "kind": "+",
+          "text": "  );",
+          "old": null,
+          "new": 210
+        },
+        {
+          "kind": "+",
+          "text": "  if (result.trapped) return result;",
+          "old": null,
+          "new": 211
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "  return result.report;",
+          "old": null,
+          "new": 212
+        },
+        {
+          "kind": "+",
+          "text": "}",
+          "old": null,
+          "new": 213
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/wasm32_spec.cr",
+      "note": "This spec fights the same robots in the browser and native engine with one seed. It checks the winner, cycles and replay so the new in-page battle keeps the earlier rules.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "  # `Battle::Field#run_stepwise`, `src/battle/step_robot.cr`'s non-fiber,",
+          "old": null,
+          "new": 59
+        },
+        {
+          "kind": "+",
+          "text": "  # non-raising engine -- inside one module instance, interleaving 2 to 4",
+          "old": null,
+          "new": 60
+        },
+        {
+          "kind": "+",
+          "text": "  # robots the way `bin/crystal-robots`' own matches do, at the same",
+          "old": null,
+          "new": 61
+        },
+        {
+          "kind": "+",
+          "text": "  # per-cycle granularity `field.cr`'s fiber-based `run` uses, and renders",
+          "old": null,
+          "new": 62
+        },
+        {
+          "kind": "+",
+          "text": "  # the same SVG SMIL replay (`Battle.svg_animation`,",
+          "old": null,
+          "new": 63
+        },
+        {
+          "kind": "+",
+          "text": "  # `src/battle/svg_replay.cr`) the served `/battle` page does. `run` itself",
+          "old": null,
+          "new": 64
+        },
+        {
+          "kind": "+",
+          "text": "  # is not the comparison target here: it depends on `spawn`/`Channel`,",
+          "old": null,
+          "new": 65
+        },
+        {
+          "kind": "+",
+          "text": "  # untrusted on this build target (see `step_robot.cr`'s module comment),",
+          "old": null,
+          "new": 66
+        },
+        {
+          "kind": "+",
+          "text": "  # so the ground truth is `run_stepwise` run natively -- the exact same",
+          "old": null,
+          "new": 67
+        },
+        {
+          "kind": "+",
+          "text": "  # Crystal source `crd_battle_run` calls, compiled for the native target",
+          "old": null,
+          "new": 68
+        },
+        {
+          "kind": "+",
+          "text": "  # instead of wasm32-unknown-wasi, the same cross-compilation-fidelity",
+          "old": null,
+          "new": 69
+        },
+        {
+          "kind": "+",
+          "text": "  # comparison Phase 5b-1's own cases above make for `crd_run`/",
+          "old": null,
+          "new": 70
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  # `crd_interpret`. Same seed, same robots, same replay speed: the",
+          "old": null,
+          "new": 71
+        },
+        {
+          "kind": "+",
+          "text": "  # standings and the rendered SVG text must match exactly.",
+          "old": null,
+          "new": 72
+        },
+        {
+          "kind": "+",
+          "text": "  wasm32_it \"runs a battle identically to the native interpreter engine\" do",
+          "old": null,
+          "new": 73
+        },
+        {
+          "kind": "+",
+          "text": "    sniper = File.read(\"examples/sniper.cr\")",
+          "old": null,
+          "new": 74
+        },
+        {
+          "kind": "+",
+          "text": "    rabbit = File.read(\"examples/rabbit.cr\")",
+          "old": null,
+          "new": 75
+        },
+        {
+          "kind": "+",
+          "text": "    seed = 3_u64",
+          "old": null,
+          "new": 76
+        },
+        {
+          "kind": "+",
+          "text": "    limit = 40_000_i64",
+          "old": null,
+          "new": 77
+        },
+        {
+          "kind": "+",
+          "text": "    cps = 300",
+          "old": null,
+          "new": 78
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 79
+        },
+        {
+          "kind": "+",
+          "text": "    report = Browser32.battle([{\"sniper\", sniper}, {\"rabbit\", rabbit}], seed, limit, cps)",
+          "old": null,
+          "new": 80
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"trapped\"]?.should be_nil",
+          "old": null,
+          "new": 81
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 82
+        },
+        {
+          "kind": "+",
+          "text": "    native = CrystalRobots::Battle::Field.new([{\"sniper\", sniper}, {\"rabbit\", rabbit}], seed: seed, limit: limit).run_stepwise",
+          "old": null,
+          "new": 83
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"winner\"].as_s?.should eq native.winner.try(&.name)",
+          "old": null,
+          "new": 84
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"cycles\"].as_i64.should eq native.cycles",
+          "old": null,
+          "new": 85
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"robots\"].as_a.map { |r| {r[\"name\"].as_s, r[\"active\"].as_bool, r[\"damage\"].as_i, r[\"restarts\"].as_i} }.should eq(",
+          "old": null,
+          "new": 86
+        },
+        {
+          "kind": "+",
+          "text": "      native.robots.map { |r| {r.name, r.active, r.damage, r.restarts} }",
+          "old": null,
+          "new": 87
+        },
+        {
+          "kind": "+",
+          "text": "    )",
+          "old": null,
+          "new": 88
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"svg\"].as_s.should eq CrystalRobots::Battle.svg_animation(native, cps)",
+          "old": null,
+          "new": 89
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 90
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

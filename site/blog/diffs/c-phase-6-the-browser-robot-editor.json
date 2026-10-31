@@ -1,0 +1,487 @@
+{
+  "sha": "346132a0aee45f3c30d3a7a95e4aa4ceed730873",
+  "subject": "Phase 6: the browser robot editor",
+  "summary": "A reader can edit a robot, see mistakes, and start a battle in the browser.",
+  "files": [
+    {
+      "path": ".fossil-settings/ignore-glob",
+      "added": 1,
+      "removed": 0,
+      "role": "Sets up the project."
+    },
+    {
+      "path": ".gitignore",
+      "added": 1,
+      "removed": 0,
+      "role": "Sets up the project."
+    },
+    {
+      "path": "ci.cr",
+      "added": 9,
+      "removed": 5,
+      "role": "Runs the project build and checks."
+    },
+    {
+      "path": "docs/PLAN.md",
+      "added": 70,
+      "removed": 1,
+      "role": "Tracks the steps of the tutorial."
+    },
+    {
+      "path": "scripts/build_cheat_sheet.cr",
+      "added": 13,
+      "removed": 0,
+      "role": "Helps build or check the project."
+    },
+    {
+      "path": "site/editor/editor.js",
+      "added": 338,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/editor/index.html",
+      "added": 98,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/wasi-shim.js",
+      "added": 17,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "spec/robot_api_spec.cr",
+      "added": 40,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 19,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/support/wasm32_check_check.mjs",
+      "added": 18,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/wasm32_spec.cr",
+      "added": 30,
+      "removed": 0,
+      "role": "Checks the compiler built for the browser."
+    },
+    {
+      "path": "spec/web_cgi_spec.cr",
+      "added": 37,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "src/browser.cr",
+      "added": 59,
+      "removed": 0,
+      "role": "Runs the project command."
+    },
+    {
+      "path": "src/web/robot_api.cr",
+      "added": 19,
+      "removed": 0,
+      "role": "Runs the project command."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "site/editor/editor.js",
+      "note": "The editor keeps the robot text in a page control and checks changes as the reader types. This brings the compiler feedback next to the place where a new robot is written.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "// consolidated cheat-sheet beside the editor (`../cheat-sheet.json`,",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "// built from `src/web/robot_api.cr`'s `RobotAPI::GROUPS`/`ENTRIES` --",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "// the same data the served pages' panel renders, so it can never drift),",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "// and fight the buffer against opponents (`crd_battle_run`, via",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "// `battle()`, the same call `../battle.js` makes). No framework, no CDN,",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "// same CSP as the rest of `site/` (no inline script). Phase 6.",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "import { check, battle } from \"../wasi-shim.js\";",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "const DEBOUNCE_MS = 500; // \"a short pause\" -- one of the plan's defaults,",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "// waiting on the wiki user's own answer (docs/PLAN.md, Phase 6)",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "const pickerEl = document.getElementById(\"picker\");",
+          "old": null,
+          "new": 16
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "const forkButton = document.getElementById(\"fork\");",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "const statusEl = document.getElementById(\"status\");",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "const sourceEl = document.getElementById(\"editor-source\");",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "const gutterEl = document.getElementById(\"gutter\");",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "const problemsEl = document.getElementById(\"problems\");",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "const cheatEl = document.getElementById(\"cheat-sheet\");",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "async function loadModule() {",
+          "old": null,
+          "new": 24
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "  statusEl.textContent = \"Loading crystal-robots.wasm…\";",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "  const response = await fetch(\"../crystal-robots.wasm\");",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "  if (!response.ok) {",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "    throw new Error(`fetch crystal-robots.wasm: ${response.status}`);",
+          "old": null,
+          "new": 28
+        },
+        {
+          "kind": "+",
+          "text": "  }",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": "+",
+          "text": "  try {",
+          "old": null,
+          "new": 30
+        },
+        {
+          "kind": "+",
+          "text": "    return await WebAssembly.compileStreaming(response.clone());",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": "+",
+          "text": "  } catch {",
+          "old": null,
+          "new": 32
+        },
+        {
+          "kind": "+",
+          "text": "    // Falls back to a full buffer compile if the server does not send",
+          "old": null,
+          "new": 33
+        },
+        {
+          "kind": "+",
+          "text": "    // `Content-Type: application/wasm` (compileStreaming requires it).",
+          "old": null,
+          "new": 34
+        },
+        {
+          "kind": "+",
+          "text": "    return await WebAssembly.compile(await response.arrayBuffer());",
+          "old": null,
+          "new": 35
+        },
+        {
+          "kind": "+",
+          "text": "  }",
+          "old": null,
+          "new": 36
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/wasm32_spec.cr",
+      "note": "The spec changes an example robot before asking the browser checker to read it. That proves the live check handles the reader’s own edits, not just bundled code.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "  # Phase 6: `site/cheat-sheet.json` (`scripts/build_cheat_sheet.cr`, a",
+          "old": null,
+          "new": 111
+        },
+        {
+          "kind": "+",
+          "text": "  # `ci.cr --with-wasm32` step) is the file the editor's page fetches; it",
+          "old": null,
+          "new": 112
+        },
+        {
+          "kind": "+",
+          "text": "  # must be byte-identical to `RobotAPI.cheat_sheet_json` computed fresh",
+          "old": null,
+          "new": 113
+        },
+        {
+          "kind": "+",
+          "text": "  # right now, not just structurally similar -- otherwise a rebuild that",
+          "old": null,
+          "new": 114
+        },
+        {
+          "kind": "+",
+          "text": "  # changes `ENTRIES` without re-running the generator would ship a stale",
+          "old": null,
+          "new": 115
+        },
+        {
+          "kind": "+",
+          "text": "  # cheat-sheet next to the always-current served panel.",
+          "old": null,
+          "new": 116
+        },
+        {
+          "kind": "+",
+          "text": "  wasm32_it \"exports site/cheat-sheet.json identical to the panel's own data, right now\" do",
+          "old": null,
+          "new": 117
+        },
+        {
+          "kind": "+",
+          "text": "    File.read(\"site/cheat-sheet.json\").should eq CrystalRobots::Web::RobotAPI.cheat_sheet_json",
+          "old": null,
+          "new": 118
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 119
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 120
+        },
+        {
+          "kind": "+",
+          "text": "  # Phase 6: the editor forks an example, the kid edits it, and it must",
+          "old": null,
+          "new": 121
+        },
+        {
+          "kind": "+",
+          "text": "  # still check clean through the same non-raising path (`crd_check`,",
+          "old": null,
+          "new": 122
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  # `Browser.check`) the live-typing loop uses -- proof that an edited",
+          "old": null,
+          "new": 123
+        },
+        {
+          "kind": "+",
+          "text": "  # example round-trips through the module, not just an untouched one.",
+          "old": null,
+          "new": 124
+        },
+        {
+          "kind": "+",
+          "text": "  wasm32_it \"checks an edited example clean through crd_check, not just the untouched original\" do",
+          "old": null,
+          "new": 125
+        },
+        {
+          "kind": "+",
+          "text": "    original = File.read(\"examples/sniper.cr\")",
+          "old": null,
+          "new": 126
+        },
+        {
+          "kind": "+",
+          "text": "    edited = original.sub(\"main(\\\"Sniper\\\")\", \"main(\\\"Sniper Junior\\\")\") + \"# edited by the editor's live-check spec\\n\"",
+          "old": null,
+          "new": 127
+        },
+        {
+          "kind": "+",
+          "text": "    edited.should_not eq original",
+          "old": null,
+          "new": 128
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 129
+        },
+        {
+          "kind": "+",
+          "text": "    report = Browser32.check(edited)",
+          "old": null,
+          "new": 130
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    report[\"trapped\"]?.should be_nil",
+          "old": null,
+          "new": 131
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"error\"].raw.should be_nil",
+          "old": null,
+          "new": 132
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"problems\"].as_a.should be_empty",
+          "old": null,
+          "new": 133
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 134
+        },
+        {
+          "kind": "+",
+          "text": "    program = C::Parser.new(edited).program",
+          "old": null,
+          "new": 135
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"passes\"].as_i.should eq program.passes",
+          "old": null,
+          "new": 136
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"derivation\"].as_s.should eq program.derivation",
+          "old": null,
+          "new": 137
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 138
+        },
+        {
+          "kind": " ",
+          "text": "end",
+          "old": 109,
+          "new": 139
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

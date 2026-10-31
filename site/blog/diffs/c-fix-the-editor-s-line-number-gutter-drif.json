@@ -1,0 +1,391 @@
+{
+  "sha": "ffb8951bd19bae22371ffabe8d125501d7e0495b",
+  "subject": "Fix the editor's line-number gutter drifting on scroll and wrapped lines",
+  "summary": "Editor line numbers stay beside their source lines while scrolling.",
+  "files": [
+    {
+      "path": "site/editor/editor.js",
+      "added": 14,
+      "removed": 3,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/editor/index.html",
+      "added": 5,
+      "removed": 3,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "spec/editor_gutter_spec.cr",
+      "added": 26,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/support/editor_gutter_check.mjs",
+      "added": 180,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "site/editor/editor.js",
+      "note": "The line-number column follows the text box as a reader scrolls. Together with unwrapped lines, that keeps error locations pointing at the right line.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "function forkSelected() {",
+          "old": 88,
+          "new": 88
+        },
+        {
+          "kind": " ",
+          "text": "  const found = robots.find((r) => r.name === pickerEl.value);",
+          "old": 89,
+          "new": 89
+        },
+        {
+          "kind": " ",
+          "text": "  if (!found) return;",
+          "old": 90,
+          "new": 90
+        },
+        {
+          "kind": " ",
+          "text": "  sourceEl.value = found.source;",
+          "old": 91,
+          "new": 91
+        },
+        {
+          "kind": " ",
+          "text": "  runCheck();",
+          "old": 92,
+          "new": 92
+        },
+        {
+          "kind": " ",
+          "text": "}",
+          "old": 93,
+          "new": 93
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 94,
+          "new": 94
+        },
+        {
+          "kind": " ",
+          "text": "forkButton.addEventListener(\"click\", forkSelected);",
+          "old": 95,
+          "new": 95
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 96,
+          "new": 96
+        },
+        {
+          "kind": " ",
+          "text": "// --- Gutter: one line-number row per source line, synced scroll, and a",
+          "old": 97,
+          "new": 97
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "// highlighted row with a hover title for any line a check reported. ---",
+          "old": 98,
+          "new": 98
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 99,
+          "new": 99
+        },
+        {
+          "kind": "+",
+          "text": "function syncGutterScroll() {",
+          "old": null,
+          "new": 100
+        },
+        {
+          "kind": "+",
+          "text": "  gutterEl.scrollTop = sourceEl.scrollTop;",
+          "old": null,
+          "new": 101
+        },
+        {
+          "kind": "+",
+          "text": "}",
+          "old": null,
+          "new": 102
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 103
+        },
+        {
+          "kind": "+",
+          "text": "// The textarea's CSS height is a fixed default (`resize: vertical` lets",
+          "old": null,
+          "new": 104
+        },
+        {
+          "kind": "+",
+          "text": "// the user drag it taller or shorter); mirror whatever height it ends up",
+          "old": null,
+          "new": 105
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "// at onto the gutter so the two stay the same number of visible rows tall",
+          "old": null,
+          "new": 106
+        },
+        {
+          "kind": "+",
+          "text": "// and `syncGutterScroll` has the same scroll range to work with.",
+          "old": null,
+          "new": 107
+        },
+        {
+          "kind": "+",
+          "text": "new ResizeObserver(() => {",
+          "old": null,
+          "new": 108
+        },
+        {
+          "kind": "+",
+          "text": "  gutterEl.style.height = `${sourceEl.clientHeight}px`;",
+          "old": null,
+          "new": 109
+        },
+        {
+          "kind": "+",
+          "text": "}).observe(sourceEl);",
+          "old": null,
+          "new": 110
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 111
+        },
+        {
+          "kind": " ",
+          "text": "function renderGutter() {",
+          "old": 100,
+          "new": 112
+        },
+        {
+          "kind": " ",
+          "text": "  const lineCount = Math.max(1, sourceEl.value.split(\"\\n\").length);",
+          "old": 101,
+          "new": 113
+        },
+        {
+          "kind": " ",
+          "text": "  if (gutterEl.children.length !== lineCount) {",
+          "old": 102,
+          "new": 114
+        },
+        {
+          "kind": " ",
+          "text": "    gutterEl.innerHTML = \"\";",
+          "old": 103,
+          "new": 115
+        },
+        {
+          "kind": " ",
+          "text": "    for (let i = 1; i <= lineCount; i++) {",
+          "old": 104,
+          "new": 116
+        },
+        {
+          "kind": " ",
+          "text": "      const li = document.createElement(\"li\");",
+          "old": 105,
+          "new": 117
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/editor_gutter_spec.cr",
+      "note": "A headless browser scrolls a long editor line and compares the gutter with the text. The check guards both causes of the drifting numbers.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "require \"./spec_helper\"",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "require \"json\"",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "# Headless check for the `site/editor` line-number gutter (ticket",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "# 7a7758839e): the gutter must not soft-wrap independently of the",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "# textarea and must keep its scrollTop synced to the textarea's. Runs",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "# `spec/support/editor_gutter_check.mjs`, which drives a real headless",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "# Chromium over the DevTools protocol -- this machine has one at",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "# `chromium`/`chromium-browser`, but a machine without either reports",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "# this pending rather than failing the suite.",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "CHROMIUM_BIN = Process.find_executable(\"chromium\") || Process.find_executable(\"chromium-browser\")",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 12
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "describe \"site/editor gutter (headless)\" do",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "  if bin = CHROMIUM_BIN",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "    it \"never soft-wraps a line and keeps the gutter's scrollTop synced to the textarea's\" do",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "      output = IO::Memory.new",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "      errors = IO::Memory.new",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "      status = Process.run(\"node\", [\"spec/support/editor_gutter_check.mjs\", bin], output: output, error: errors)",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "      status.success?.should be_true, \"editor_gutter_check.mjs failed: #{output}\\n#{errors}\"",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "      report = JSON.parse(output.to_s)",
+          "old": null,
+          "new": 20
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      report[\"ok\"].as_bool.should be_true",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "  else",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "    pending \"never soft-wraps a line and keeps the gutter's scrollTop synced to the textarea's (no chromium/chromium-browser binary on this machine)\"",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 26
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

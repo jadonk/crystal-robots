@@ -1,0 +1,435 @@
+{
+  "sha": "c2e2bd94e386da40d7733ad60dd2d947ac599f3e",
+  "subject": "Phase W.3: the wasm32 spec and the ci.sh flag",
+  "summary": "The browser build is checked against the native compiler in CI.",
+  "files": [
+    {
+      "path": "examples/test.cr",
+      "added": 2,
+      "removed": 0,
+      "role": "Contains robot programs to try."
+    },
+    {
+      "path": "scripts/ci.sh",
+      "added": 35,
+      "removed": 5,
+      "role": "Builds and checks the project in one command."
+    },
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 49,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/support/wasm32_check.mjs",
+      "added": 21,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/wasm32_spec.cr",
+      "added": 68,
+      "removed": 0,
+      "role": "Checks the compiler built for the browser."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "scripts/ci.sh",
+      "note": "The new flag checks for Node and the WebAssembly linker before building the browser module. That gives a reader a clear missing-tool message before the browser specs run.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    rm -rf ./.wasmer",
+          "old": 66,
+          "new": 72
+        },
+        {
+          "kind": " ",
+          "text": "    mkdir -p \"$WASMER_DIR/tmp\"",
+          "old": 67,
+          "new": 73
+        },
+        {
+          "kind": " ",
+          "text": "    : > \"$WASMER_DIR/profile.sh\"",
+          "old": 68,
+          "new": 74
+        },
+        {
+          "kind": " ",
+          "text": "    PROFILE=\"$WASMER_DIR/profile.sh\" TMPDIR=\"$WASMER_DIR/tmp\" WASMER_INSTALL_LOG=quiet \\",
+          "old": 69,
+          "new": 75
+        },
+        {
+          "kind": " ",
+          "text": "      sh scripts/install_wasmer.sh v4.4.0",
+          "old": 70,
+          "new": 76
+        },
+        {
+          "kind": " ",
+          "text": "    rm -rf \"$WASMER_DIR/tmp\"",
+          "old": 71,
+          "new": 77
+        },
+        {
+          "kind": " ",
+          "text": "  fi",
+          "old": 72,
+          "new": 78
+        },
+        {
+          "kind": " ",
+          "text": "  export PATH=\"$WASMER_DIR/bin:$PATH\"",
+          "old": 73,
+          "new": 79
+        },
+        {
+          "kind": " ",
+          "text": "  \"$WASMER_DIR/bin/wasmer\" --version",
+          "old": 74,
+          "new": 80
+        },
+        {
+          "kind": " ",
+          "text": "  spec_flags=\"-Dwasmer\"",
+          "old": 75,
+          "new": 81
+        },
+        {
+          "kind": " ",
+          "text": "fi",
+          "old": 76,
+          "new": 82
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "",
+          "old": 77,
+          "new": 83
+        },
+        {
+          "kind": "+",
+          "text": "if [ \"$with_wasm32\" = 1 ]; then",
+          "old": null,
+          "new": 84
+        },
+        {
+          "kind": "+",
+          "text": "  step \"check for node (drives the wasm32 specs through site/wasi-shim.js)\"",
+          "old": null,
+          "new": 85
+        },
+        {
+          "kind": "+",
+          "text": "  command -v node >/dev/null 2>&1 || { echo \"node is required on PATH for --with-wasm32\" >&2; exit 1; }",
+          "old": null,
+          "new": 86
+        },
+        {
+          "kind": "+",
+          "text": "  node --version",
+          "old": null,
+          "new": 87
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 88
+        },
+        {
+          "kind": "+",
+          "text": "  step \"check for wasm-ld (the lld package; Crystal needs it to link the wasm32 target)\"",
+          "old": null,
+          "new": 89
+        },
+        {
+          "kind": "+",
+          "text": "  command -v wasm-ld >/dev/null 2>&1 || { echo \"wasm-ld is required on PATH for --with-wasm32; install the lld package\" >&2; exit 1; }",
+          "old": null,
+          "new": 90
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 91
+        },
+        {
+          "kind": "+",
+          "text": "  step \"wasm32-wasi-libs 0.0.3\"",
+          "old": null,
+          "new": 92
+        },
+        {
+          "kind": "+",
+          "text": "  export WASM32_WASI_LIBS=\"$PWD/.wasm32-wasi-libs\"",
+          "old": null,
+          "new": 93
+        },
+        {
+          "kind": "+",
+          "text": "  if [ ! -f \"$WASM32_WASI_LIBS/lib/wasm32-wasi/libc.a\" ]; then",
+          "old": null,
+          "new": 94
+        },
+        {
+          "kind": "+",
+          "text": "    rm -rf ./.wasm32-wasi-libs",
+          "old": null,
+          "new": 95
+        },
+        {
+          "kind": "+",
+          "text": "    sh scripts/install_wasm32_wasi_libs.sh 0.0.3",
+          "old": null,
+          "new": 96
+        },
+        {
+          "kind": "+",
+          "text": "  fi",
+          "old": null,
+          "new": 97
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 98
+        },
+        {
+          "kind": "+",
+          "text": "  step \"build site/crystal-robots.wasm (the browser compiler)\"",
+          "old": null,
+          "new": 99
+        },
+        {
+          "kind": "+",
+          "text": "  mkdir -p site",
+          "old": null,
+          "new": 100
+        },
+        {
+          "kind": "+",
+          "text": "  crystal build --target wasm32-unknown-wasi src/browser.cr -o site/crystal-robots.wasm \\",
+          "old": null,
+          "new": 101
+        },
+        {
+          "kind": "+",
+          "text": "    --link-flags=\"-L$WASM32_WASI_LIBS/lib/wasm32-wasi\" --release --no-debug",
+          "old": null,
+          "new": 102
+        }
+      ],
+      "line_notes": {
+        "command -v node": "`command -v` asks whether this tool is installed and available to the terminal."
+      }
+    },
+    {
+      "file": "spec/wasm32_spec.cr",
+      "note": "This test gives the browser build the same robot as the native compiler and checks its answer. It turns the hand-run W.2 experiment into a repeatable promise.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "require \"./spec_helper\"",
+          "old": null,
+          "new": 1
+        },
+        {
+          "kind": "+",
+          "text": "require \"../src/compiler/compiler\"",
+          "old": null,
+          "new": 2
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 3
+        },
+        {
+          "kind": "+",
+          "text": "# `site/crystal-robots.wasm` is the browser build of `src/browser.cr`:",
+          "old": null,
+          "new": 4
+        },
+        {
+          "kind": "+",
+          "text": "# the tokenizer/parser, checker and WASM emitter (`crd_run`) and the",
+          "old": null,
+          "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "# interpreter (`crd_interpret`, a separate call -- see the module",
+          "old": null,
+          "new": 6
+        },
+        {
+          "kind": "+",
+          "text": "# comment in `src/browser.cr`) compiled with",
+          "old": null,
+          "new": 7
+        },
+        {
+          "kind": "+",
+          "text": "# `crystal build --target wasm32-unknown-wasi` and linked against the",
+          "old": null,
+          "new": 8
+        },
+        {
+          "kind": "+",
+          "text": "# wasm32-wasi-libs sysroot (libc, libgc, libpcre2). These specs run it",
+          "old": null,
+          "new": 9
+        },
+        {
+          "kind": "+",
+          "text": "# through `spec/support/wasm32_check.mjs`, which drives it via the",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "# real `site/wasi-shim.js`, and check its report against the native",
+          "old": null,
+          "new": 11
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "# compiler on the same source.",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "describe \"Browser build (wasm32-unknown-wasi)\" do",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "  wasm32_it \"round-trips examples/test.cr identically to the native CLI\" do",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "    source = File.read(\"examples/test.cr\")",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "    report = Browser32.run(source)",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"problems\"].as_a.should be_empty",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"interpreter\"][\"status\"].as_s.should eq \"finished after 4 cycles\"",
+          "old": null,
+          "new": 19
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    report[\"interpreter\"][\"puts\"].as_a.map(&.as_i).should eq [19]",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "    program = CrystalRobots::Compiler::Parser.new(source).program",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"derivation\"].as_s.should eq program.derivation",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "    native_wasm = CrystalRobots::Compiler.compile_to_wasm(source)",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "    report[\"wasm_len\"].as_i.should eq native_wasm.size",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 28
+        },
+        {
+          "kind": "+",
+          "text": "  wasm32_it \"matches the checker and derivation on every example robot\" do",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": "+",
+          "text": "    Dir.glob(\"examples/*.cr\").sort.each do |file|",
+          "old": null,
+          "new": 30
+        },
+        {
+          "kind": "+",
+          "text": "      source = File.read(file)",
+          "old": null,
+          "new": 31
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

@@ -136,11 +136,11 @@ try {
   await evaluate(`document.documentElement.style.scrollBehavior = "auto"`);
   const ids = await evaluate(`Array.from(document.querySelectorAll('.diff-view[data-diff]')).map(x => x.dataset.diff)`);
   const checks = {};
-  checks.allViewsPresent = ids.length === 37;
+  checks.allViewsPresent = ids.length === 61;
   for (const id of ids) {
     await evaluate(`document.querySelector('[data-diff="${id}"]').scrollIntoView()`);
     await new Promise((resolve) => setTimeout(resolve, 180));
-    const ok = await evaluate(`(() => { const v = document.querySelector('[data-diff="${id}"]'); return !!v.querySelector('.diff-summary') && !!v.querySelector('.diff-files-heading') && (v.querySelector('.diff-excerpt .diff-add') || v.dataset.diff === 'c-u-2') && !v.dataset.error })()`);
+    const ok = await evaluate(`(() => { const v = document.querySelector('[data-diff="${id}"]'); return !!v.querySelector('.diff-summary') && (v.dataset.diff === 'c-catch-up-adopt-the-shipping-implementati' ? !!v.querySelector('.diff-note') && !v.querySelector('.diff-excerpt') : !!v.querySelector('.diff-files-heading') && (v.querySelector('.diff-excerpt .diff-add') || v.dataset.diff === 'c-u-2')) && !v.dataset.error })()`);
     checks[id] = ok;
   }
   checks.noPageOverflow = await evaluate(`document.documentElement.scrollWidth <= innerWidth`);

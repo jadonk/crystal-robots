@@ -1,0 +1,433 @@
+{
+  "sha": "32780feb7a0fc90106fa48784308ee337ba528a4",
+  "subject": "Pages battle: draw robots and missiles in meters, not clicks",
+  "summary": "Robots and missiles appear at the correct place on the field.",
+  "files": [
+    {
+      "path": "site/battle-playback.js",
+      "added": 11,
+      "removed": 8,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "spec/battle_playback_spec.cr",
+      "added": 36,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/support/battle_playback_check.mjs",
+      "added": 46,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "site/battle-playback.js",
+      "note": "Battle records store positions in clicks, ten for each meter. Dividing here places a robot on the thousand-meter field where it actually fought.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "//   offset 0: u8  version",
+          "old": 21,
+          "new": 21
+        },
+        {
+          "kind": " ",
+          "text": "//   offset 1: u8  robotCount",
+          "old": 22,
+          "new": 22
+        },
+        {
+          "kind": " ",
+          "text": "//   offset 2: u16 missileSlots (per robot)",
+          "old": 23,
+          "new": 23
+        },
+        {
+          "kind": " ",
+          "text": "//   offset 4: u32 frameCount",
+          "old": 24,
+          "new": 24
+        },
+        {
+          "kind": " ",
+          "text": "//   offset 8: frameCount frames, each:",
+          "old": 25,
+          "new": 25
+        },
+        {
+          "kind": " ",
+          "text": "//     u32 cycle",
+          "old": 26,
+          "new": 26
+        },
+        {
+          "kind": "-",
+          "text": "//     robotCount robot records (12 bytes): i16 x, i16 y, i16 heading,",
+          "old": 27,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "//     robotCount robot records (12 bytes): i16 x, i16 y (clicks), i16 heading,",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": " ",
+          "text": "//       i16 scan, i16 cannon, u8 damage, u8 flags (bit0 active, bit1 fired)",
+          "old": 28,
+          "new": 28
+        },
+        {
+          "kind": "-",
+          "text": "//     robotCount*missileSlots missile records (6 bytes): i16 x, i16 y,",
+          "old": 29,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "//     robotCount*missileSlots missile records (6 bytes): i16 x, i16 y (clicks),",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": " ",
+          "text": "//       u8 flags (bit0 present, bit1 exploding), u8 padding",
+          "old": 30,
+          "new": 30
+        }
+      ],
+      "lines": [
+        {
+          "kind": "-",
+          "text": "function decodeFrames(buffer) {",
+          "old": 31,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "// src/battle/field.cr keeps positions in CROBOTS clicks, 10 per meter.",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": "+",
+          "text": "const CLICK = 10;",
+          "old": null,
+          "new": 32
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 33
+        },
+        {
+          "kind": "+",
+          "text": "export function decodeFrames(buffer) {",
+          "old": null,
+          "new": 34
+        },
+        {
+          "kind": " ",
+          "text": "  const v = new DataView(buffer);",
+          "old": 32,
+          "new": 35
+        },
+        {
+          "kind": " ",
+          "text": "  const robotCount = v.getUint8(1);",
+          "old": 33,
+          "new": 36
+        },
+        {
+          "kind": " ",
+          "text": "  const missileSlots = v.getUint16(2, true);",
+          "old": 34,
+          "new": 37
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "  const frameCount = v.getUint32(4, true);",
+          "old": 35,
+          "new": 38
+        },
+        {
+          "kind": " ",
+          "text": "  const missileCount = robotCount * missileSlots;",
+          "old": 36,
+          "new": 39
+        },
+        {
+          "kind": " ",
+          "text": "  const robotStride = 12;",
+          "old": 37,
+          "new": 40
+        },
+        {
+          "kind": " ",
+          "text": "  const missileStride = 6;",
+          "old": 38,
+          "new": 41
+        },
+        {
+          "kind": " ",
+          "text": "  const frameStride = 4 + robotCount * robotStride + missileCount * missileStride;",
+          "old": 39,
+          "new": 42
+        },
+        {
+          "kind": " ",
+          "text": "  const frames = new Array(frameCount);",
+          "old": 40,
+          "new": 43
+        },
+        {
+          "kind": " ",
+          "text": "  let off = 8;",
+          "old": 41,
+          "new": 44
+        },
+        {
+          "kind": " ",
+          "text": "  for (let i = 0; i < frameCount; i++) {",
+          "old": 42,
+          "new": 45
+        },
+        {
+          "kind": " ",
+          "text": "    const cycle = v.getUint32(off, true);",
+          "old": 43,
+          "new": 46
+        },
+        {
+          "kind": " ",
+          "text": "    let p = off + 4;",
+          "old": 44,
+          "new": 47
+        },
+        {
+          "kind": " ",
+          "text": "    const robots = new Array(robotCount);",
+          "old": 45,
+          "new": 48
+        },
+        {
+          "kind": " ",
+          "text": "    for (let r = 0; r < robotCount; r++) {",
+          "old": 46,
+          "new": 49
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/support/battle_playback_check.mjs",
+      "note": "The player test checks positions from a real fight against the field’s bounds. It also expects movement beyond 100 meters, catching an accidental second division.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "const { robotCount, frames } = decodeFrames(buffer);",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "assert.equal(robotCount, 2);",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "assert.ok(frames.length > 1, \"battle must produce multiple frames\");",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "let activeRobots = 0;",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "let presentMissiles = 0;",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "let robotBeyond100 = false;",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "let robotMoved = false;",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "const firstPositions = new Array(robotCount);",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "for (const frame of frames) {",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "  frame.robots.forEach((robot, index) => {",
+          "old": null,
+          "new": 22
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "    if (!robot.active) return;",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "    activeRobots++;",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "    assert.ok(robot.x >= 0 && robot.x <= 1000, `robot ${index} x=${robot.x} at cycle ${frame.cycle}`);",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "    assert.ok(robot.y >= 0 && robot.y <= 1000, `robot ${index} y=${robot.y} at cycle ${frame.cycle}`);",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "    if (robot.x > 100 || robot.y > 100) robotBeyond100 = true;",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "    if (firstPositions[index]) {",
+          "old": null,
+          "new": 28
+        },
+        {
+          "kind": "+",
+          "text": "      if (robot.x !== firstPositions[index].x || robot.y !== firstPositions[index].y) robotMoved = true;",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": "+",
+          "text": "    } else {",
+          "old": null,
+          "new": 30
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      firstPositions[index] = { x: robot.x, y: robot.y };",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": "+",
+          "text": "    }",
+          "old": null,
+          "new": 32
+        },
+        {
+          "kind": "+",
+          "text": "  });",
+          "old": null,
+          "new": 33
+        },
+        {
+          "kind": "+",
+          "text": "  frame.missiles.forEach((missile, index) => {",
+          "old": null,
+          "new": 34
+        },
+        {
+          "kind": "+",
+          "text": "    if (!missile.present) return;",
+          "old": null,
+          "new": 35
+        },
+        {
+          "kind": "+",
+          "text": "    presentMissiles++;",
+          "old": null,
+          "new": 36
+        },
+        {
+          "kind": "+",
+          "text": "    assert.ok(missile.x >= 0 && missile.x <= 1000, `missile ${index} x=${missile.x} at cycle ${frame.cycle}`);",
+          "old": null,
+          "new": 37
+        },
+        {
+          "kind": "+",
+          "text": "    assert.ok(missile.y >= 0 && missile.y <= 1000, `missile ${index} y=${missile.y} at cycle ${frame.cycle}`);",
+          "old": null,
+          "new": 38
+        },
+        {
+          "kind": "+",
+          "text": "  });",
+          "old": null,
+          "new": 39
+        },
+        {
+          "kind": "+",
+          "text": "}",
+          "old": null,
+          "new": 40
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 41
+        },
+        {
+          "kind": "+",
+          "text": "assert.ok(activeRobots > 0, \"battle must contain active robots\");",
+          "old": null,
+          "new": 42
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

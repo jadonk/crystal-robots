@@ -27,7 +27,14 @@
     "robots/": "Explains a robot strategy and includes its program.",
     "spec/robots_spec.cr": "Checks the shipped robot programs.",
     "scripts/ci.sh": "Builds and checks the project in one command.",
-    "scripts/": "Helps build or check the project."
+    "scripts/": "Helps build or check the project.",
+    "site/": "Runs the browser pages and their helpers.",
+    ".github/workflows/": "Builds and publishes the site.",
+    "spec/support/": "Checks browser behavior with Node or Chrome.",
+    "spec/wasm32_spec.cr": "Checks the compiler built for the browser.",
+    "spec/wasm32_compiled_spec.cr": "Checks compiled robot battles in the browser.",
+    "spec/manual_spec.cr": "Checks examples in the robot manual.",
+    "ci.cr": "Runs the project build and checks."
   },
   "commits": {
     "c-initial-commit": {
@@ -738,6 +745,447 @@
           "note": "The [[CI|#word-ci]] script runs the specs and checks code formatting after building. With the Wasmer option, the compiled robot tests run too, so one command gives a clear result for a check-in.",
           "before": 1,
           "after": 9
+        }
+      ]
+    },
+    "c-w-0": {
+      "summary": "The page can compile a robot or run it directly from its source text.",
+      "excerpts": [
+        {
+          "file": "src/compiler/compiler.cr",
+          "anchor": "def self.compile_to_wasm(source",
+          "before": 2,
+          "after": 5,
+          "note": "The page can hand the compiler one string and receive runnable WebAssembly bytes. This joins the parsing and emitting steps used earlier, so a button can ask for one complete result."
+        },
+        {
+          "file": "spec/interpreter_spec.cr",
+          "anchor": "it \"a standalone cycle limit stops",
+          "before": 2,
+          "after": 5,
+          "note": "A robot that repeats forever must still give the page control again. This test checks that the interpreter stops soon after its allowed work is spent."
+        }
+      ]
+    },
+    "c-w-1": {
+      "summary": "The Crystal compiler can be built as a WebAssembly program for the page.",
+      "excerpts": [
+        {
+          "file": "src/browser.cr",
+          "anchor": "def alloc(len : Int32)",
+          "before": 2,
+          "after": 5,
+          "note": "The page asks for memory to hold a robot program, then writes the program there. This is the first doorway from JavaScript into the Crystal compiler running as WebAssembly."
+        }
+      ]
+    },
+    "c-w-2": {
+      "summary": "A web page can run the compiler and recover from a failed call.",
+      "excerpts": [
+        {
+          "file": "site/wasi-shim.js",
+          "anchor": "async function callEntry(",
+          "before": 2,
+          "after": 6,
+          "note": "The shim calls the compiler in a fresh WebAssembly instance and gathers its answer. A bad robot can stop that instance without preventing the next robot from being tried.",
+          "line_notes": {
+            "if (started.trapped) return": "If this call stopped, hand the error text back to the page. The next call starts with a fresh instance."
+          }
+        },
+        {
+          "file": "site/app.js",
+          "anchor": "async function loadModule()",
+          "before": 2,
+          "after": 5,
+          "note": "The page loads the compiled Crystal program before enabling Run. Once it is ready, a reader can type a robot and see the parser, checker, interpreter and compiled bytes together."
+        }
+      ]
+    },
+    "c-w-3": {
+      "summary": "The browser build is checked against the native compiler in CI.",
+      "excerpts": [
+        {
+          "file": "scripts/ci.sh",
+          "anchor": "if [ \"$with_wasm32\" = 1 ]; then",
+          "before": 1,
+          "after": 6,
+          "note": "The new flag checks for Node and the WebAssembly linker before building the browser module. That gives a reader a clear missing-tool message before the browser specs run.",
+          "line_notes": {
+            "command -v node": "`command -v` asks whether this tool is installed and available to the terminal."
+          }
+        },
+        {
+          "file": "spec/wasm32_spec.cr",
+          "anchor": "wasm32_it \"round-trips examples/test.cr",
+          "before": 2,
+          "after": 5,
+          "note": "This test gives the browser build the same robot as the native compiler and checks its answer. It turns the hand-run W.2 experiment into a repeatable promise."
+        }
+      ]
+    },
+    "c-w-4": {
+      "summary": "A passing CI run can publish the browser page through GitHub Pages.",
+      "excerpts": [
+        {
+          "file": ".github/workflows/pages.yml",
+          "anchor": "branches: [main, dev]",
+          "before": 2,
+          "after": 5,
+          "note": "The workflow runs when a change reaches either publishing branch. The build job checks the page before the deploy job makes it available through GitHub Pages.",
+          "line_notes": {
+            "branches: [main, dev]": "These are the two branches whose pushes start the publishing steps."
+          }
+        },
+        {
+          "file": ".github/workflows/pages.yml",
+          "anchor": "- run: scripts/ci.sh --with-wasm32",
+          "before": 2,
+          "after": 5,
+          "note": "The build job runs the same wasm32 check a developer can run locally, then uploads the finished site folder. A failing check stops publication before readers see a broken page."
+        },
+        {
+          "file": ".github/workflows/pages.yml",
+          "anchor": "uses: actions/deploy-pages@v4",
+          "before": 5,
+          "after": 0,
+          "note": "After the checked site is uploaded, this final action publishes it. That completes the path from a local browser build to a page readers can open."
+        }
+      ]
+    },
+    "c-w-5": {
+      "summary": "A test guards the publishing steps and Crystal version.",
+      "excerpts": [
+        {
+          "file": "spec/pages_workflow_spec.cr",
+          "anchor": "workflow[true][\"push\"]",
+          "before": 2,
+          "after": 5,
+          "note": "Crystal reads this YAML key as true, so the test checks the actual trigger the workflow parser sees. It keeps publication tied to the intended branches after W.4 added the workflow.",
+          "line_notes": {
+            "workflow[true][\"push\"]": "Crystal’s YAML reader treats the unquoted `on` key as true. This line checks the branches under that key."
+          }
+        }
+      ]
+    },
+    "c-w-6": {
+      "summary": "The project can run its checks with one Crystal command.",
+      "excerpts": [
+        {
+          "file": "ci.cr",
+          "anchor": "def run!(command : String",
+          "before": 2,
+          "after": 5,
+          "note": "This helper runs each build or test command and stops if it fails. Moving the check sequence into Crystal keeps the same command useful locally and in the Pages workflow."
+        }
+      ]
+    },
+    "c-catch-up-adopt-the-shipping-implementati": {
+      "summary": "The project switches to the code that had been built alongside this retelling.",
+      "excerpts": [],
+      "note": "There is no excerpt here on purpose. This commit replaces most of the project's files at once, so a line-by-line view would run to thousands of lines; the intermission above describes what changed shape. From the next commit on, each change is small enough to read again."
+    },
+    "c-phase-5b-2-battle-entirely-in-the-browse": {
+      "summary": "Two to four robots can fight and be replayed inside a web page.",
+      "excerpts": [
+        {
+          "file": "src/battle/step_robot.cr",
+          "anchor": "private def tick(n : Int32",
+          "before": 2,
+          "after": 5,
+          "note": "A robot spends one cycle and saves the rest of its work for its next turn. That lets the page alternate robots without depending on Crystal fibers or exceptions."
+        },
+        {
+          "file": "site/wasi-shim.js",
+          "anchor": "export async function battle(",
+          "before": 2,
+          "after": 5,
+          "note": "The page sends its chosen robots and match settings to the browser module. It gets standings and replay data back from the same battlefield introduced earlier."
+        },
+        {
+          "file": "spec/wasm32_spec.cr",
+          "anchor": "wasm32_it \"runs a battle identically",
+          "before": 2,
+          "after": 5,
+          "note": "This spec fights the same robots in the browser and native engine with one seed. It checks the winner, cycles and replay so the new in-page battle keeps the earlier rules."
+        }
+      ]
+    },
+    "c-phase-6-the-browser-robot-editor": {
+      "summary": "A reader can edit a robot, see mistakes, and start a battle in the browser.",
+      "excerpts": [
+        {
+          "file": "site/editor/editor.js",
+          "anchor": "const sourceEl =",
+          "before": 2,
+          "after": 5,
+          "note": "The editor keeps the robot text in a page control and checks changes as the reader types. This brings the compiler feedback next to the place where a new robot is written."
+        },
+        {
+          "file": "spec/wasm32_spec.cr",
+          "anchor": "wasm32_it \"checks an edited example clean",
+          "before": 2,
+          "after": 5,
+          "note": "The spec changes an example robot before asking the browser checker to read it. That proves the live check handles the reader’s own edits, not just bundled code."
+        }
+      ]
+    },
+    "c-fix-the-editor-s-line-number-gutter-drif": {
+      "summary": "Editor line numbers stay beside their source lines while scrolling.",
+      "excerpts": [
+        {
+          "file": "site/editor/editor.js",
+          "anchor": "function syncGutterScroll()",
+          "before": 2,
+          "after": 5,
+          "note": "The line-number column follows the text box as a reader scrolls. Together with unwrapped lines, that keeps error locations pointing at the right line."
+        },
+        {
+          "file": "spec/editor_gutter_spec.cr",
+          "anchor": "it \"never soft-wraps a line",
+          "before": 2,
+          "after": 5,
+          "note": "A headless browser scrolls a long editor line and compares the gutter with the text. The check guards both causes of the drifting numbers."
+        }
+      ]
+    },
+    "c-phase-6-battle-playback-at-real-frame-ra": {
+      "summary": "A battle replay can play smoothly without losing important events.",
+      "excerpts": [
+        {
+          "file": "site/battle-playback.js",
+          "anchor": "function decodeFrames(buffer)",
+          "before": 2,
+          "after": 5,
+          "note": "The player turns the compact battle record into frames it can draw one at a time. The field records shots and hits even between regular samples, so the reader can see the moments that decided the fight."
+        },
+        {
+          "file": "spec/battle_spec.cr",
+          "anchor": "it \"never drops a frame with a cannon-fire event, however tight",
+          "before": 2,
+          "after": 5,
+          "note": "This test gives the recorder an unrealistically small frame budget. It still expects many impact frames, so shots remain visible in the player."
+        }
+      ]
+    },
+    "c-pages-battle-draw-robots-and-missiles-in": {
+      "summary": "Robots and missiles appear at the correct place on the field.",
+      "excerpts": [
+        {
+          "file": "site/battle-playback.js",
+          "anchor": "const CLICK = 10;",
+          "before": 2,
+          "after": 5,
+          "note": "Battle records store positions in clicks, ten for each meter. Dividing here places a robot on the thousand-meter field where it actually fought."
+        },
+        {
+          "file": "spec/support/battle_playback_check.mjs",
+          "anchor": "assert.ok(robot.x >= 0 && robot.x <= 1000",
+          "before": 2,
+          "after": 5,
+          "note": "The player test checks positions from a real fight against the field’s bounds. It also expects movement beyond 100 meters, catching an accidental second division."
+        }
+      ]
+    },
+    "c-pages-deploy-mark-site-js-as-es-modules": {
+      "summary": "Older Node versions can load the site player for its test.",
+      "excerpts": [
+        {
+          "file": "site/package.json",
+          "anchor": "\"type\": \"module\"",
+          "before": 0,
+          "after": 0,
+          "note": "The whole fix is this one line. The site's JavaScript files are written as modules (they use `import` and `export`), and a browser knows that from the page. Node, which runs the tests, has to be told; older versions guessed wrong and refused to load the playback code. This file tells Node that every `.js` file in `site/` is a module."
+        },
+        {
+          "file": "spec/support/battle_playback_check.mjs",
+          "anchor": "site/package.json marks",
+          "before": 2,
+          "after": 3,
+          "note": "The playback check loads the site's code straight into Node, so it was the test that broke. This comment records why it works now."
+        }
+      ]
+    },
+    "c-pages-deploy-run-the-headless-editor-gut": {
+      "summary": "The publishing build runs the editor check with an available browser.",
+      "excerpts": [
+        {
+          "file": ".github/workflows/pages.yml",
+          "anchor": "CHROMIUM_BIN=$(command -v google-chrome",
+          "before": 2,
+          "after": 5,
+          "note": "The workflow finds Google Chrome on its build machine and passes its path to the editor test. That keeps the line-number check running during publication instead of silently skipping it."
+        },
+        {
+          "file": "spec/workflow_spec.cr",
+          "anchor": "steps[3][\"run\"].as_s.includes?(\"CHROMIUM_BIN=",
+          "before": 2,
+          "after": 5,
+          "note": "The workflow spec checks that the publishing job passes Chrome to the browser test. A later runner change will fail the build if that step disappears."
+        }
+      ]
+    },
+    "c-pages-a-robot-manual-and-the-shared-site": {
+      "summary": "A beginner can read and try a checked robot manual.",
+      "excerpts": [
+        {
+          "file": "site/manual/index.html",
+          "anchor": "<section id=\"first\"><h2>Your first robot</h2>",
+          "through": "Try another angle or speed and watch the replay.",
+          "note": "The manual opens the way the CROBOTS manual did: with a whole robot you can paste in and run, then a plain walk through each line. Scout drives east, looks east, and fires whenever it sees something. It's short enough to read in a minute and complete enough to fight."
+        },
+        {
+          "file": "spec/manual_spec.cr",
+          "anchor": "C::Checker.check(program).should be_empty",
+          "before": 2,
+          "after": 5,
+          "note": "The spec takes complete robot examples from the manual and asks the real checker to accept them. Readers can copy an example knowing it still matches the language the editor runs."
+        }
+      ]
+    },
+    "c-browser-a-whole-tournament-inside-crysta": {
+      "summary": "The browser module can run a complete replayable tournament.",
+      "excerpts": [
+        {
+          "file": "src/browser.cr",
+          "anchor": "def tournament_run : Int32",
+          "before": 2,
+          "after": 5,
+          "note": "The browser module now accepts a group of robots and returns pool and bracket results. A page can run the whole tournament locally, then replay a fight using its recorded seed."
+        },
+        {
+          "file": "spec/browser_tournament_spec.cr",
+          "anchor": "it \"runs pools and a bracket, and records replayable fight seeds",
+          "before": 2,
+          "after": 5,
+          "note": "The spec runs a tournament and replays recorded fights from both stages. It checks that the browser result can be watched again with the same winner."
+        }
+      ]
+    },
+    "c-pages-a-landing-page-that-opens-on-a-liv": {
+      "summary": "The front page starts a battle and lets readers inspect each layer of a robot.",
+      "excerpts": [
+        {
+          "file": "site/landing.js",
+          "anchor": "const result = await battle(",
+          "before": 2,
+          "after": 5,
+          "note": "As soon as the module and example robots are ready, the page runs a battle and mounts its replay. A reader sees the robots fighting first, then can open the code and compiler layers for a chosen one.",
+          "line_notes": {
+            "const result = await battle(": "`await` waits for the battle result before the page draws its first replay."
+          }
+        },
+        {
+          "file": "spec/landing_spec.cr",
+          "anchor": "describe ",
+          "before": 2,
+          "after": 5,
+          "note": "A browser check opens the landing page and its layers. It proves the new front door works at phone width as well as on a desktop."
+        }
+      ]
+    },
+    "c-pages-a-tournament-page-and-a-seven-leve": {
+      "summary": "Readers can run a tournament and work through seven robot challenges.",
+      "excerpts": [
+        {
+          "file": "site/challenge/checks.js",
+          "anchor": "export function evaluateBattle(",
+          "before": 2,
+          "after": 5,
+          "note": "Each challenge checks a real battle and gives a short reason for its result. The levels turn the tournament engine into a path from making a robot move to entering a match."
+        },
+        {
+          "file": "spec/challenge_tournament_spec.cr",
+          "anchor": "wasm32_it \"runs a seeded tournament, replays a fight",
+          "before": 2,
+          "after": 5,
+          "note": "The browser test enters a seeded tournament, opens a replay and checks the first challenge. It also checks that the page fits on a narrow screen."
+        }
+      ]
+    },
+    "c-replays-show-what-each-robot-prints": {
+      "summary": "A replay can show each robot’s printed lines at the cycle they appeared.",
+      "excerpts": [
+        {
+          "file": "site/battle-playback.js",
+          "anchor": "function renderPrints()",
+          "before": 2,
+          "after": 5,
+          "note": "The player adds a place for robot output below the arena and updates it with the current frame. A reader can pause or scrub backward and see only the lines printed by then."
+        },
+        {
+          "file": "spec/browser_spec.cr",
+          "anchor": "it \"reports each robot's printed lines with cycles",
+          "before": 2,
+          "after": 5,
+          "note": "This spec checks that printed lines carry a cycle and that a silent robot has no lines. The replay can then show each line at the right moment."
+        }
+      ]
+    },
+    "c-a-resumable-webassembly-emitter-compiled": {
+      "summary": "Compiled robots can pause after each cycle and resume on their next turn.",
+      "excerpts": [
+        {
+          "file": "src/compiler/wasm_resumable.cr",
+          "anchor": "private FRAME_BYTES = 2048",
+          "before": 2,
+          "after": 5,
+          "note": "Each running call gets space to remember its position and unfinished values. This frame lets a compiled robot return after one cycle and continue later, even inside another function.",
+          "line_notes": {
+            "private SLOT_PC": "This slot remembers which numbered block the robot should run when it gets another turn."
+          }
+        },
+        {
+          "file": "spec/wasm_resumable_spec.cr",
+          "anchor": "it \"matches stepwise battles",
+          "before": 2,
+          "after": 5,
+          "note": "The test fights the same robots through compiled and interpreted paths and compares the result. It checks that pausing changes how a robot runs without changing the battle."
+        }
+      ]
+    },
+    "c-compiled-robots-fight-in-the-browser": {
+      "summary": "Browser battles can run compiled robots and fall back for unsupported programs.",
+      "excerpts": [
+        {
+          "file": "site/battle-worker.js",
+          "anchor": "const robotModules = engine === \"compiled\"",
+          "before": 2,
+          "after": 5,
+          "note": "A worker prepares each robot module before the battle, keeping the page free to draw frames. A robot the compiler cannot handle can still fight through the interpreter.",
+          "line_notes": {
+            "const robotModules =": "Prepare compiled robot modules only when this battle uses the compiled engine."
+          }
+        },
+        {
+          "file": "spec/wasm32_compiled_spec.cr",
+          "anchor": "it \"matches interpreted battles",
+          "before": 2,
+          "after": 5,
+          "note": "This check compares compiled and interpreted battles and a tournament. It guards the step from seeing compiled bytes to actually fighting with them."
+        }
+      ]
+    },
+    "c-plain-language-for-first-time-programmer": {
+      "summary": "The site and manual explain the game in words a first-time programmer can use.",
+      "excerpts": [
+        {
+          "file": "site/friendly-errors.js",
+          "anchor": "export function friendlyError(",
+          "before": 2,
+          "after": 5,
+          "note": "The page turns compiler mistakes into short messages that keep names from the reader’s robot. A beginner can use the manual and fix a program without first learning the compiler’s internal labels."
+        }
+      ]
+    },
+    "c-pages-a-favicon": {
+      "summary": "The site has a robot icon in browser tabs.",
+      "excerpts": [
+        {
+          "file": "site/favicon.svg",
+          "anchor": "<svg",
+          "before": 2,
+          "after": 5,
+          "note": "A small robot marks the site in a browser tab. It gives the finished set of pages a recognizable place to return to."
         }
       ]
     }

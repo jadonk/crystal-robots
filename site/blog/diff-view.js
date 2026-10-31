@@ -63,6 +63,12 @@ function renderLines(rows, lines, file, singleColumn, showMarks) {
 function render(view, data) {
   view.replaceChildren();
   view.append(element("p", "diff-summary", data.summary));
+  if (data.note) {
+    const note = element("p", "diff-note");
+    note.append(linkedNote(data.note));
+    view.append(note);
+    return;
+  }
   const disclosure = element("details", "diff-files-disclosure");
   disclosure.append(element("summary", "diff-files-heading", `Files changed (${data.files.length})`));
   const files = element("ul", "diff-files");

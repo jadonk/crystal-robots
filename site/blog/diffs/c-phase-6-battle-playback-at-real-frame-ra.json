@@ -1,0 +1,511 @@
+{
+  "sha": "6de959d4288154b4239c908961e4b9dbb6f49d40",
+  "subject": "Phase 6: battle playback at real frame rate, with event-guaranteed frames",
+  "summary": "A battle replay can play smoothly without losing important events.",
+  "files": [
+    {
+      "path": "docs/PLAN.md",
+      "added": 3,
+      "removed": 1,
+      "role": "Tracks the steps of the tutorial."
+    },
+    {
+      "path": "site/battle-playback.js",
+      "added": 266,
+      "removed": 0,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/battle.js",
+      "added": 17,
+      "removed": 8,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/editor/editor.js",
+      "added": 14,
+      "removed": 3,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/editor/index.html",
+      "added": 4,
+      "removed": 1,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/index.html",
+      "added": 8,
+      "removed": 3,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "site/wasi-shim.js",
+      "added": 25,
+      "removed": 12,
+      "role": "Runs the browser pages and their helpers."
+    },
+    {
+      "path": "spec/battle_spec.cr",
+      "added": 41,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/browser_spec.cr",
+      "added": 95,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 10,
+      "removed": 6,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/support/wasm32_battle_check.mjs",
+      "added": 13,
+      "removed": 3,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/wasm32_spec.cr",
+      "added": 15,
+      "removed": 8,
+      "role": "Checks the compiler built for the browser."
+    },
+    {
+      "path": "src/battle/field.cr",
+      "added": 49,
+      "removed": 3,
+      "role": "Runs the project command."
+    },
+    {
+      "path": "src/battle/step_robot.cr",
+      "added": 2,
+      "removed": 1,
+      "role": "Runs the project command."
+    },
+    {
+      "path": "src/battle/svg_replay.cr",
+      "added": 56,
+      "removed": 0,
+      "role": "Runs the project command."
+    },
+    {
+      "path": "src/browser.cr",
+      "added": 145,
+      "removed": 15,
+      "role": "Runs the project command."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "site/battle-playback.js",
+      "note": "The player turns the compact battle record into frames it can draw one at a time. The field records shots and hits even between regular samples, so the reader can see the moments that decided the fight.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "// none of which a fire-and-forget SMIL animation could offer.",
+          "old": null,
+          "new": 17
+        },
+        {
+          "kind": "+",
+          "text": "//",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "// Frame buffer layout (little-endian; mirrors `Browser.encode_frames`'s",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "// own doc comment in `src/browser.cr` exactly -- keep both in sync):",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "//   offset 0: u8  version",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "//   offset 1: u8  robotCount",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "//   offset 2: u16 missileSlots (per robot)",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "//   offset 4: u32 frameCount",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "//   offset 8: frameCount frames, each:",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "//     u32 cycle",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "//     robotCount robot records (12 bytes): i16 x, i16 y, i16 heading,",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "//       i16 scan, i16 cannon, u8 damage, u8 flags (bit0 active, bit1 fired)",
+          "old": null,
+          "new": 28
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "//     robotCount*missileSlots missile records (6 bytes): i16 x, i16 y,",
+          "old": null,
+          "new": 29
+        },
+        {
+          "kind": "+",
+          "text": "//       u8 flags (bit0 present, bit1 exploding), u8 padding",
+          "old": null,
+          "new": 30
+        },
+        {
+          "kind": "+",
+          "text": "function decodeFrames(buffer) {",
+          "old": null,
+          "new": 31
+        },
+        {
+          "kind": "+",
+          "text": "  const v = new DataView(buffer);",
+          "old": null,
+          "new": 32
+        },
+        {
+          "kind": "+",
+          "text": "  const robotCount = v.getUint8(1);",
+          "old": null,
+          "new": 33
+        },
+        {
+          "kind": "+",
+          "text": "  const missileSlots = v.getUint16(2, true);",
+          "old": null,
+          "new": 34
+        },
+        {
+          "kind": "+",
+          "text": "  const frameCount = v.getUint32(4, true);",
+          "old": null,
+          "new": 35
+        },
+        {
+          "kind": "+",
+          "text": "  const missileCount = robotCount * missileSlots;",
+          "old": null,
+          "new": 36
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "  const robotStride = 12;",
+          "old": null,
+          "new": 37
+        },
+        {
+          "kind": "+",
+          "text": "  const missileStride = 6;",
+          "old": null,
+          "new": 38
+        },
+        {
+          "kind": "+",
+          "text": "  const frameStride = 4 + robotCount * robotStride + missileCount * missileStride;",
+          "old": null,
+          "new": 39
+        },
+        {
+          "kind": "+",
+          "text": "  const frames = new Array(frameCount);",
+          "old": null,
+          "new": 40
+        },
+        {
+          "kind": "+",
+          "text": "  let off = 8;",
+          "old": null,
+          "new": 41
+        },
+        {
+          "kind": "+",
+          "text": "  for (let i = 0; i < frameCount; i++) {",
+          "old": null,
+          "new": 42
+        },
+        {
+          "kind": "+",
+          "text": "    const cycle = v.getUint32(off, true);",
+          "old": null,
+          "new": 43
+        },
+        {
+          "kind": "+",
+          "text": "    let p = off + 4;",
+          "old": null,
+          "new": 44
+        },
+        {
+          "kind": "+",
+          "text": "    const robots = new Array(robotCount);",
+          "old": null,
+          "new": 45
+        },
+        {
+          "kind": "+",
+          "text": "    for (let r = 0; r < robotCount; r++) {",
+          "old": null,
+          "new": 46
+        },
+        {
+          "kind": "+",
+          "text": "      const x = v.getInt16(p, true);",
+          "old": null,
+          "new": 47
+        },
+        {
+          "kind": "+",
+          "text": "      const y = v.getInt16(p + 2, true);",
+          "old": null,
+          "new": 48
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/battle_spec.cr",
+      "note": "This test gives the recorder an unrealistically small frame budget. It still expects many impact frames, so shots remain visible in the player.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    seen = f.frames.flat_map(&.missiles)",
+          "old": 143,
+          "new": 144
+        },
+        {
+          "kind": " ",
+          "text": "    seen.should_not be_empty",
+          "old": 144,
+          "new": 145
+        },
+        {
+          "kind": " ",
+          "text": "    seen.map(&.owner).uniq.should eq [0]",
+          "old": 145,
+          "new": 146
+        },
+        {
+          "kind": " ",
+          "text": "    seen.map(&.slot).uniq.should eq [0]",
+          "old": 146,
+          "new": 147
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 147,
+          "new": 148
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 149
+        },
+        {
+          "kind": "+",
+          "text": "  # Phase 6 (ticket a83cd0a90f): a tight frame budget must still show every",
+          "old": null,
+          "new": 150
+        },
+        {
+          "kind": "+",
+          "text": "  # shot's impact, not just whatever the fixed downsample interval happens",
+          "old": null,
+          "new": 151
+        },
+        {
+          "kind": "+",
+          "text": "  # to land on -- the maintainer's complaint that cannon fire and impacts",
+          "old": null,
+          "new": 152
+        },
+        {
+          "kind": "+",
+          "text": "  # fall between samples. Point-blank range (5 m) means a missile explodes",
+          "old": null,
+          "new": 153
+        },
+        {
+          "kind": "+",
+          "text": "  # the same or next motion update it is fired, so counting recorded",
+          "old": null,
+          "new": 154
+        },
+        {
+          "kind": "+",
+          "text": "  # frames with an exploding missile is a reliable proxy for \"a shot",
+          "old": null,
+          "new": 155
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  # landed\". `RELOAD` (15 motion cycles) between shots keeps successive",
+          "old": null,
+          "new": 156
+        },
+        {
+          "kind": "+",
+          "text": "  # impacts from landing on the same recorded cycle.",
+          "old": null,
+          "new": 157
+        },
+        {
+          "kind": "+",
+          "text": "  it \"never drops a frame with a cannon-fire event, however tight the frame budget\" do",
+          "old": null,
+          "new": 158
+        },
+        {
+          "kind": "+",
+          "text": "    shooter = \"main(\\\"S\\\") do\\n  while true\\n    cannon(0, 5)\\n    sleep\\n  end\\nend\\n\"",
+          "old": null,
+          "new": 159
+        },
+        {
+          "kind": "+",
+          "text": "    f = B::Field.new([{\"s\", shooter}, {\"i\", IDLE}], seed: 1_u64, limit: 30_000_i64, max_frames: 2).run",
+          "old": null,
+          "new": 160
+        },
+        {
+          "kind": "+",
+          "text": "    impacts = f.frames.count { |fr| fr.missiles.any?(&.exploding) }",
+          "old": null,
+          "new": 161
+        },
+        {
+          "kind": "+",
+          "text": "    impacts.should be >= 10",
+          "old": null,
+          "new": 162
+        },
+        {
+          "kind": "+",
+          "text": "    f.frames.size.should be > 2 # a budget of 2 alone could never have kept this many",
+          "old": null,
+          "new": 163
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 164
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 165
+        },
+        {
+          "kind": "+",
+          "text": "  # Same guarantee for `run_stepwise` (`src/battle/step_robot.cr`), the",
+          "old": null,
+          "new": 166
+        },
+        {
+          "kind": "+",
+          "text": "  # non-fiber engine `crd_battle_run` uses on wasm32 -- both engines share",
+          "old": null,
+          "new": 167
+        },
+        {
+          "kind": "+",
+          "text": "  # `Field#move_robots`/`move_missiles`/`cannon`/`scan`, so the event flag",
+          "old": null,
+          "new": 168
+        },
+        {
+          "kind": "+",
+          "text": "  # and this guarantee are not fiber-path-specific.",
+          "old": null,
+          "new": 169
+        },
+        {
+          "kind": "+",
+          "text": "  it \"never drops a frame with a cannon-fire event under the stepwise engine either\" do",
+          "old": null,
+          "new": 170
+        },
+        {
+          "kind": "+",
+          "text": "    shooter = \"main(\\\"S\\\") do\\n  while true\\n    cannon(0, 5)\\n    sleep\\n  end\\nend\\n\"",
+          "old": null,
+          "new": 171
+        },
+        {
+          "kind": "+",
+          "text": "    f = B::Field.new([{\"s\", shooter}, {\"i\", IDLE}], seed: 1_u64, limit: 30_000_i64, max_frames: 2).run_stepwise",
+          "old": null,
+          "new": 172
+        },
+        {
+          "kind": "+",
+          "text": "    impacts = f.frames.count { |fr| fr.missiles.any?(&.exploding) }",
+          "old": null,
+          "new": 173
+        },
+        {
+          "kind": "+",
+          "text": "    impacts.should be >= 10",
+          "old": null,
+          "new": 174
+        },
+        {
+          "kind": "+",
+          "text": "    f.frames.size.should be > 2",
+          "old": null,
+          "new": 175
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}
