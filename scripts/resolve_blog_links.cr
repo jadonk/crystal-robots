@@ -24,11 +24,13 @@ end
 
 missing = [] of String
 changed = 0
+renamed = {} of String => String
 html = File.read(file).gsub(%r{href="(https://github\.com/[^"]+/commit/)([0-9a-f]{40})"( data-subject="([^"]*)")>([^<]*)</a>}) do
   prefix, old, attr, encoded, text = $1, $2, $3, $4, $5
   subject = HTML.unescape(encoded)
   if sha = sha_for[subject]?
     changed += 1 if sha != old
+    renamed[old] = sha if sha != old
     # A link labelled with the old short hash gets the new one.
     label = old.starts_with?(text) && !text.empty? ? sha[0, text.size] : text
     %(href="#{prefix}#{sha}"#{attr}>#{label}</a>)
@@ -36,6 +38,11 @@ html = File.read(file).gsub(%r{href="(https://github\.com/[^"]+/commit/)([0-9a-f
     missing << subject
     $0
   end
+end
+# The same commits also appear outside those links: a plain "See the whole
+# change" link has the full hash, and each `git checkout` command the short one.
+renamed.each do |old, sha|
+  html = html.gsub(old, sha).gsub(/\b#{old[0, 7]}\b/, sha[0, 7])
 end
 File.write(file, html)
 puts "#{file}: #{changed} link(s) updated from #{ref}"
