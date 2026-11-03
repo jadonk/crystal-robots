@@ -705,9 +705,9 @@
           "after": 11
         },
         {
-          "file": "spec/scripts/publish_wiki_robots_spec.cr",
-          "anchor": "it \"creates a robot/<name>",
-          "note": "This spec checks the script that publishes the robot pages. It helps keep the written strategies available with their programs.",
+          "file": "spec/robots_spec.cr",
+          "anchor": "has one code block that parses and checks clean",
+          "note": "This spec opens each robot page, finds its one code block and hands it to the parser and the checker. A broken example robot fails here, before anyone tries to fight it.",
           "before": 0,
           "after": 6
         }

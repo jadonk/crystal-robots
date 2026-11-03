@@ -1,5 +1,5 @@
 {
-  "sha": "cd45b6a9edd4576b22ffe24a660c4114e53c8ea4",
+  "sha": "eb9c3e010955f4a4ed108e8dba5bb11a0b3c03d4",
   "subject": "Phase W.1: the wasm32 spike",
   "summary": "The Crystal compiler can be built as a WebAssembly program for the page.",
   "files": [

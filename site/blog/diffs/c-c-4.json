@@ -1,5 +1,5 @@
 {
-  "sha": "155b626f03a7b4a6ea9cd8c8e41593c97522cb0e",
+  "sha": "171214a2b090e2a02af80b6b75bb830ba02e1812",
   "subject": "Phase C.4: the scanner and a real Host bound to the battlefield",
   "summary": "Robot builtins can now sense and change a real field.",
   "files": [

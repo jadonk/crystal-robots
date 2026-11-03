@@ -1,5 +1,5 @@
 {
-  "sha": "1d7b1fadaddd69e7936c1d17ddd542062c88a75b",
+  "sha": "8dc0e82e8377866e0c431400ab2d5c274a3d3a8b",
   "subject": "Phase W.4: the GitHub Pages deploy workflow",
   "summary": "A passing CI run can publish the browser page through GitHub Pages.",
   "files": [

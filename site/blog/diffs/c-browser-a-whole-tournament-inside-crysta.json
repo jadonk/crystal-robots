@@ -1,5 +1,5 @@
 {
-  "sha": "85fa59ef74da2b3d0f5be85a42dfbde8a58533ef",
+  "sha": "673ccad369f77790e49bd4cb02e3e2f0e89f9e78",
   "subject": "Browser: a whole tournament inside crystal-robots.wasm",
   "summary": "The browser module can run a complete replayable tournament.",
   "files": [

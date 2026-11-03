@@ -1,5 +1,5 @@
 {
-  "sha": "45ae2dc9bfe51bd24e8e4207beecc7da0fce61b9",
+  "sha": "9a342ee9965a3e4f600ce2618bd6de9a544ad3be",
   "subject": "Pages deploy: mark site/*.js as ES modules so the playback spec runs on older Node",
   "summary": "Older Node versions can load the site player for its test.",
   "files": [

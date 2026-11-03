@@ -1,5 +1,5 @@
 {
-  "sha": "346132a0aee45f3c30d3a7a95e4aa4ceed730873",
+  "sha": "45c36505087e0986f37ddfd0b022297c646a0ce9",
   "subject": "Phase 6: the browser robot editor",
   "summary": "A reader can edit a robot, see mistakes, and start a battle in the browser.",
   "files": [
@@ -74,12 +74,6 @@
       "added": 30,
       "removed": 0,
       "role": "Checks the compiler built for the browser."
-    },
-    {
-      "path": "spec/web_cgi_spec.cr",
-      "added": 37,
-      "removed": 0,
-      "role": "Checks that a piece of the project behaves as expected."
     },
     {
       "path": "src/browser.cr",

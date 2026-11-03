@@ -1,5 +1,5 @@
 {
-  "sha": "ffb8951bd19bae22371ffabe8d125501d7e0495b",
+  "sha": "b56793b28f0ac12a7246342ad8c8f21979b5e8fc",
   "subject": "Fix the editor's line-number gutter drifting on scroll and wrapped lines",
   "summary": "Editor line numbers stay beside their source lines while scrolling.",
   "files": [

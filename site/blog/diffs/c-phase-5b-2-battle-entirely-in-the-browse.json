@@ -1,5 +1,5 @@
 {
-  "sha": "34306a5d170adf641037f8d4182d70f319826f86",
+  "sha": "ec9d70af35391ffcd0cf19bb2d5d2d68c617449d",
   "subject": "Phase 5b-2: battle entirely in the browser, no server",
   "summary": "Two to four robots can fight and be replayed inside a web page.",
   "files": [
@@ -11,8 +11,8 @@
     },
     {
       "path": ".github/workflows/pages.yml",
-      "added": 12,
-      "removed": 5,
+      "added": 7,
+      "removed": 3,
       "role": "Sets up the project."
     },
     {
@@ -20,6 +20,12 @@
       "added": 1,
       "removed": 0,
       "role": "Sets up the project."
+    },
+    {
+      "path": "ci.cr",
+      "added": 8,
+      "removed": 3,
+      "role": "Runs the project build and checks."
     },
     {
       "path": "docs/PLAN.md",

@@ -1,5 +1,5 @@
 {
-  "sha": "f7b753a101bc04e2ebe542ebfb59255be0ffe3a2",
+  "sha": "aed79db972128b2f23b5f16c33fea8176c2a5d03",
   "subject": "Phase U.1: version reports the check-in it was built from",
   "summary": "A built program can report the check-in it came from.",
   "files": [

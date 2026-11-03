@@ -1,5 +1,5 @@
 {
-  "sha": "c9b9d64c3abcfd0a8c6c1b1524155b9068e26f73",
+  "sha": "92df1983c49b34e7cf3d74a8a1cf56f9b7f5c207",
   "subject": "Phase W.0: compile and interpret in one call",
   "summary": "The page can compile a robot or run it directly from its source text.",
   "files": [

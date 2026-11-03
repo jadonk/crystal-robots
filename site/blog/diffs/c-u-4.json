@@ -1,11 +1,11 @@
 {
-  "sha": "154dc0aba875010d27437caab5bcbc7ec3752f2b",
+  "sha": "c08bf52739a0bd5e38f39996bdd1568277462d4d",
   "subject": "Phase U.4: the robot API reference",
   "summary": "Robot writers can look up every builtin in one reference.",
   "files": [
     {
       "path": "spec/web/robot_api_spec.cr",
-      "added": 50,
+      "added": 51,
       "removed": 0,
       "role": "Checks that a piece of the project behaves as expected."
     },
@@ -280,27 +280,33 @@
         },
         {
           "kind": "+",
-          "text": "",
+          "text": "require \"../../src/web/robot_api\"",
           "old": null,
           "new": 2
         },
         {
           "kind": "+",
-          "text": "alias RobotAPI = CrystalRobots::Web::RobotAPI",
+          "text": "",
           "old": null,
           "new": 3
         },
         {
           "kind": "+",
-          "text": "",
+          "text": "alias RobotAPI = CrystalRobots::Web::RobotAPI",
           "old": null,
           "new": 4
         },
         {
           "kind": "+",
-          "text": "describe RobotAPI do",
+          "text": "",
           "old": null,
           "new": 5
+        },
+        {
+          "kind": "+",
+          "text": "describe RobotAPI do",
+          "old": null,
+          "new": 6
         }
       ],
       "lines": [
@@ -308,13 +314,13 @@
           "kind": "+",
           "text": "  it \"documents exactly the builtins the interpreter actually dispatches, no more and no less\" do",
           "old": null,
-          "new": 6
+          "new": 7
         },
         {
           "kind": "+",
           "text": "    RobotAPI::ENTRIES.keys.sort.should eq CrystalRobots::Compiler::Interpreter::BUILTIN_NAMES.sort",
           "old": null,
-          "new": 7
+          "new": 8
         }
       ],
       "after": [
@@ -322,73 +328,73 @@
           "kind": "+",
           "text": "  end",
           "old": null,
-          "new": 8
+          "new": 9
         },
         {
           "kind": "+",
           "text": "",
           "old": null,
-          "new": 9
+          "new": 10
         },
         {
           "kind": "+",
           "text": "  it \"every name in BUILTIN_NAMES is a real, callable builtin, not just a documentation entry\" do",
           "old": null,
-          "new": 10
+          "new": 11
         },
         {
           "kind": "+",
           "text": "    # `puts` itself is exercised by every line here (it is how each",
           "old": null,
-          "new": 11
+          "new": 12
         },
         {
           "kind": "+",
           "text": "    # result gets observed at all), so there is no separate line for",
           "old": null,
-          "new": 12
+          "new": 13
         },
         {
           "kind": "+",
           "text": "    # it: 14 lines cover the other 14 names in BUILTIN_NAMES.",
           "old": null,
-          "new": 13
+          "new": 14
         },
         {
           "kind": "+",
           "text": "    source = <<-CR",
           "old": null,
-          "new": 14
+          "new": 15
         },
         {
           "kind": "+",
           "text": "      puts damage",
           "old": null,
-          "new": 15
+          "new": 16
         },
         {
           "kind": "+",
           "text": "      puts speed",
           "old": null,
-          "new": 16
+          "new": 17
         },
         {
           "kind": "+",
           "text": "      puts loc_x",
           "old": null,
-          "new": 17
+          "new": 18
         },
         {
           "kind": "+",
           "text": "      puts loc_y",
           "old": null,
-          "new": 18
+          "new": 19
         },
         {
           "kind": "+",
           "text": "      puts sleep",
           "old": null,
-          "new": 19
+          "new": 20
         }
       ],
       "line_notes": {}

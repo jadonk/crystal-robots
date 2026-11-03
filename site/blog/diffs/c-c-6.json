@@ -1,5 +1,5 @@
 {
-  "sha": "cf0bd543ace50a610dbb511fe6d2004ad09dab3e",
+  "sha": "b97950343134589c56022da2adaeedf0b321c81c",
   "subject": "Phase C.6: CLI wiring for matches, and a real crash-safety fix",
   "summary": "The command can run seeded matches and finish when a robot crashes.",
   "files": [

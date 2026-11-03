@@ -1,5 +1,5 @@
 {
-  "sha": "fa5389f9872caf44bee87c26575433f7f2cc346b",
+  "sha": "f59b8665cf244ecfc8553782dbeb855d0810d121",
   "subject": "Phase U.3: versioned robots/*.md",
   "summary": "Five more documented robots can be read and checked.",
   "files": [
@@ -34,16 +34,10 @@
       "role": "Explains a robot strategy and includes its program."
     },
     {
-      "path": "scripts/publish_wiki_robots.sh",
-      "added": 34,
+      "path": "spec/robots_spec.cr",
+      "added": 23,
       "removed": 0,
-      "role": "Helps build or check the project."
-    },
-    {
-      "path": "spec/scripts/publish_wiki_robots_spec.cr",
-      "added": 41,
-      "removed": 0,
-      "role": "Checks that a piece of the project behaves as expected."
+      "role": "Checks the shipped robot programs."
     }
   ],
   "excerpts": [
@@ -275,180 +269,132 @@
       "line_notes": {}
     },
     {
-      "file": "spec/scripts/publish_wiki_robots_spec.cr",
-      "note": "This spec checks the script that publishes the robot pages. It helps keep the written strategies available with their programs.",
+      "file": "spec/robots_spec.cr",
+      "note": "This spec opens each robot page, finds its one code block and hands it to the parser and the checker. A broken example robot fails here, before anyone tries to fight it.",
       "before": [
         {
           "kind": "+",
-          "text": "require \"../spec_helper\"",
-          "old": null,
-          "new": 1
-        },
-        {
-          "kind": "+",
-          "text": "",
-          "old": null,
-          "new": 2
-        },
-        {
-          "kind": "+",
-          "text": "# Exercises scripts/publish_wiki_robots.sh for real, but against a",
-          "old": null,
-          "new": 3
-        },
-        {
-          "kind": "+",
-          "text": "# throwaway Fossil repository created just for this spec, not the",
+          "text": "# code block, and that block must parse and pass the checker.",
           "old": null,
           "new": 4
         },
         {
           "kind": "+",
-          "text": "# shared repository this checkout itself lives in -- publishing is a",
+          "text": "FENCE = /^(`{3,})[^\\n]*\\n(.*?)\\n\\1[ \\t]*$/m",
           "old": null,
           "new": 5
         },
         {
           "kind": "+",
-          "text": "# real write (fossil wiki create/commit), so this proves the script",
+          "text": "",
           "old": null,
           "new": 6
         },
         {
           "kind": "+",
-          "text": "# works without touching the wiki pages CrystalRobots::Web::WikiRobots",
+          "text": "describe \"robots/*.md\" do",
           "old": null,
           "new": 7
         },
         {
           "kind": "+",
-          "text": "# reads from elsewhere in this suite.",
+          "text": "  files = Dir.glob(\"robots/*.md\").sort",
           "old": null,
           "new": 8
         },
         {
           "kind": "+",
-          "text": "describe \"scripts/publish_wiki_robots.sh\" do",
+          "text": "",
           "old": null,
           "new": 9
-        }
-      ],
-      "lines": [
+        },
         {
           "kind": "+",
-          "text": "  it \"creates a robot/<name> wiki page per robots/*.md, and updates it on a second run\" do",
+          "text": "  it \"ships a handful of them\" do",
           "old": null,
           "new": 10
         },
         {
           "kind": "+",
-          "text": "    repo = File.tempname(\"publish_wiki_robots_spec\", \".fossil\")",
+          "text": "    files.size.should be >= 4",
           "old": null,
           "new": 11
         },
         {
           "kind": "+",
-          "text": "    begin",
+          "text": "  end",
           "old": null,
           "new": 12
         },
         {
           "kind": "+",
-          "text": "      init = Process.run(\"fossil\", [\"init\", repo, \"-A\", \"tester\"], env: {\"USER\" => \"tester\"},",
+          "text": "",
           "old": null,
           "new": 13
         },
         {
           "kind": "+",
-          "text": "        output: IO::Memory.new, error: (init_err = IO::Memory.new))",
+          "text": "  files.each do |file|",
           "old": null,
           "new": 14
         },
         {
           "kind": "+",
-          "text": "      init.success?.should be_true, init_err.to_s",
+          "text": "    name = File.basename(file, \".md\")",
           "old": null,
           "new": 15
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "    it \"#{name} has one code block that parses and checks clean\" do",
+          "old": null,
+          "new": 16
         },
         {
           "kind": "+",
-          "text": "",
-          "old": null,
-          "new": 16
-        }
-      ],
-      "after": [
-        {
-          "kind": "+",
-          "text": "      first = Process.run(\"sh\", [\"scripts/publish_wiki_robots.sh\", \"-R\", repo], env: {\"USER\" => \"tester\"},",
+          "text": "      blocks = File.read(file).scan(FENCE)",
           "old": null,
           "new": 17
         },
         {
           "kind": "+",
-          "text": "        output: (first_out = IO::Memory.new), error: IO::Memory.new)",
+          "text": "      blocks.size.should eq 1",
           "old": null,
           "new": 18
         },
         {
           "kind": "+",
-          "text": "      first.success?.should be_true",
+          "text": "      program = CrystalRobots::Compiler::Parser.new(blocks[0][2]).program",
           "old": null,
           "new": 19
         },
         {
           "kind": "+",
-          "text": "      first_out.to_s.should contain \"created robot/hunter\"",
+          "text": "      CrystalRobots::Compiler::Checker.check(program).should be_empty",
           "old": null,
           "new": 20
         },
         {
           "kind": "+",
-          "text": "",
+          "text": "    end",
           "old": null,
           "new": 21
         },
         {
           "kind": "+",
-          "text": "      names_out = IO::Memory.new",
+          "text": "  end",
           "old": null,
           "new": 22
-        },
+        }
+      ],
+      "after": [
         {
           "kind": "+",
-          "text": "      Process.run(\"fossil\", [\"wiki\", \"list\", \"-R\", repo], env: {\"USER\" => \"tester\"}, output: names_out, error: IO::Memory.new)",
+          "text": "end",
           "old": null,
           "new": 23
-        },
-        {
-          "kind": "+",
-          "text": "      names = names_out.to_s.lines.map(&.strip)",
-          "old": null,
-          "new": 24
-        },
-        {
-          "kind": "+",
-          "text": "      {\"robot/circler\", \"robot/dodger\", \"robot/hunter\", \"robot/turret\", \"robot/wallhugger\"}.each do |name|",
-          "old": null,
-          "new": 25
-        },
-        {
-          "kind": "+",
-          "text": "        names.should contain name",
-          "old": null,
-          "new": 26
-        },
-        {
-          "kind": "+",
-          "text": "      end",
-          "old": null,
-          "new": 27
-        },
-        {
-          "kind": "+",
-          "text": "",
-          "old": null,
-          "new": 28
         }
       ],
       "line_notes": {}

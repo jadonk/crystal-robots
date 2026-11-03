@@ -1,5 +1,5 @@
 {
-  "sha": "6afe3f25ecde4629e300fbd5261dbdeb07a9c144",
+  "sha": "51e23381cba8db5ad544adaabda3352fdbf21669",
   "subject": "Replays show what each robot prints",
   "summary": "A replay can show each robot’s printed lines at the cycle they appeared.",
   "files": [

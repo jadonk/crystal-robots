@@ -1,5 +1,5 @@
 {
-  "sha": "2f1b9209cf7ef136f2731edef520e3e2186f6d78",
+  "sha": "181bf8ccbd39ec2ef1289440b0168e089a8aa793",
   "subject": "Phase W.6: ci.cr replaces ci.sh",
   "summary": "The project can run its checks with one Crystal command.",
   "files": [
@@ -11,7 +11,7 @@
     },
     {
       "path": "ci.cr",
-      "added": 179,
+      "added": 176,
       "removed": 0,
       "role": "Runs the project build and checks."
     },
@@ -24,7 +24,7 @@
     {
       "path": "scripts/ci.sh",
       "added": 0,
-      "removed": 120,
+      "removed": 118,
       "role": "Builds and checks the project in one command."
     },
     {

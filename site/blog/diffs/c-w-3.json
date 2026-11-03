@@ -1,5 +1,5 @@
 {
-  "sha": "c2e2bd94e386da40d7733ad60dd2d947ac599f3e",
+  "sha": "b8ada0036ac3bd4434752e5f5a93d1159841eedc",
   "subject": "Phase W.3: the wasm32 spec and the ci.sh flag",
   "summary": "The browser build is checked against the native compiler in CI.",
   "files": [
@@ -42,118 +42,118 @@
         {
           "kind": " ",
           "text": "    rm -rf ./.wasmer",
+          "old": 64,
+          "new": 70
+        },
+        {
+          "kind": " ",
+          "text": "    mkdir -p \"$WASMER_DIR/tmp\"",
+          "old": 65,
+          "new": 71
+        },
+        {
+          "kind": " ",
+          "text": "    : > \"$WASMER_DIR/profile.sh\"",
           "old": 66,
           "new": 72
         },
         {
           "kind": " ",
-          "text": "    mkdir -p \"$WASMER_DIR/tmp\"",
+          "text": "    PROFILE=\"$WASMER_DIR/profile.sh\" TMPDIR=\"$WASMER_DIR/tmp\" WASMER_INSTALL_LOG=quiet \\",
           "old": 67,
           "new": 73
         },
         {
           "kind": " ",
-          "text": "    : > \"$WASMER_DIR/profile.sh\"",
+          "text": "      sh scripts/install_wasmer.sh v4.4.0",
           "old": 68,
           "new": 74
         },
         {
           "kind": " ",
-          "text": "    PROFILE=\"$WASMER_DIR/profile.sh\" TMPDIR=\"$WASMER_DIR/tmp\" WASMER_INSTALL_LOG=quiet \\",
+          "text": "    rm -rf \"$WASMER_DIR/tmp\"",
           "old": 69,
           "new": 75
         },
         {
           "kind": " ",
-          "text": "      sh scripts/install_wasmer.sh v4.4.0",
+          "text": "  fi",
           "old": 70,
           "new": 76
         },
         {
           "kind": " ",
-          "text": "    rm -rf \"$WASMER_DIR/tmp\"",
+          "text": "  export PATH=\"$WASMER_DIR/bin:$PATH\"",
           "old": 71,
           "new": 77
         },
         {
           "kind": " ",
-          "text": "  fi",
+          "text": "  \"$WASMER_DIR/bin/wasmer\" --version",
           "old": 72,
           "new": 78
         },
         {
           "kind": " ",
-          "text": "  export PATH=\"$WASMER_DIR/bin:$PATH\"",
+          "text": "  spec_flags=\"-Dwasmer\"",
           "old": 73,
           "new": 79
         },
         {
           "kind": " ",
-          "text": "  \"$WASMER_DIR/bin/wasmer\" --version",
+          "text": "fi",
           "old": 74,
           "new": 80
-        },
-        {
-          "kind": " ",
-          "text": "  spec_flags=\"-Dwasmer\"",
-          "old": 75,
-          "new": 81
-        },
-        {
-          "kind": " ",
-          "text": "fi",
-          "old": 76,
-          "new": 82
         }
       ],
       "lines": [
         {
           "kind": " ",
           "text": "",
-          "old": 77,
-          "new": 83
+          "old": 75,
+          "new": 81
         },
         {
           "kind": "+",
           "text": "if [ \"$with_wasm32\" = 1 ]; then",
           "old": null,
-          "new": 84
+          "new": 82
         },
         {
           "kind": "+",
           "text": "  step \"check for node (drives the wasm32 specs through site/wasi-shim.js)\"",
           "old": null,
-          "new": 85
+          "new": 83
         },
         {
           "kind": "+",
           "text": "  command -v node >/dev/null 2>&1 || { echo \"node is required on PATH for --with-wasm32\" >&2; exit 1; }",
           "old": null,
-          "new": 86
+          "new": 84
         },
         {
           "kind": "+",
           "text": "  node --version",
           "old": null,
-          "new": 87
+          "new": 85
         },
         {
           "kind": "+",
           "text": "",
           "old": null,
-          "new": 88
+          "new": 86
         },
         {
           "kind": "+",
           "text": "  step \"check for wasm-ld (the lld package; Crystal needs it to link the wasm32 target)\"",
           "old": null,
-          "new": 89
+          "new": 87
         },
         {
           "kind": "+",
           "text": "  command -v wasm-ld >/dev/null 2>&1 || { echo \"wasm-ld is required on PATH for --with-wasm32; install the lld package\" >&2; exit 1; }",
           "old": null,
-          "new": 90
+          "new": 88
         }
       ],
       "after": [
@@ -161,73 +161,73 @@
           "kind": "+",
           "text": "",
           "old": null,
-          "new": 91
+          "new": 89
         },
         {
           "kind": "+",
           "text": "  step \"wasm32-wasi-libs 0.0.3\"",
           "old": null,
-          "new": 92
+          "new": 90
         },
         {
           "kind": "+",
           "text": "  export WASM32_WASI_LIBS=\"$PWD/.wasm32-wasi-libs\"",
           "old": null,
-          "new": 93
+          "new": 91
         },
         {
           "kind": "+",
           "text": "  if [ ! -f \"$WASM32_WASI_LIBS/lib/wasm32-wasi/libc.a\" ]; then",
           "old": null,
-          "new": 94
+          "new": 92
         },
         {
           "kind": "+",
           "text": "    rm -rf ./.wasm32-wasi-libs",
           "old": null,
-          "new": 95
+          "new": 93
         },
         {
           "kind": "+",
           "text": "    sh scripts/install_wasm32_wasi_libs.sh 0.0.3",
           "old": null,
-          "new": 96
+          "new": 94
         },
         {
           "kind": "+",
           "text": "  fi",
           "old": null,
-          "new": 97
+          "new": 95
         },
         {
           "kind": "+",
           "text": "",
           "old": null,
-          "new": 98
+          "new": 96
         },
         {
           "kind": "+",
           "text": "  step \"build site/crystal-robots.wasm (the browser compiler)\"",
           "old": null,
-          "new": 99
+          "new": 97
         },
         {
           "kind": "+",
           "text": "  mkdir -p site",
           "old": null,
-          "new": 100
+          "new": 98
         },
         {
           "kind": "+",
           "text": "  crystal build --target wasm32-unknown-wasi src/browser.cr -o site/crystal-robots.wasm \\",
           "old": null,
-          "new": 101
+          "new": 99
         },
         {
           "kind": "+",
           "text": "    --link-flags=\"-L$WASM32_WASI_LIBS/lib/wasm32-wasi\" --release --no-debug",
           "old": null,
-          "new": 102
+          "new": 100
         }
       ],
       "line_notes": {

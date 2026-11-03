@@ -1,5 +1,5 @@
 {
-  "sha": "7c2560876d87f99703b76d1bf23a4f66f9240efe",
+  "sha": "82cc54d2db9c2a70281e7dc1393841252d228ffe",
   "subject": "Phase W.5: pin the Pages workflow with Crystal's own YAML",
   "summary": "A test guards the publishing steps and Crystal version.",
   "files": [

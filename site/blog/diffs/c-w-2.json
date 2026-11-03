@@ -1,5 +1,5 @@
 {
-  "sha": "a162371068e5bfc2aaaa287cb6ee2b7cc7f3587e",
+  "sha": "0d188c3345d13425c48c34c72cacb00363258b03",
   "subject": "Phase W.2: the static page and WASI shim",
   "summary": "A web page can run the compiler and recover from a failed call.",
   "files": [

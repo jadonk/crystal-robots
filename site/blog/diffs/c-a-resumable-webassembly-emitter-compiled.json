@@ -1,5 +1,5 @@
 {
-  "sha": "91a124ce25eaab8fb58f992e4e8a24502fc37cc0",
+  "sha": "b9a3816e1d29e086b6359acdf5d5fa001668d2ea",
   "subject": "A resumable WebAssembly emitter: compiled robots that pause at every cycle",
   "summary": "Compiled robots can pause after each cycle and resume on their next turn.",
   "files": [

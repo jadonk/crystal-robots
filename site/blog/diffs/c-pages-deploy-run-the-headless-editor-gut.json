@@ -1,5 +1,5 @@
 {
-  "sha": "da837acbb30a8b1ed125d9649f65fde00285375b",
+  "sha": "16883da8b247e82da53956215c7aabfe744fc6c3",
   "subject": "Pages deploy: run the headless editor gutter spec with the runner's Google Chrome",
   "summary": "The publishing build runs the editor check with an available browser.",
   "files": [
