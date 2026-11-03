@@ -29,6 +29,8 @@
     <nav aria-label="Post contents"><ol>
 <li><a href="#intro">Introduction</a></li>
 <li><a href="#follow">Following along</a></li>
+<li><a href="#reading-crystal">Reading Crystal</a></li>
+<li><a href="#words">Words you’ll see</a></li>
 <li><a href="#phase-a">1. A compiler to WebAssembly</a></li>
 <li><a href="#phase-b">2. The language real robots use</a></li>
 <li><a href="#phase-c">3. The battlefield</a></li>
@@ -57,12 +59,81 @@
 </section>
 <section id="follow">
 <h2>Following along</h2>
+<p>A <em>terminal</em> is a window where you type a command and press Enter to run it. The lines below are commands: type one, press Enter, then go to the next.</p>
 <p>Every section below names a commit. Clone the repository, check out that commit, and run the commands under “Try it”. You'll need Crystal 1.18; some steps also use wasmer (installed for you by the CI command from Phase U onward), Node, or the WebAssembly linker from LLVM, and each step says which.</p>
 <pre><code>git clone https://github.com/jadonk/crystal-robots.git
 cd crystal-robots
-git checkout &lt;commit&gt;     # any commit named below
-crystal spec              # every commit builds and passes its own tests</code></pre>
+git checkout &lt;commit&gt;
+crystal spec</code></pre>
+<p class="cmd-note"><code>git clone</code> copies the project from GitHub into a new folder.</p>
+<p class="cmd-note"><code>cd</code> moves into that folder so the next commands use its files.</p>
+<p class="cmd-note"><code>git checkout</code> opens a saved step of the project; replace <code>&lt;commit&gt;</code> with the short code shown beside a step below.</p>
+<p class="cmd-note"><code>crystal spec</code> runs the tests in <code>spec/</code>. A good run ends with <code>0 failures, 0 errors</code>.</p>
+
 <p>Every commit on this line builds and passes its tests; that was the rule for each one, and the output under “What you'll see” is real: copied from the run recorded in that commit's message, or, for the few commits that recorded none, produced by running the commands for this post. It is lightly trimmed (“...” marks a cut) and never edited. Commit hashes link to GitHub.</p>
+</section>
+<section id="reading-crystal" class="crystal-primer">
+<h2>Reading Crystal</h2>
+<p>Crystal is the language used to build this project. These small shapes are enough to follow the changes below. A <em>spec</em> is a test: a small program that checks an expected result.</p>
+<div id="crystal-require"><h3>Bring in a file: <code>require</code></h3><pre><code>require "./compiler/parser"</code></pre><p>Use code written in another file.</p></div>
+<div id="crystal-def"><h3>Name an action: <code>def … end</code></h3><pre><code>def double(n)
+  n + n
+end</code></pre><p>Give a group of steps a name so it can be used again.</p></div>
+<div id="crystal-class"><h3>Group code: <code>class</code> and <code>module</code></h3><pre><code>module Compiler
+  class Parser
+  end
+end</code></pre><p>A module groups related names; a class describes an object that can hold data and actions.</p></div>
+<div id="crystal-instance"><h3>Keep a value: <code>@name</code></h3><pre><code>@program = program</code></pre><p>The <code>@</code> keeps a value with one object for later use.</p></div>
+<div id="crystal-type"><h3>Say what kind of value: <code>: Int32</code></h3><pre><code>def add(n : Int32) : Int32</code></pre><p><code>Int32</code> means a whole number stored in 32 bits; the marks say what kind comes in and goes out.</p></div>
+<div id="crystal-block"><h3>Repeat steps for each item: <code>do |x| … end</code></h3><pre><code>numbers.each do |x|
+  puts x
+end</code></pre><p>Run the indented steps once for each item, calling the current item <code>x</code>.</p></div>
+<div id="crystal-interpolation"><h3>Put a value in text: <code>#{x}</code></h3><pre><code>puts "robot #{name}"</code></pre><p>Crystal replaces <code>#{name}</code> with the current value of <code>name</code>.</p></div>
+<div id="crystal-symbol"><h3>Use a label: <code>:name</code></h3><pre><code>mode = :trace</code></pre><p>A symbol is a short, fixed label used to choose a case or name a rule.</p></div>
+<div id="crystal-spec"><h3>Check a result: <code>describe</code>, <code>it</code>, <code>should</code></h3><pre><code>describe "addition" do
+  it "adds" do
+    (2 + 3).should eq(5)
+  end
+end</code></pre><p>These group a test, name what it checks, and say what answer is expected.</p></div>
+<div id="crystal-bytes"><h3>Write bytes: <code>Bytes[…]</code></h3><pre><code>Bytes[0x00, 0x61]</code></pre><p>Bytes are small numbers written directly into a file; <code>0x</code> marks a number written in base 16.</p></div>
+<div id="crystal-channel"><h3>Pass a turn: <code>Channel</code></h3><pre><code>ready.send(nil)
+ready.receive</code></pre><p>One task sends a signal and another waits to receive it before continuing.</p></div>
+<div id="reading-javascript"><h3>Reading JavaScript</h3><p>The browser pages use JavaScript to connect buttons, robot code and WebAssembly. These are the shapes used in the changes below.</p><pre><code>import { run } from "./wasi-shim.js";
+export const ready = async (source) =&gt; {
+  const button = document.querySelector("#run");
+  const result = await run(source);
+  button.textContent = result.status;
+};</code></pre><p><code>import</code> brings in a named action; <code>export</code> lets another file use one. <code>const</code> gives a value a name, and <code>=&gt;</code> names the input to a short function. <code>async</code> allows <code>await</code> to wait for work such as loading a module. <code>document.querySelector</code> finds an element on the page; <code>textContent</code> changes the words it shows.</p></div>
+</section>
+<section id="words" class="words-glossary">
+<h2>Words you’ll see</h2>
+<dl>
+<dt id="word-compiler">Compiler</dt><dd>A program that turns a robot’s code into instructions another machine can run.</dd>
+<dt id="word-parser">Parser</dt><dd>The part of the compiler that groups the robot’s words and symbols into meaningful pieces.</dd>
+<dt id="word-emitter">Emitter</dt><dd>The part of the compiler that writes runnable instructions from those pieces.</dd>
+<dt id="word-webassembly">WebAssembly</dt><dd>A portable format for instructions that a browser or another runner can execute.</dd>
+<dt id="word-instruction">Instruction</dt><dd>One small action, such as adding numbers or calling a function, that a runner understands.</dd>
+<dt id="word-the-stack">The stack</dt><dd>A pile of working values where instructions take numbers from the top and put answers back.</dd>
+<dt id="word-host">Host</dt><dd>The code outside a robot program that provides arena actions such as scanning and driving.</dd>
+<dt id="word-interpreter">Interpreter</dt><dd>A program that follows a robot’s steps directly instead of writing a WebAssembly file first.</dd>
+<dt id="word-test-spec">Test/spec</dt><dd>A small program that checks whether another part of the project gives an expected answer.</dd>
+<dt id="word-commit">Commit</dt><dd>A saved step in the project’s history that you can open and try.</dd>
+<dt id="word-cycle">Cycle</dt><dd>One measured unit of work a robot spends while it takes its turn.</dd>
+<dt id="word-battlefield-physics">Battlefield physics</dt><dd>The rules for how robots speed up, turn, move and collide.</dd>
+<dt id="word-seed">Seed</dt><dd>A starting number for random choices; using it again repeats the same match setup.</dd>
+<dt id="word-channel">Channel</dt><dd>A one-place mailbox that lets one running task wait for another.</dd>
+<dt id="word-tournament-pool">Tournament pool</dt><dd>A small group in which each robot fights every other robot.</dd>
+<dt id="word-bracket">Bracket</dt><dd>Rounds where winners advance and other robots leave the tournament.</dd>
+<dt id="word-ci">CI</dt><dd>Continuous integration: one repeatable command that builds and checks a project.</dd>
+<dt id="word-browser">Browser</dt><dd>The program that opens web pages and runs their JavaScript, such as Chrome or Firefox.</dd>
+<dt id="word-web-page">Web page</dt><dd>A document a browser opens; its buttons and code can let you write and run robots.</dd>
+<dt id="word-wasi">WASI</dt><dd>A small set of operating-system services a WebAssembly program can ask its host to provide.</dd>
+<dt id="word-worker">Worker</dt><dd>JavaScript that runs separately so a long battle does not freeze the page.</dd>
+<dt id="word-github-pages">GitHub Pages</dt><dd>A service that publishes the project’s web pages from files on GitHub.</dd>
+<dt id="word-workflow">Workflow</dt><dd>A list of build and publishing steps GitHub runs after a chosen event.</dd>
+<dt id="word-frame">Frame</dt><dd>One recorded picture of a battle at a particular cycle.</dd>
+<dt id="word-resumable">Resumable</dt><dd>A program that can stop after one turn, remember its place and continue on the next.</dd>
+</dl>
 </section>
 <section class="chapter" id="phase-a">
 <h2><span class="chapter-number">Chapter 1 · </span>Phase A: a compiler to WebAssembly</h2>
@@ -72,20 +143,21 @@ crystal spec              # every commit builds and passes its own tests</code><
 <h3>Initial commit</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/69c75a5077f8722738fde3a3b1acd6bd0b5d388c" data-subject="Initial commit">69c75a5</a></p>
 <p>The repository starts the way most do: a README and an intention. It names the three things this whole project leans on, CROBOTS, the Crystal language and chasm, and says what it is for: “a great way to learn about programming with a simple Ruby-like syntax. Write programs to battle it out with other programs on a virtual battlefield. Then, learn about how programming languages turn your code into instructions a machine can understand.” Everything below is an attempt to keep that second promise as carefully as the first.</p>
-
+<div class="diff-view" data-diff="c-initial-commit"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/69c75a5077f8722738fde3a3b1acd6bd0b5d388c">See the whole change on GitHub</a>.</p></div>
 </section>
 <section class="commit" id="c-project-skeleton">
 <h3>Project skeleton</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/866c92a727998ca0b74a4ec056afa9c7eb70897f" data-subject="Project skeleton">866c92a</a></p>
 <p>A Crystal project is a <em>shard</em>: a <code>shard.yml</code> that names it, a <code>src/</code> directory, a <code>spec/</code> directory for tests, and a <code>bin/</code> that <code>shards build</code> fills. This commit is that and almost nothing else. The program it builds knows exactly one thing, its own version.</p>
 <p>It is a squash of an earlier, messier start. The goal from here on is that every commit is small enough to read in one sitting, builds, and passes its own tests, so the skeleton is the one place where history was folded down to get a clean starting line.</p>
+<div class="diff-view" data-diff="c-project-skeleton"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/866c92a727998ca0b74a4ec056afa9c7eb70897f">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git clone https://github.com/jadonk/crystal-robots.git
-cd crystal-robots
-git checkout 866c92a
+<pre><code>git checkout 866c92a
 shards build
 bin/crystal-robots --version</code></pre>
+
+<p class="cmd-note"><code>shards build</code> creates the command in <code>bin/</code>; <code>--version</code> asks it for its version. Look for <code>crystal-robots 0.0.1</code> after the build lines.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>Dependencies are satisfied
 Building: crystal-robots
@@ -97,20 +169,16 @@ crystal-robots 0.0.1</code></pre>
 <h3>Phase A.2: emit the minimal WASM module</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/9206c10adf1fb5c40022d3d02be90e1f89a3956f" data-subject="Phase A.2: emit the minimal WASM module">9206c10</a></p>
 <p>Colin Eberhardt's chasm post starts where every WebAssembly compiler has to start: with the smallest file a WebAssembly runtime will accept. A WebAssembly <em>module</em> is the unit a browser or runtime loads, the way a <code>.exe</code> or a shared library is on a desktop. The smallest valid one is eight bytes: the four-byte “magic number” <code>\0asm</code> that says what kind of file this is, then a four-byte version number, 1.</p>
-<p class="code-label">src/compiler/wasm_emitter.cr</p>
-<pre><code>MagicModuleHeader = Bytes[0x00, 'a'.ord, 's'.ord, 'm'.ord]
-ModuleVersion     = Bytes[0x01, 0x00, 0x00, 0x00]
-
-def self.minimal_module : Bytes
-  MagicModuleHeader + ModuleVersion
-end</code></pre>
 <p>No functions, no imports, nothing to run. But it is real, and a spec checks the exact bytes, which is the habit this whole history keeps: say what the output must be, then make it so.</p>
+<div class="diff-view" data-diff="c-a-2"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/9206c10adf1fb5c40022d3d02be90e1f89a3956f">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 9206c10
 crystal spec
 shards build
 bin/crystal-robots</code></pre>
+
+<p class="cmd-note">Run the tests, then build and run the still-empty command. Look for the eight-byte module test to pass and for the command to say it has nothing to do yet.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>..
 
@@ -126,19 +194,16 @@ crystal-robots 0.0.1: nothing to do yet</code></pre>
 <h3>Phase A.3: a hand-assembled add function</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/27a3ab69a15db8233a457de1fc7278315209a6cd" data-subject="Phase A.3: a hand-assembled add function">27a3ab6</a></p>
 <p>Before writing a compiler, it helps to write by hand what the compiler will eventually write for you. This commit assembles a module containing one function, <code>add</code>, which takes two 32-bit integers and returns their sum. A module is a list of <em>sections</em>: a type section describes the function's signature <code>(i32, i32) -&gt; i32</code>, a function section declares that function 0 has that type, an export section gives it the name <code>add</code> so the outside world can call it, and a code section holds its body.</p>
-<p class="code-label">src/compiler/wasm_emitter.cr</p>
-<pre><code>body = Bytes[0] +                       # no locals beyond the parameters
-       Bytes[Opcodes::Local_get.value, 0] +
-       Bytes[Opcodes::Local_get.value, 1] +
-       Bytes[Opcodes::I32_add.value] +
-       Bytes[Opcodes::End.value]</code></pre>
 <p>That body is four instructions, and it shows the most important idea in WebAssembly: it is a <em>stack machine</em>. <code>local.get 0</code> pushes the first argument onto a stack, <code>local.get 1</code> pushes the second, <code>i32.add</code> pops both and pushes their sum, and whatever is left on the stack at <code>end</code> is the return value. Every program this compiler ever produces will be built from that same push-and-pop pattern.</p>
 <p>To actually run the module, the specs use wasmer, a WebAssembly runtime with a Crystal binding (pinned at 4.4.0). Not every machine has wasmer's library installed, so the wasmer specs are opt-in: <code>crystal spec -Dwasmer</code> runs them, and plain <code>crystal spec</code> reports them as <em>pending</em> rather than silently skipping them. That pattern repeats for every optional tool from here on.</p>
+<div class="diff-view" data-diff="c-a-3"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/27a3ab69a15db8233a457de1fc7278315209a6cd">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 27a3ab6
 crystal spec
 crystal spec -Dwasmer</code></pre>
+
+<p class="cmd-note"><code>-Dwasmer</code> turns on tests that run the WebAssembly output in Wasmer. Look for the new add-function test to pass; the run should end with no failures.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>..*
 
@@ -159,20 +224,17 @@ Finished in 1.08 seconds
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/0b60f750ac7e0dc7428a2ad2f534977ec1b1e1ab" data-subject="Phase A.4: the multipass tokenizer and a real compiler for `puts NUMBER`">0b60f75</a></p>
 <p>This is where crystal-robots stops following chasm closely. chasm has a classic compiler front end: a <em>tokenizer</em> that chops source text into words (“tokens”), then a <em>parser</em> that assembles those tokens into a tree. crystal-robots uses a different idea, worked out in <code>docs/PARSER.md</code>: a <em>multipass tokenizer</em>.</p>
 <p>Pass 0 turns the source into a string of single-character symbols, called glyphs here: a number becomes <code>№</code>, the word <code>puts</code> becomes <code>∊</code>, a line break becomes <code>⏎</code>. Every later pass looks for the first rule in a list (<code>GRAMMAR</code>) that matches somewhere in that string and replaces every match with a single new glyph that stands for the bigger piece. The program is understood when the whole string has collapsed to one glyph, <code>⏹</code>, the program. Three rules are enough for a program made of <code>puts 42</code> lines:</p>
-<p class="code-label">src/compiler/parser.cr</p>
-<pre><code>GRAMMAR = [
-  Rule.new(:command1, /∊№/, Type::Expression),   # puts NUMBER is an expression
-  Rule.new(:exprstmt, /😑⏎/, Type::Statement), # an expression and a line break is a statement
-  Rule.new(:program, /\A❢+\z/, Type::Program),     # nothing but statements is a program
-]</code></pre>
 <p>The appeal is that you can <em>watch</em> it work. <code>-t</code> prints the string after every pass, so the whole parse is a short list of lines you can read top to bottom. (The maintainer's own note in this commit is worth repeating: the lexing pass and the grammar passes ended up in two different loops, and a single loop would be easier for a new programmer to hold in their head. That tension, simple to explain versus simple to implement, comes back throughout.)</p>
 <p>The emitter, the part that writes WebAssembly, now walks the result instead of hand-assembling bytes. For each <code>puts</code> it emits three instructions: push the number, call an <em>import</em> named <code>env.puts</code> (a function the host provides, in this case the spec), and drop the result. <code>puts</code> returns its argument instead of nothing, partly to dodge a crash in the wasmer binding on imports with no result, and partly because later, when robots call builtins like <code>scan</code> for their value, every builtin will return something anyway.</p>
+<div class="diff-view" data-diff="c-a-4"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/0b60f750ac7e0dc7428a2ad2f534977ec1b1e1ab">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 0b60f75
 crystal spec -Dwasmer
 shards build
 bin/crystal-robots -t examples/hello.cr</code></pre>
+
+<p class="cmd-note"><code>-t</code> asks the command to trace how it parses <code>examples/hello.cr</code>. Look for the <code>puts</code> line becoming a command, then a statement, then a complete program.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>.........
 
@@ -192,10 +254,13 @@ Building: crystal-robots
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/613e89546dd16011a99a8766ef64d131cbcddc01" data-subject="Phase A.5: binary expressions">613e895</a></p>
 <p>Arithmetic: <code>+ - * / // %</code>, parentheses and unary minus. The interesting part is <em>precedence</em>, the rule that <code>2 + 3 * 4</code> is 14, not 20. In a pass-based parser, precedence falls out of rule order and a few guards: the multiply rule only fires when it cannot steal an operand from a tighter operator, add only fires after multiply is done, and parentheses reduce before either. Both are <em>left associative</em>, so <code>10 - 3 - 2</code> means <code>(10 - 3) - 2</code>.</p>
 <p>One shortcut is taken on purpose and written down: for now <code>/</code> and <code>//</code> both truncate toward zero, which is what WebAssembly's <code>i32.div_s</code> does. CROBOTS's own rules (division that rounds down, and dividing by zero gives zero rather than crashing) wait until a robot can actually divide by something that might be zero.</p>
+<div class="diff-view" data-diff="c-a-5"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/613e89546dd16011a99a8766ef64d131cbcddc01">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 613e895
 crystal spec -Dwasmer</code></pre>
+
+<p class="cmd-note">Look for the arithmetic tests to pass, including a calculation where multiplication happens before addition.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...............
 
@@ -209,10 +274,13 @@ Finished in 2.37 seconds
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/2ae5e0565e578395ca7634b9a22d80d81e3c3f70" data-subject="Phase A.6: global variables and assignment">2ae5e05</a></p>
 <p>Robots need memory between turns, so the language gets variables. A CROBOTS-style robot declares its long-lived state up front with <code>global(name, initial value)</code>; plain assignment with <code>=</code> changes it. In WebAssembly, each one becomes a <em>global</em>, a named slot the module keeps for as long as it runs. Assignment compiles to <code>global.set</code> followed by <code>global.get</code>, so the assigned value is also left on the stack, which is what lets <code>a = b = 3</code> work later.</p>
 <p>The grammar rule for assignment only fires once the right-hand side is a complete expression followed by a line break. That kind of lookahead, “only match if what follows is X”, is how the pass-based parser avoids grabbing half an expression too early.</p>
+<div class="diff-view" data-diff="c-a-6"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/2ae5e0565e578395ca7634b9a22d80d81e3c3f70">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 2ae5e05
 crystal spec -v -Dwasmer</code></pre>
+
+<p class="cmd-note"><code>-v</code> prints each test’s name, so you can see which behavior passed. Look for the new global-variable and assignment cases, then <code>0 failures</code>.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   declares a global and reads it back
@@ -227,19 +295,14 @@ Finished in 2.27 seconds
 <h3>Phase A.7: comparisons and while/until loops</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/2033e63457ac3662e091736738cb3f40d27ee933" data-subject="Phase A.7: comparisons and while/until loops">2033e63</a></p>
 <p>Comparisons (<code>== != &lt; &gt; &lt;= &gt;=</code>) and the first loops: <code>while</code>, <code>until</code> and <code>break</code>. WebAssembly has no <code>while</code> instruction. It has structured blocks and branches: <code>block</code> marks a place you can jump <em>out</em> of, <code>loop</code> marks a place you can jump <em>back</em> to, and <code>br_if</code> jumps when the top of the stack is non-zero. So a <code>while</code> loop becomes:</p>
-<p class="code-label">src/compiler/wasm_emitter.cr</p>
-<pre><code>code = op(Opcodes::Block) + Bytes[BlockVoid]      # exit target
-code += op(Opcodes::Loop) + Bytes[BlockVoid]      # repeat target
-code += expression(cond)
-code += op(Opcodes::I32_eqz) if while_true        # while: leave when false
-code += op(Opcodes::Br_if) + unsignedLEB128(ctx.depth - exit)
-body_of(stmt).each { |s| code += statement(s, ctx) }
-code += op(Opcodes::Br) + unsignedLEB128(0)       # back to the top</code></pre>
 <p>Branch targets are counted outward from where you are, which is why the emitter tracks a “depth” and a stack of loops: <code>break</code> has to know how many blocks out its loop's exit is. The number itself is written in <em>LEB128</em>, the variable-length encoding WebAssembly uses for every integer in the file: small numbers take one byte, bigger ones take more.</p>
+<div class="diff-view" data-diff="c-a-7"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/2033e63457ac3662e091736738cb3f40d27ee933">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 2033e63
 crystal spec -v -Dwasmer</code></pre>
+
+<p class="cmd-note">Look for named tests about comparisons and <code>while</code> or <code>until</code> loops. The final count should still show no failures.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   counts up in a while loop
@@ -255,10 +318,13 @@ Finished in 2.31 seconds
 <h3>Phase A.8: if / elsif / else</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/6a15aea1bbe1aede715667e8e00885fdb52bc67b" data-subject="Phase A.8: if / elsif / else">6a15aea</a></p>
 <p>Branching. In the glyph grammar, an <code>if</code> block only matches once every branch's body has already collapsed to statements, the same “headers first, bodies next, whole blocks last” shape the loops use. The emitter turns a chain of <code>if</code>/<code>elsif</code>/<code>else</code> into nested WebAssembly <code>if</code>/<code>else</code> blocks. The spec that proves it is a fizzbuzz-style counter mixing a loop and every kind of branch.</p>
+<div class="diff-view" data-diff="c-a-8"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/6a15aea1bbe1aede715667e8e00885fdb52bc67b">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 6a15aea
 crystal spec -v -Dwasmer</code></pre>
+
+<p class="cmd-note">Look for tests in which a robot takes the right <code>if</code>, <code>elsif</code>, or <code>else</code> path.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   takes the if branch
@@ -276,10 +342,13 @@ Finished in 2.46 seconds
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/abf7f9b50e57939d9d2a035cf3108e5f338ae486" data-subject="Phase A.9: the CROBOTS builtins as host imports">abf7f9b</a></p>
 <p>A robot's whole job is calling a small set of built-in functions: <code>scan</code> to look for enemies, <code>cannon</code> to shoot, <code>drive</code> to move, <code>damage</code>, <code>speed</code>, <code>loc_x</code> and <code>loc_y</code> to sense itself, plus math helpers. None of those can be written in the robot language itself. They belong to whatever is running the robot: a test, an interpreter, eventually a battlefield.</p>
 <p>So each builtin becomes a WebAssembly import: the module says “I need a function called <code>env.scan</code> that takes two numbers and returns one”, and the host supplies it. Every builtin is typed by how many numbers it takes (zero, one or two) and returns one. A module only imports the builtins its program actually calls, in a fixed order, so two programs that use the same builtins get identical import sections. There is no battlefield yet, so the spec's stand-in host returns fixed made-up numbers for the sensors and just adds up the arguments of the actions.</p>
+<div class="diff-view" data-diff="c-a-9"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/abf7f9b50e57939d9d2a035cf3108e5f338ae486">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout abf7f9b
 crystal spec -v -Dwasmer</code></pre>
+
+<p class="cmd-note">Look for tests that call robot actions such as <code>scan</code> and <code>drive</code> through the host.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   calls a zero-argument builtin
@@ -297,14 +366,14 @@ Finished in 2.45 seconds
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/7fbce2eda2056d78a3a2c544737460addacb3f90" data-subject="Phase A.10: user-defined functions">7fbce2e</a></p>
 <p><code>def</code>, calls with arguments, and <code>return</code>. Each <code>def</code> compiles to its own WebAssembly function; parameters become locals, and a name assigned inside a function that is not a global becomes another local.</p>
 <p>Writing the recursion test turned up a real ambiguity in the glyph grammar. Inside <code>n * fact(n - 1)</code>, the multiply rule saw <code>fact</code> as an ordinary value and grabbed it before the call rule ever got to see the whole <code>fact(n - 1)</code>. The fix is one line in the definition of “a value”: a name immediately followed by an opening parenthesis is never a value, because it is always a call waiting to be reduced.</p>
-<p class="code-label">src/compiler/parser.cr (diff)</p>
-<pre><code>-    V = "[№𝑥😑]"
-+    V = "(?:[№😑]|𝑥(?!⟮))"</code></pre>
 <p><code>№</code> is a number, <code>😑</code> an already-reduced expression, <code>𝑥</code> a name and <code>⟮</code> an opening parenthesis; <code>(?!⟮)</code> means “not followed by an opening parenthesis”. The spec now computes <code>fact(5) == 120</code>.</p>
+<div class="diff-view" data-diff="c-a-10"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/7fbce2eda2056d78a3a2c544737460addacb3f90">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 7fbce2e
 crystal spec -v -Dwasmer</code></pre>
+
+<p class="cmd-note">Look for function-call tests, including one where a function calls itself.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   returns explicitly, short-circuiting the rest of the function
@@ -320,10 +389,13 @@ Finished in 2.42 seconds
 <h3>Phase A.11: main("Name") do ... end, the entry point</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/2631ebd6d9b16e38cfce89f46779de693a6f9093" data-subject="Phase A.11: main(&quot;Name&quot;) do ... end, the entry point">2631ebd</a></p>
 <p>Every robot has a name and a starting point: <code>main("Sniper") do ... end</code>. This adds the one string the language allows (the robot's name) and the rule that the main block runs last, after every global declaration and other top-level statement, wherever it appears in the file. The spec checks the ordering directly: a <code>puts</code> before <code>main</code>, one inside it and one after it print in the order before, after, main.</p>
+<div class="diff-view" data-diff="c-a-11"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/2631ebd6d9b16e38cfce89f46779de693a6f9093">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 2631ebd
 crystal spec -v -Dwasmer</code></pre>
+
+<p class="cmd-note">Look for the test showing that <code>main</code> runs after other top-level steps.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   runs the main block after every other top-level statement
@@ -338,10 +410,13 @@ Finished in 2.46 seconds
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/4f5d440303e2ab798b5ab0099c46816616a0e747" data-subject="Phase A.12: the checker">4f5d440</a></p>
 <p>Some programs are grammatically fine but mean nothing: using a variable that was never set, calling <code>scan</code> with three numbers, <code>break</code> outside a loop, two functions with the same name. Catching those is the job of a <em>checker</em>, which runs after parsing and before compiling. It collects every problem it finds, each with a line and column, instead of stopping at the first, and it reads all the function names first so a robot can call a function defined further down the file.</p>
 <p>For beginners this is the most important part of the compiler, because it is the part that talks to them. Every later surface, from the command line to the browser editor's live underlining, shows these same messages.</p>
+<div class="diff-view" data-diff="c-a-12"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/4f5d440303e2ab798b5ab0099c46816616a0e747">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 4f5d440
 crystal spec -v -Dwasmer</code></pre>
+
+<p class="cmd-note">Look for checker tests that name an undefined variable, a bad call, and a misplaced <code>break</code>. They should all pass.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>CrystalRobots::Compiler::Checker
   finds nothing wrong with a clean program
@@ -365,15 +440,13 @@ Finished in 2.42 seconds
 <p>An <em>interpreter</em> runs a program directly from its tree, one node at a time, instead of turning it into machine code first. crystal-robots gets one here for a very practical reason: having two independent ways to run the same program lets each check the other.</p>
 <p>Every builtin goes through a <code>Host</code>, an interface that something else implements. <code>NullHost</code> is a stand-in with the same made-up behavior the WebAssembly specs' host already has. <code>break</code> and <code>return</code> are implemented with Crystal exceptions inside the interpreter, which is simple and works well natively. (Remember that choice; it matters again in the browser.)</p>
 <p>The payoff is <code>spec/differential_spec.cr</code>: three programs covering arithmetic, globals, every loop and branch, functions, recursion and builtins run through both the interpreter and the compiled WebAssembly, and must print exactly the same thing. Two separately written readings of the same tree agreeing is a stronger signal than either one's own tests.</p>
-<p class="code-label">spec/differential_spec.cr</p>
-<pre><code># The interpreter and the WASM emitter are two independent readings of
-# the same AST. ... for any robot that does not divide, the two engines
-# must print identical output -- otherwise one of them has a bug the
-# other does not.</code></pre>
+<div class="diff-view" data-diff="c-a-13"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/f0e79e11431c48fb5c68164f2a71b1d7c1cf7f89">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout f0e79e1
 crystal spec -v -Dwasmer</code></pre>
+
+<p class="cmd-note">Look for “agree on” tests: the interpreter and compiled runner should print the same answers for each robot program.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>the interpreter and the WASM emitter
   agree on arithmetic and comparisons
@@ -389,11 +462,14 @@ Finished in 2.36 seconds
 <h3>Phase A.14: CLI wiring and a disassembler debugging aid</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/2b0d9c487e2aab5289bc3ab78a2d90196acd9d0b" data-subject="Phase A.14: CLI wiring and a disassembler debugging aid">2b0d9c4</a></p>
 <p>Phase A closes by giving people a real tool. <code>bin/crystal-robots</code> grows options: <code>-t</code> traces the parse, <code>-k</code> runs the checker alone, <code>-c -o FILE</code> writes a WebAssembly file, <code>-i</code> runs a program in the interpreter, and <code>-d</code> prints a readable dump of the compiled instructions. A small <em>disassembler</em> (a program that turns machine code back into readable instructions) decodes exactly the shapes this compiler emits, so you can inspect its output without installing other WebAssembly tools. Compiling and interpreting both run the checker first and refuse a program that has problems.</p>
+<div class="diff-view" data-diff="c-a-14"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/2b0d9c487e2aab5289bc3ab78a2d90196acd9d0b">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 2b0d9c4
 shards build
 bin/crystal-robots --help</code></pre>
+
+<p class="cmd-note"><code>--help</code> lists the jobs the command can do. Look for <code>-t</code> to trace, <code>-k</code> to check, <code>-c</code> to compile, and <code>-i</code> to run directly.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>Usage: crystal-robots [options] FILE
     -v, --version                    Print the version
@@ -411,7 +487,7 @@ bin/crystal-robots --help</code></pre>
 <h3>docs: mark Phase A done in the tutorial plan</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/2038dc793cb7bd793e65e440ba296eb1237cdb51" data-subject="docs: mark Phase A done in the tutorial plan">2038dc7</a></p>
 <p>Bookkeeping: the plan notes that Phase A is complete.</p>
-
+<div class="diff-view" data-diff="c-docs-mark-phase-a-done-in-the-tutorial-p"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/2038dc793cb7bd793e65e440ba296eb1237cdb51">See the whole change on GitHub</a>.</p></div>
 </section>
 </section>
 <section class="chapter" id="phase-b">
@@ -424,6 +500,7 @@ bin/crystal-robots --help</code></pre>
 <p>Phase A built a language. Phase B makes it the language real robots are written in. The target is the five example robots that come with the project (<code>counter</code>, <code>rabbit</code>, <code>rook</code>, <code>sniper</code> and <code>target</code>), and each commit closes one gap between what they use and what the parser accepts.</p>
 <p>First, the small things: <code>#</code> starts a comment that runs to the end of the line, and <code>true</code> and <code>false</code> are words for 1 and 0, so <code>while true</code> means what it looks like.</p>
 <p>(Phase B's commit messages don't include transcripts; the output shown in this chapter was produced for this post by running the commands at each commit.)</p>
+<div class="diff-view" data-diff="c-b-1"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/5729f6bd6bc3e479a6a78906a29ebb77c36b68ed">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 5729f6b
@@ -431,6 +508,7 @@ crystal spec
 shards build
 printf '# a comment\nputs true   # trailing\nputs false\n' &gt; b1.cr
 bin/crystal-robots -i b1.cr</code></pre>
+<p class="cmd-note"><code>printf</code> writes a tiny robot into <code>b1.cr</code>; <code>&gt;</code> puts that text in the file. Run it with <code>-i</code> and look for 1, then 0.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>69 examples, 0 failures, 0 errors, 29 pending
 1
@@ -443,6 +521,7 @@ bin/crystal-robots -i b1.cr</code></pre>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/1c95a0feaac56b8f0180e1f102e7731a9446464d" data-subject="Phase B.2: parenthesized builtin calls">1c95a0f</a></p>
 <p>Every example robot writes <code>scan(angle, res)</code> and <code>drive(angle, 50)</code> with parentheses, so those forms now parse alongside the bare <code>scan angle, res</code> style. The interpreter, the checker and the emitter share the logic for both shapes.</p>
 <p>This brings back a known, deliberately accepted quirk. Once spaces are gone, <code>puts (1) + 2</code> looks exactly like <code>puts(1) + 2</code>, so the parser calls <code>puts</code> with 1 and the <code>+ 2</code> is applied to what <code>puts</code> returns. It prints 1, where Ruby or Crystal would print 3. Crystal itself warns about writing it this way, <code>docs/PARSER.md</code> lists it, and a spec pins the behavior so nobody “fixes” it by accident.</p>
+<div class="diff-view" data-diff="c-b-2"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/1c95a0feaac56b8f0180e1f102e7731a9446464d">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 1c95a0f
@@ -450,6 +529,7 @@ crystal spec
 shards build
 printf 'puts (1) + 2\nputs sqrt(16)\n' &gt; b2.cr
 bin/crystal-robots -i b2.cr</code></pre>
+<p class="cmd-note">The new program calls <code>sqrt(16)</code> with parentheses. Look for 1 from the accepted <code>puts (1) + 2</code> quirk, then 4 from the square root.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>71 examples, 0 failures, 0 errors, 31 pending
 1
@@ -461,10 +541,12 @@ bin/crystal-robots -i b2.cr</code></pre>
 <h3>Phase B.3: implicit global constants and bare zero-argument calls</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/e52306b63639f210305888841c5c6bd4272e1abd" data-subject="Phase B.3: implicit global constants and bare zero-argument calls">e52306b</a></p>
 <p>Two gaps found by reading real robots. <code>sniper.cr</code> and <code>rook.cr</code> declare constants with a plain top-level assignment (<code>C1X = 10</code>) rather than <code>global(...)</code>, and several robots call their own zero-argument functions without parentheses (<code>new_corner</code>, <code>run</code>, <code>change</code>). Both now work: a top-level assignment declares a global, and a bare name that isn't a variable but is a known function with no parameters is a call to it.</p>
+<div class="diff-view" data-diff="c-b-3"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/e52306b63639f210305888841c5c6bd4272e1abd">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout e52306b
 crystal spec</code></pre>
+<p class="cmd-note">Look for tests that accept a top-level constant and a bare call to a function with no arguments.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>77 examples, 0 failures, 0 errors, 33 pending</code></pre>
 </div>
@@ -474,6 +556,7 @@ crystal spec</code></pre>
 <h3>Phase B.4: compound assignment</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/a4d90138adf5063f8b62bc25609b499f76441ffa" data-subject="Phase B.4: compound assignment">a4d9013</a></p>
 <p><code>+= -= *= %=</code>. The one subtle part is in the first pass: the scanner has to try the two-character operator before its one-character prefix, or <code>+=</code> would be read as <code>+</code> followed by a stray <code>=</code>.</p>
+<div class="diff-view" data-diff="c-b-4"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/a4d90138adf5063f8b62bc25609b499f76441ffa">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout a4d9013
@@ -481,6 +564,7 @@ crystal spec
 shards build
 printf 'global(x, 10)\nx += 5\nx -= 3\nx *= 4\nx %%= 7\nputs x\n' &gt; b4.cr
 bin/crystal-robots -i b4.cr</code></pre>
+<p class="cmd-note"><code>%%</code> makes <code>printf</code> write one percent sign into the robot file. Look for the final value after all four updates.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>80 examples, 0 failures, 0 errors, 34 pending
 6</code></pre>
@@ -492,6 +576,7 @@ bin/crystal-robots -i b4.cr</code></pre>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/610e3b59f03f20c104f5765377e62968d64b04fd" data-subject="Phase B.5: logical and/or and bitwise xor">610e3b5</a></p>
 <p><code>&amp;&amp;</code>, <code>||</code> and <code>^</code>. Following CROBOTS, both sides of <code>&amp;&amp;</code> and <code>||</code> are always evaluated (no short-cut when the left side already decides the answer), and the result is 0 or 1. <code>^</code> is <em>bitwise</em> exclusive-or, applied to the raw numbers: <code>6 ^ 3</code> is 5.</p>
 <p>This commit also records a real problem in the test setup. After roughly a hundred wasmer-backed examples, the test process would occasionally crash in the wasmer binding's interaction with Crystal's garbage collector, regardless of which test was running. The workaround (turning the collector off for the wasmer run) is documented in the spec helper, so nobody mistakes it for a grammar bug later.</p>
+<div class="diff-view" data-diff="c-b-5"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/610e3b59f03f20c104f5765377e62968d64b04fd">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 610e3b5
@@ -499,6 +584,7 @@ crystal spec
 shards build
 printf 'puts 3 &amp;&amp; 0\nputs 3 || 0\nputs 6 ^ 3\n' &gt; b5.cr
 bin/crystal-robots -i b5.cr</code></pre>
+<p class="cmd-note">Look for 0 and 1 from the two logical tests, then 5 from <code>6 ^ 3</code>.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>83 examples, 0 failures, 0 errors, 35 pending
 0
@@ -512,10 +598,12 @@ bin/crystal-robots -i b5.cr</code></pre>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/3cd6dd936573dc9d002ef437622cfff1e8467c52" data-subject="Phase B.6: assignment inside a condition, bare calls as call arguments">3cd6dd9</a></p>
 <p><code>counter.cr</code> scans in a loop like this: <code>while ((range = scan(angle, res)) &gt; 0)</code>. That needs an assignment to be an expression that can sit inside parentheses, so the lookahead for assignment and bare calls now accepts a closing parenthesis or a comma as well as a line break.</p>
 <p>Writing the spec also caught a checker bug: a name first assigned inside a condition was reported as undefined, even though both engines handled it fine. The checker now adds a name to scope the moment it sees it assigned.</p>
+<div class="diff-view" data-diff="c-b-6"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/3cd6dd936573dc9d002ef437622cfff1e8467c52">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 3cd6dd9
 crystal spec</code></pre>
+<p class="cmd-note">Look for tests that assign a scan result inside a condition and pass a bare call as an argument.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>88 examples, 0 failures, 0 errors, 37 pending</code></pre>
 </div>
@@ -525,6 +613,7 @@ crystal spec</code></pre>
 <h3>Phase B.7: case / when / else</h3>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/1f6dd1e2aeeafe3de8a31248278ef8206e094090" data-subject="Phase B.7: case / when / else">1f6dd1e</a></p>
 <p>The last statement shape: <code>case</code>/<code>when</code>/<code>else</code>, which <code>sniper.cr</code> uses to pick a corner. The subject is evaluated once into a temporary, and each <code>when</code> compiles to an equality test inside the same nested <code>if</code> chain that <code>if</code>/<code>elsif</code> already uses.</p>
+<div class="diff-view" data-diff="c-b-7"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/1f6dd1e2aeeafe3de8a31248278ef8206e094090">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 1f6dd1e
@@ -532,6 +621,7 @@ crystal spec
 shards build
 printf 'x = 2\ncase x\nwhen 1\n  puts 10\nwhen 2\n  puts 20\nelse\n  puts 30\nend\n' &gt; b7.cr
 bin/crystal-robots -i b7.cr</code></pre>
+<p class="cmd-note">The new robot chooses the <code>when 2</code> branch. Look for 20.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>92 examples, 0 failures, 0 errors, 38 pending
 20</code></pre>
@@ -543,6 +633,7 @@ bin/crystal-robots -i b7.cr</code></pre>
 <p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/3f8858c46ac351216c8a26c4f8ca0156b30ecf9d" data-subject="Phase B.8: the six example robots parse -- grammar parity reached">3f8858c</a></p>
 <p>The payoff for Phase B: <code>counter</code>, <code>rabbit</code>, <code>rook</code>, <code>sniper</code> and <code>target</code> come back word for word, and every one parses, passes the checker and compiles to WebAssembly on the first try. Each earlier commit in this phase existed because one of these robots needed it.</p>
 <p>None of them is <em>run</em> yet. They all loop forever (<code>while true</code>), because a robot is meant to share a battlefield with others under a cycle limit, not run to completion on its own. That battlefield is the next chapter. The tail of <code>sniper.cr</code>'s 40-pass parse shows the whole robot collapsing to one program glyph.</p>
+<div class="diff-view" data-diff="c-b-8"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/3f8858c46ac351216c8a26c4f8ca0156b30ecf9d">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code>git checkout 3f8858c
@@ -550,6 +641,7 @@ crystal spec
 shards build
 for r in counter rabbit rook sniper target; do printf "%s: " $r; bin/crystal-robots -k examples/$r.cr; done
 bin/crystal-robots -t examples/sniper.cr | tail -4</code></pre>
+<p class="cmd-note">The <code>for</code> command repeats the checker for each named robot; <code>tail -4</code> shows the last four trace lines. Look for clean checks and the final program glyph.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>99 examples, 0 failures, 0 errors, 38 pending
 counter: no issues found
@@ -571,14 +663,16 @@ target: no issues found
 
 <section class="commit" id="c-c-1">
 <h3>Phase C.1: cycle charging</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/715ddde7793b838ffab2a7d128ac49eceab41325" data-subject="Phase C.1: cycle charging">715ddde</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/d4d74d5257c54d621f7ad14222ba1eb3da965ed1" data-subject="Phase C.1: cycle charging">d4d74d5</a></p>
 <p>In CROBOTS, robots don't run as fast as the computer allows. They take turns, and each turn is a budget of virtual <em>cycles</em>: reading a value costs one, an operator one, a builtin call two, a call to your own function three. That is what makes a clever robot different from a busy one, and it is what makes battles fair.</p>
 <p><code>Interpreter::Costs</code> maps CROBOTS's per-instruction costs onto this interpreter's tree nodes. The WebAssembly side has to agree, or a compiled robot would get more or fewer turns than an interpreted one, so the emitter can now import <code>env.tick</code> and call it with the number of cycles to charge at exactly the places the interpreter charges them. The differential specs gain a check that both engines charge identical totals.</p>
+<div class="diff-view" data-diff="c-c-1"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/d4d74d5257c54d621f7ad14222ba1eb3da965ed1">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 715ddde
+<pre><code>git checkout d4d74d5
 crystal spec -Dwasmer
 crystal eval 'require "./src/compiler/parser"; require "./src/compiler/interpreter"; include CrystalRobots::Compiler; src = File.read("examples/functions.cr"); host = NullHost.new; cycles = Interpreter.execute(Parser.new(src).program, host); puts "printed #{host.puts_out}, charged #{cycles} cycles"; puts "statements only: #{Interpreter.execute(Parser.new(src).program, NullHost.new, Interpreter::Costs.statements)}"'</code></pre>
+<p class="cmd-note"><code>crystal eval</code> runs the Crystal code in quotes without making a file. Look for the total cycles charged, then the smaller statements-only total.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>105 examples, 0 failures, 0 errors, 0 pending
 printed [5, 30, 35], charged 46 cycles
@@ -588,13 +682,15 @@ statements only: 10</code></pre>
 </section>
 <section class="commit" id="c-c-2">
 <h3>Phase C.2: robot motion physics</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/8abbbd212ccf265affc30147b87fdb48a4205c89" data-subject="Phase C.2: robot motion physics">8abbbd2</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/6b46d731d1ffa473d642ff57ac5b178dc9171e99" data-subject="Phase C.2: robot motion physics">6b46d73</a></p>
 <p>Now the robots need somewhere to be. <code>src/battle/field.cr</code> is the battlefield, ported from the real CROBOTS C source (<code>motion.c</code> and <code>main.c</code>) rather than reconstructed from memory. The field is 1000 by 1000 meters; robots start in separate quarters of it; speed changes gradually toward what the robot asked for; and a robot can only change direction when it is going at half speed or slower. Ask for a turn while going faster and the drive disengages instead, the same trade CROBOTS makes. Hitting a wall or another robot stops you and hurts.</p>
 <p>Even the trigonometry is CROBOTS's: sine and cosine scaled up by 100000 and kept as whole numbers, rounding the way the C code rounds. Matching the original's arithmetic exactly is what lets decades-old robot strategies work unchanged.</p>
+<div class="diff-view" data-diff="c-c-2"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/6b46d731d1ffa473d642ff57ac5b178dc9171e99">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 8abbbd2
+<pre><code>git checkout 6b46d73
 crystal spec spec/battle/field_spec.cr -v</code></pre>
+<p class="cmd-note">The path names the field tests, and <code>-v</code> prints their names. Look for movement, turning and collision cases.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>CrystalRobots::Battle::Field
   places each robot in its own quadrant of the field
@@ -612,21 +708,16 @@ Finished in 420 microseconds
 </section>
 <section class="commit" id="c-c-3">
 <h3>Phase C.3: missiles</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/f9b378d798f9d8fee2b24e50b07c0080f598d867" data-subject="Phase C.3: missiles">f9b378d</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/cd976891d1751fef3797a37f3552fafd10277c11" data-subject="Phase C.3: missiles">cd97689</a></p>
 <p>“A battlefield where nobody can shoot is just a parking lot.” Firing, flight and explosions, ported from CROBOTS's <code>c_cannon</code> and <code>move_miss</code>. A robot has two missile slots and has to wait for its cannon to reload; a missile flies to the distance it was aimed at and explodes, damaging every robot nearby, more the closer they are.</p>
 <p>Porting faithfully means porting the quirks too. In the C original, asking to fire at a negative distance returns “success” without firing anything, because of where an early <code>return</code> sits. crystal-robots keeps that on purpose, with a spec that names it.</p>
 <p class="code-label">src/battle/field.cr</p>
-<pre><code>def fire_missile(i : Int32, degree : Int32, distance : Int32) : Bool
-  distance = MIS_RANGE if distance &gt; MIS_RANGE
-  return true if distance &lt; 0          # CROBOTS: "succeeds" without firing
-  ...
-  return false if r.reload &gt; 0
-  slot = @missiles[i].find(&amp;.status.avail?)
-  return false unless slot</code></pre>
+<div class="diff-view" data-diff="c-c-3"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/cd976891d1751fef3797a37f3552fafd10277c11">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout f9b378d
+<pre><code>git checkout cd97689
 crystal spec spec/battle/field_spec.cr -v</code></pre>
+<p class="cmd-note">Look for missile tests that cover firing, reload and an explosion near a robot.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
   fires a missile, then refuses while reloading
@@ -642,12 +733,14 @@ Finished in 20.24 milliseconds
 </section>
 <section class="commit" id="c-c-4">
 <h3>Phase C.4: the scanner and a real Host bound to the battlefield</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/7866b2cf359147c3020d192eba48188948d7d85f" data-subject="Phase C.4: the scanner and a real Host bound to the battlefield">7866b2c</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/171214a2b090e2a02af80b6b75bb830ba02e1812" data-subject="Phase C.4: the scanner and a real Host bound to the battlefield">171214a</a></p>
 <p>Until now every builtin a robot called landed in <code>NullHost</code>, which returned made-up numbers. <code>RobotHost</code> replaces it: one robot's view of a real <code>Field</code>. <code>scan</code> is a port of CROBOTS's <code>c_scan</code>, down to working out the compass quarter by hand around a plain arctangent, because that is what the C does and the robots' own math assumes it. The payoff spec runs a real robot's source through the interpreter and watches the field's own robot move.</p>
+<div class="diff-view" data-diff="c-c-4"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/171214a2b090e2a02af80b6b75bb830ba02e1812">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 7866b2c
+<pre><code>git checkout 171214a
 crystal spec spec/battle/robot_host_spec.cr -v</code></pre>
+<p class="cmd-note">Look for host tests that read a robot’s position and use the field’s scanner.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>CrystalRobots::Battle::RobotHost
 ...
@@ -658,22 +751,17 @@ Finished in 1.85 milliseconds
 </section>
 <section class="commit" id="c-c-5">
 <h3>Phase C.5: interleaving robots into real matches</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/87deecbcb18c8af867923a1184e31f83b5a2935e" data-subject="Phase C.5: interleaving robots into real matches">87deecb</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/7c63ba6120de1f77f5ec1222bc8b1e7c52bf35eb" data-subject="Phase C.5: interleaving robots into real matches">7c63ba6</a></p>
 <p>A match is several robot programs sharing one field and taking turns, one step each, with the physics updated every so many steps. Crystal has <em>fibers</em>, lightweight threads you can pause and resume, which looked like exactly the right tool. It wasn't, at least not the obvious way.</p>
 <p>A minimal experiment showed that a fiber calling <code>Fiber.yield</code> in a loop ran to completion inside the first <code>resume</code> instead of pausing at each yield. So each robot's interpreter instead gets a pair of <em>channels</em>, one-slot mailboxes: after every step it sends “done” and waits for permission to continue.</p>
 <p class="code-label">src/compiler/interpreter.cr</p>
-<pre><code>private def sync_step : Nil
-  d = @done_channel
-  s = @step_channel
-  return unless d &amp;&amp; s
-  d.send(nil)     # "I finished a step"
-  s.receive       # wait for my next turn
-end</code></pre>
 <p>A second trap showed up while building the match loop: checking whether a robot's fiber was already dead raced the scheduler and hung the tests. The match now decides from the robot's own alive/dead state, which it controls. Because this is concurrency, the transcript runs the match spec five times in a row.</p>
+<div class="diff-view" data-diff="c-c-5"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/7c63ba6120de1f77f5ec1222bc8b1e7c52bf35eb">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 87deecb
+<pre><code>git checkout 7c63ba6
 for i in 1 2 3 4 5; do crystal spec spec/battle/match_spec.cr | grep examples; done</code></pre>
+<p class="cmd-note">The shell loop runs the match spec five times; <code>grep examples</code> keeps each run’s result line. Look for five clean runs.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>5 examples, 0 failures, 0 errors, 0 pending
 5 examples, 0 failures, 0 errors, 0 pending
@@ -685,22 +773,18 @@ for i in 1 2 3 4 5; do crystal spec spec/battle/match_spec.cr | grep examples; d
 </section>
 <section class="commit" id="c-c-6">
 <h3>Phase C.6: CLI wiring for matches, and a real crash-safety fix</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/06b2fe90c276d3c23e2088aae279a902fb094f25" data-subject="Phase C.6: CLI wiring for matches, and a real crash-safety fix">06b2fe9</a></p>
-<p><code>bin/crystal-robots -m 3 robot1.cr robot2.cr ...</code> now runs seeded matches, CROBOTS style, and prints each robot's damage and the winner. The first real match exposed a real bug: a robot that crashed (dividing by zero, which at this point still raised an error) stopped its fiber before it could say “done”, and the match waited forever for an answer that would never come.</p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/b97950343134589c56022da2adaeedf0b321c81c" data-subject="Phase C.6: CLI wiring for matches, and a real crash-safety fix">b979503</a></p>
+<p><code>bin/crystal-robots -m 3 robot1.cr robot2.cr ...</code> now runs matches with a fixed <a href="#word-seed">seed</a>, CROBOTS style, and prints each robot's damage and the winner. The first real match exposed a real bug: a robot that crashed (dividing by zero, which at this point still raised an error) stopped its fiber before it could say “done”, and the match waited forever for an answer that would never come.</p>
 <p>It first looked like a slow debug build. It wasn't: 100,000 rounds take 2.4 seconds in a release build. The fix is in the crashed robot's error handler, which now marks the robot dead <em>and</em> sends the pending “done” itself, so the round in progress finishes and later rounds skip it.</p>
 <p class="code-label">src/battle/match.cr</p>
-<pre><code>rescue
-  # A robot's own runtime error stops it, not the match -- but `run`
-  # never reached its next sync_step to report that ...
-  robot.status = :dead
-  done_ch.send(nil)
-end</code></pre>
 <p>Nobody wins the matches below: <code>counter</code> is destroyed every time, and <code>sniper</code> and <code>rabbit</code> are still alive at the cycle limit.</p>
+<div class="diff-view" data-diff="c-c-6"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/b97950343134589c56022da2adaeedf0b321c81c">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 06b2fe9
+<pre><code>git checkout b979503
 shards build --release
 bin/crystal-robots -m 3 --seed 1 examples/sniper.cr examples/rabbit.cr examples/counter.cr</code></pre>
+<p class="cmd-note"><code>--release</code> builds a faster command, <code>-m 3</code> asks for three matches, and <code>--seed 1</code> repeats the same starting random choices. Look for three match results and a final score.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>match 1: 500000 rounds, sniper 10%, rabbit 0%, counter 100% (dead) -- no winner
 match 2: 500000 rounds, sniper 2%, rabbit 0%, counter 100% (dead) -- no winner
@@ -715,17 +799,17 @@ match 3: 500000 rounds, sniper 9%, rabbit 0%, counter 100% (dead) -- no winner</
 
 <section class="commit" id="c-t-1">
 <h3>Phase T.1: tournament pool play</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/7724a62e739081ab60d2ec40db8e0e05b428a953" data-subject="Phase T.1: tournament pool play">7724a62</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/2048be082812aae591449345649c871d951e7445" data-subject="Phase T.1: tournament pool play">2048be0</a></p>
 <p>“Two robots in a match is a fight. A room full of people who each wrote a robot needs a tournament.” The format was designed on the project wiki, in plain words, before any code: pool play first, then a bracket.</p>
 <p>Pools hold four robots, or three when the numbers don't divide evenly (nine robots make three pools of three, not 4 + 4 + 1). Everyone in a pool fights everyone else once: +1 for a win, -1 for a loss. A fight with no winner is refought with the next random seed, and after three tries it counts as 0-0 so the tournament always finishes. Ties in the standings are broken by a mini round-robin among just the tied robots.</p>
 <p>The engine never runs a battle itself. It is handed a function, “given these robots, this seed and this limit, who won?”, so the specs can script exact outcomes and the real battlefield plugs in later.</p>
 <p class="code-label">src/tournament/tournament.cr</p>
-<pre><code>alias FightFn = Proc(Array(String), Int32, Int32, String?)
-RETRY_LIMIT = 3</code></pre>
+<div class="diff-view" data-diff="c-t-1"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/2048be082812aae591449345649c871d951e7445">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 7724a62
+<pre><code>git checkout 2048be0
 crystal spec spec/tournament/tournament_spec.cr -v</code></pre>
+<p class="cmd-note">Look for named pool tests covering grouping, scoring, refights and ranking.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>CrystalRobots::Tournament
     makes one pool for 5 or fewer entrants
@@ -745,14 +829,16 @@ Finished in 818 microseconds
 </section>
 <section class="commit" id="c-t-2">
 <h3>Phase T.2: tournament bracket</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/e1bf3e9b85243d42e699c89ab64bc8acff931cc0" data-subject="Phase T.2: tournament bracket">e1bf3e9</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/5cf1180b81fd9e16ef632e0d51ac1e67551d19c3" data-subject="Phase T.2: tournament bracket">5cf1180</a></p>
 <p>The robots that come out of the pools meet in a single-elimination bracket, seeded so the best pool finishers meet last and get the byes when the numbers aren't a power of two. Bracket matches are best of three.</p>
 <p>A real bug from testing the format by hand is fixed here the way the wiki records it: refights are capped at three for a whole match, not three per game, or one stubborn match could balloon into a dozen fights. A match still tied after that goes to the higher seed.</p>
 <p>The transcript ends with a real tournament: five example robots, on a real field, from a single <code>crystal eval</code>.</p>
+<div class="diff-view" data-diff="c-t-2"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/5cf1180b81fd9e16ef632e0d51ac1e67551d19c3">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout e1bf3e9
+<pre><code>git checkout 5cf1180
 crystal eval '...'   # the full one-liner is in the commit message</code></pre>
+<p class="cmd-note"><code>crystal eval</code> runs the quoted tournament setup directly. Look for pool standings followed by bracket rounds and a champion.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>pool: 1. sniper 1
 pool: 2. rabbit 1
@@ -773,13 +859,15 @@ champion: sniper</code></pre>
 
 <section class="commit" id="c-u-1">
 <h3>Phase U.1: version reports the check-in it was built from</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/0cd958cebaf75c02d198b4ba4310a7309d6c016b" data-subject="Phase U.1: version reports the check-in it was built from">0cd958c</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/aed79db972128b2f23b5f16c33fea8176c2a5d03" data-subject="Phase U.1: version reports the check-in it was built from">aed79db</a></p>
 <p>When a binary or a published page misbehaves, the first question is “built from what?” The version line now includes the commit it came from, read at compile time from a small file (<code>manifest.uuid</code>) that the project's version control keeps up to date.</p>
+<div class="diff-view" data-diff="c-u-1"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/aed79db972128b2f23b5f16c33fea8176c2a5d03">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 0cd958c
+<pre><code>git checkout aed79db
 shards build
 bin/crystal-robots --version</code></pre>
+<p class="cmd-note"><code>--version</code> now prints a short check-in identifier beside the version number. Look for both on one line.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>crystal-robots 0.0.1 (check-in 492fcf474b)</code></pre>
 </div>
@@ -787,18 +875,21 @@ bin/crystal-robots --version</code></pre>
 </section>
 <section class="commit commit-small" id="c-u-2">
 <h3>Phase U.2: crystal and riscv emitter placeholders</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/83b949dc8b4c10cf5d330a7151faf0023bef7a3d" data-subject="Phase U.2: crystal and riscv emitter placeholders">83b949d</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/000319b01ad7867aab89e59046a0cfb78b2a9563" data-subject="Phase U.2: crystal and riscv emitter placeholders">000319b</a></p>
 <p>Two empty files reserve room for ideas the maintainer jotted down early on: a back end that turns robots into Crystal source, and one that targets RISC-V processors. Nothing uses them yet.</p>
 
+<div class="diff-view" data-diff="c-u-2"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/000319b01ad7867aab89e59046a0cfb78b2a9563">See the whole change on GitHub</a>.</p></div>
 </section>
 <section class="commit" id="c-u-3">
 <h3>Phase U.3: versioned robots/*.md</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/54dd239b3915518f271de9d72157f40412dce507" data-subject="Phase U.3: versioned robots/*.md">54dd239</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/f59b8665cf244ecfc8553782dbeb855d0810d121" data-subject="Phase U.3: versioned robots/*.md">f59b866</a></p>
 <p>Five more robots ship with the project, each as a short Markdown page: a description of its strategy and the CROBOTS-era idea behind it, followed by exactly one code block, the robot. <code>hunter</code>, <code>circler</code>, <code>dodger</code>, <code>turret</code> and <code>wallhugger</code> are better opponents than the bare examples, and their prose doubles as tactics notes for new robot writers. A spec checks that each file has exactly one code block and that it parses and passes the checker.</p>
+<div class="diff-view" data-diff="c-u-3"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/f59b8665cf244ecfc8553782dbeb855d0810d121">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 54dd239
+<pre><code>git checkout f59b866
 crystal spec spec/robots_spec.cr -v</code></pre>
+<p class="cmd-note">The path runs only the shipped-robot tests; <code>-v</code> names each one. Look for all five strategies to parse and check cleanly.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>robots/*.md
   ships a handful of them
@@ -814,12 +905,14 @@ Finished in 28.55 milliseconds
 </section>
 <section class="commit" id="c-u-4">
 <h3>Phase U.4: the robot API reference</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/dbe3f42a5b3cfa124e0405cbaf086d7cd7acfa14" data-subject="Phase U.4: the robot API reference">dbe3f42</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/c08bf52739a0bd5e38f39996bdd1568277462d4d" data-subject="Phase U.4: the robot API reference">c08bf52</a></p>
 <p>“What can my robot call?” is the question every new robot writer asks first. <code>RobotAPI</code> answers it in one table: every builtin with a plain-worded description, what it gives back, its cycle cost and an example, grouped as Sense, Move, Shoot, Math and Output. Because that table is written by hand, a spec compares it against the list of builtins the interpreter really handles, so a builtin can't go undocumented and a documented one can't be made up. The browser editor and the manual later read their reference from this same table.</p>
+<div class="diff-view" data-diff="c-u-4"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/c08bf52739a0bd5e38f39996bdd1568277462d4d">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout dbe3f42
+<pre><code>git checkout c08bf52
 crystal spec spec/web/robot_api_spec.cr -v</code></pre>
+<p class="cmd-note">The path runs the reference tests; <code>-v</code> names each one. Look for the check that its builtin names match the interpreter.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>CrystalRobots::Web::RobotAPI
 ...
@@ -832,12 +925,14 @@ Finished in 3.49 milliseconds
 </section>
 <section class="commit" id="c-u-6">
 <h3>Phase U.6: scripts/ci.sh as the one CI command</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/7d865ea36e3df1f56a2ef90dc551d0c2de392567" data-subject="Phase U.6: scripts/ci.sh as the one CI command">7d865ea</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/a9d012a7d81e7e37bd5ed6d739d6fb3bd9196d91" data-subject="Phase U.6: scripts/ci.sh as the one CI command">a9d012a</a></p>
 <p>A project built on a laptop, a CI server and later a web host needs one command that means “this revision is good”. <code>scripts/ci.sh</code> installs dependencies, builds, runs the specs, checks formatting and smoke-tests the command line. With <code>--with-wasmer</code> it also installs wasmer inside the checkout and runs the WebAssembly specs for real. Without it they are reported as pending, which is a visible signal, never a quietly tolerated failure.</p>
+<div class="diff-view" data-diff="c-u-6"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/a9d012a7d81e7e37bd5ed6d739d6fb3bd9196d91">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 7d865ea
+<pre><code>git checkout a9d012a
 scripts/ci.sh --with-wasmer</code></pre>
+<p class="cmd-note"><code>--with-wasmer</code> includes the compiled-robot specs in this one check command. Look for no failures or pending specs and the final green line.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>== shards install
 == bootstrap build
@@ -860,12 +955,14 @@ wasmer 4.4.0
 
 <section class="commit" id="c-w-0">
 <h3>Phase W.0: compile and interpret in one call</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/a6d50da3b4fc06f3697fc23fd20534b4239dcea8" data-subject="Phase W.0: compile and interpret in one call">a6d50da</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/92df1983c49b34e7cf3d74a8a1cf56f9b7f5c207" data-subject="Phase W.0: compile and interpret in one call">92df198</a></p>
 <p>The next commits put the compiler itself inside a web page. A page can't reasonably drive the parser, interpreter and emitter one by one, so two wrappers take raw source text: one compiles it to WebAssembly bytes, the other interprets it and reports the cycles charged. A page also can't afford a robot that loops forever, so the interpreter gets a standalone cycle limit.</p>
+<div class="diff-view" data-diff="c-w-0"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/92df1983c49b34e7cf3d74a8a1cf56f9b7f5c207">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout a6d50da
+<pre><code>git checkout 92df198
 crystal eval 'require "./src/compiler/compiler"; wasm = CrystalRobots::Compiler.compile_to_wasm(File.read("examples/hello.cr")); puts "#{wasm.size} bytes: #{wasm[0, 8].hexstring}"; puts "cycles: #{CrystalRobots::Compiler.interpret(File.read("examples/functions.cr"))}"'</code></pre>
+<p class="cmd-note"><code>crystal eval</code> runs the quoted Crystal code without making a file. Look for WebAssembly bytes beginning with its standard header and 46 cycles from the second example.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>67 bytes: 0061736d01000000
 cycles: 46</code></pre>
@@ -874,17 +971,19 @@ cycles: 46</code></pre>
 </section>
 <section class="commit" id="c-w-1">
 <h3>Phase W.1: the wasm32 spike</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/ef4303c15e437d18bd118f922338fd6e23047551" data-subject="Phase W.1: the wasm32 spike">ef4303c</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/eb9c3e010955f4a4ed108e8dba5bb11a0b3c03d4" data-subject="Phase W.1: the wasm32 spike">eb9c3e0</a></p>
 <p>Can the compiler itself run in a browser? Crystal can build programs for <code>wasm32-unknown-wasi</code>: 32-bit WebAssembly with <em>WASI</em>, a small standard set of operating-system functions (write to the console, get random numbers, and so on) that a host provides. <code>src/browser.cr</code> is the experiment: a handful of entry points a page can call, built for that target.</p>
 <p>The experiment found the fact that shaped everything after it. Crystal 1.18.2 has no working exception handling on this target. Not “slow”, not “limited”: none. A <code>rescue</code> placed directly around a <code>raise</code> in the same function, nothing in between, still let the module <em>trap</em> (stop dead with an error the page sees, discarding everything). It was confirmed twice, by running the real module, not by reading the source.</p>
 <p>Remember the interpreter's <code>break</code> and <code>return</code>, built on exceptions back in A.13? Every one of those decisions now has a price. The rule from here on: anything that can raise lives in its own call, so a trap loses only that call's answer. Compiling and interpreting become two separate calls for exactly that reason.</p>
+<div class="diff-view" data-diff="c-w-1"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/eb9c3e010955f4a4ed108e8dba5bb11a0b3c03d4">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout ef4303c
+<pre><code>git checkout eb9c3e0
 WASM32_WASI_LIBS=$PWD/.wasm32-wasi-libs sh scripts/install_wasm32_wasi_libs.sh
 crystal build --target wasm32-unknown-wasi src/browser.cr -o bin/crystal-robots.wasm \
   --link-flags="-L$PWD/.wasm32-wasi-libs/lib/wasm32-wasi" --release --no-debug
 ls -l bin/crystal-robots.wasm</code></pre>
+<p class="cmd-note"><code>WASM32_WASI_LIBS</code> chooses where the support libraries are installed; <code>--target</code> builds for WebAssembly. The size printed by <code>ls -l</code> shows that the browser module was made.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>wasm32-wasi-libs 0.0.3 installed: .../.wasm32-wasi-libs/lib/wasm32-wasi
 Warning: positional parameter 'filename' corresponds to parameter 'path' of the overridden method ...
@@ -895,14 +994,16 @@ A total of 1 warnings were found.
 </section>
 <section class="commit" id="c-w-2">
 <h3>Phase W.2: the static page and WASI shim</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/b9a3c8cf059b218602c3e045b657a81fcde6c954" data-subject="Phase W.2: the static page and WASI shim">b9a3c8c</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/0d188c3345d13425c48c34c72cacb00363258b03" data-subject="Phase W.2: the static page and WASI shim">0d188c3</a></p>
 <p>A WASI program expects an operating system underneath. In a browser there isn't one, so <code>site/wasi-shim.js</code> is a hand-written stand-in implementing exactly the seven WASI functions this build uses, with no framework and nothing loaded from elsewhere. It creates a fresh instance of the module for every call, because after a trap the old instance is unusable, and it reports a trap as an ordinary <code>{trapped, stderr}</code> result instead of an exception.</p>
 <p><code>site/index.html</code> and <code>site/app.js</code> make the first page: a text box, a Run button, and four panels for the parse, the checker's problems, the interpreter's output and the compiled bytes. The transcript drives the real module through the real shim from Node. Note <code>target.cr</code>: it compiles cleanly but has no interpreter output, because its fight loop hits the cycle limit and traps, which is exactly the case the page was built to survive.</p>
+<div class="diff-view" data-diff="c-w-2"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/0d188c3345d13425c48c34c72cacb00363258b03">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout b9a3c8c
+<pre><code>git checkout 0d188c3
 # build site/crystal-robots.wasm as in W.1, then:
 node --input-type=module -e '...'   # full command in the commit message</code></pre>
+<p class="cmd-note"><code>node</code> runs JavaScript outside a browser; <code>--input-type=module</code> allows <code>import</code> in the quoted check. Copy the full check from this commit’s message; look for a trapped result on bad source and a working next call. To open the page itself, run <code>python3 -m http.server 8000 --directory site</code>, then enter <code>http://localhost:8000/</code> in a browser’s address bar.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>examples/hello.cr {"passes":4,"problems":[],"wasm_len":67,"interpreter":{"status":"finished after 4 cycles","puts":[42]}}
 examples/functions.cr {"passes":12,"problems":[],"wasm_len":129,"interpreter":{"status":"finished after 46 cycles","puts":[5,30,35]}}
@@ -913,12 +1014,14 @@ bad source: {"trapped":true,"stderr":"EXITING: Attempting to raise:\nUnexpected 
 </section>
 <section class="commit" id="c-w-3">
 <h3>Phase W.3: the wasm32 spec and the ci.sh flag</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/6399d5ab455d1ecd4c6b45b7ec9e33f066bd4047" data-subject="Phase W.3: the wasm32 spec and the ci.sh flag">6399d5a</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/b8ada0036ac3bd4434752e5f5a93d1159841eedc" data-subject="Phase W.3: the wasm32 spec and the ci.sh flag">b8ada00</a></p>
 <p>The hand check from W.2 becomes part of the test suite. <code>spec/wasm32_spec.cr</code> loads the already-built module through the same <code>wasi-shim.js</code> the browser loads, in Node, and compares against the native compiler: the same parse, the same checker results, a clean trap on bad input that doesn't affect the next call. <code>ci.sh --with-wasm32</code> checks that <code>node</code> and the WebAssembly linker are present up front, so a machine missing either fails with a clear message rather than deep in a linker error.</p>
+<div class="diff-view" data-diff="c-w-3"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/b8ada0036ac3bd4434752e5f5a93d1159841eedc">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 6399d5a
+<pre><code>git checkout b8ada00
 scripts/ci.sh --with-wasmer --with-wasm32</code></pre>
+<p class="cmd-note"><code>--with-wasm32</code> builds the browser module and runs its specs. Look for zero pending specs in the combined run.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
 167 examples, 0 failures, 0 errors, 0 pending
@@ -928,12 +1031,14 @@ scripts/ci.sh --with-wasmer --with-wasm32</code></pre>
 </section>
 <section class="commit" id="c-w-4">
 <h3>Phase W.4: the GitHub Pages deploy workflow</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/2772718fb112ef08d92115c5f04fa473349f227e" data-subject="Phase W.4: the GitHub Pages deploy workflow">2772718</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/8dc0e82e8377866e0c431400ab2d5c274a3d3a8b" data-subject="Phase W.4: the GitHub Pages deploy workflow">8dc0e82</a></p>
 <p>A compiler in a web page only helps if the page is published. <code>.github/workflows/pages.yml</code> builds and deploys <code>site/</code> to GitHub Pages on every push to <code>main</code> or <code>dev</code>. It doesn't list its own build steps; it runs the one CI command. A developer who runs that command locally sees exactly what gets published, and a failing test blocks a broken deploy.</p>
+<div class="diff-view" data-diff="c-w-4"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/8dc0e82e8377866e0c431400ab2d5c274a3d3a8b">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 2772718
+<pre><code>git checkout 8dc0e82
 grep -nE 'branches|crystal:|lld|ci.sh' .github/workflows/pages.yml</code></pre>
+<p class="cmd-note"><code>grep -nE</code> prints matching workflow lines with line numbers. Look for the branches, Crystal version, linker and CI command that publish the page.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>15:    branches: [main, dev]
 35:          crystal: "1.18.2"
@@ -944,12 +1049,14 @@ grep -nE 'branches|crystal:|lld|ci.sh' .github/workflows/pages.yml</code></pre>
 </section>
 <section class="commit" id="c-w-5">
 <h3>Phase W.5: pin the Pages workflow with Crystal's own YAML</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/5ad79cc905debc48742a99cfcc5207bf417a619a" data-subject="Phase W.5: pin the Pages workflow with Crystal&#x27;s own YAML">5ad79cc</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/82cc54d2db9c2a70281e7dc1393841252d228ffe" data-subject="Phase W.5: pin the Pages workflow with Crystal&#x27;s own YAML">82cc54d</a></p>
 <p>The deploy workflow runs somewhere nobody watches, so it gets a spec like everything else: Crystal's standard YAML library reads the file and pins its trigger, its steps in order and its Crystal version. Writing it turned up a classic: in YAML 1.1 a bare <code>on:</code> key is read as the boolean <code>true</code>, not the word “on”, so the trigger lives at <code>workflow[true]</code>. That was checked against the file, not assumed.</p>
+<div class="diff-view" data-diff="c-w-5"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/82cc54d2db9c2a70281e7dc1393841252d228ffe">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 5ad79cc
+<pre><code>git checkout 82cc54d
 crystal spec spec/pages_workflow_spec.cr -v</code></pre>
+<p class="cmd-note"><code>-v</code> names each workflow spec as it runs. Look for five examples and no failures.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>.github/workflows/pages.yml
 ...
@@ -960,13 +1067,15 @@ Finished in 462 microseconds
 </section>
 <section class="commit" id="c-w-6">
 <h3>Phase W.6: ci.cr replaces ci.sh</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/f1542490521bb60ee1d178c4cc94be56c021b1a7" data-subject="Phase W.6: ci.cr replaces ci.sh">f154249</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/181bf8ccbd39ec2ef1289440b0168e089a8aa793" data-subject="Phase W.6: ci.cr replaces ci.sh">181bf8c</a></p>
 <p>The maintainer's direction: the CI should be Crystal, not shell. <code>ci.cr</code> is a direct port of every step, run as <code>crystal run ci.cr -- [flags]</code>, and the shell script is deleted. Verifying the port found a real bug: the first draft told only the wasmer installer where to install, so it installed into the home directory instead of the checkout, and the next step failed. Setting the variable in <code>ci.cr</code>'s own process, which every later step inherits, fixed it.</p>
+<div class="diff-view" data-diff="c-w-6"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/181bf8ccbd39ec2ef1289440b0168e089a8aa793">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout f154249
+<pre><code>git checkout 181bf8c
 crystal run ci.cr -- --with-wasmer --with-wasm32
 crystal run ci.cr -- --bogus-flag; echo "exit=$?"</code></pre>
+<p class="cmd-note">The <code>--</code> passes flags to <code>ci.cr</code>. The bad flag check should print an error and <code>exit=2</code> after the successful build.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>...
 == crystal spec -Dwasmer -Dcrd_wasm32
@@ -991,13 +1100,15 @@ exit=2</code></pre>
 </ul>
 <section class="commit" id="c-catch-up-adopt-the-shipping-implementati">
 <h3>Catch-up: adopt the shipping implementation at the tutorial's parity point</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/bd3ee2575340fffe63e0fbd89e897ec5fc1d3551" data-subject="Catch-up: adopt the shipping implementation at the tutorial&#x27;s parity point">bd3ee25</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/630175a0ea7ce2b12a52578119a9c728df69e6a0" data-subject="Catch-up: adopt the shipping implementation at the tutorial&#x27;s parity point">630175a</a></p>
 <p>Every commit after this one is one of the shipping line's own changes, replayed in order.</p>
+<div class="diff-view" data-diff="c-catch-up-adopt-the-shipping-implementati"><p>This step brings in the shipping code built alongside the tutorial.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout bd3ee25
+<pre><code>git checkout 630175a
 shards build
 bin/crystal-robots -m 3 --seed 1 examples/sniper.cr examples/rabbit.cr examples/counter.cr</code></pre>
+<p class="cmd-note"><code>-m 3</code> asks for three matches and <code>--seed 1</code> makes their starting choices repeatable. Look for counter’s three wins.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>Running with robots: ["examples/sniper.cr", "examples/rabbit.cr", "examples/counter.cr"]
 Match 1: seed 1, cycles = 85215
@@ -1017,26 +1128,17 @@ Cumulative score:
 
 <section class="commit" id="c-phase-5b-2-battle-entirely-in-the-browse">
 <h3>Phase 5b-2: battle entirely in the browser, no server</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/de88c3f3ec71b9102fad1f6b8024c9a7a8a56410" data-subject="Phase 5b-2: battle entirely in the browser, no server">de88c3f</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/ec9d70af35391ffcd0cf19bb2d5d2d68c617449d" data-subject="Phase 5b-2: battle entirely in the browser, no server">ec9d70a</a></p>
 <p>W.1's discovery comes due. If exceptions don't work on wasm32, neither can the battle engine's fibers be trusted once the page is in control. So <code>src/battle/step_robot.cr</code> gives each robot a second way to run with no fibers and no exceptions at all.</p>
 <p>The trick is <em>continuation-passing style</em>. Everywhere the interpreter would say “work out this value, then do something with it”, it instead hands over a small function meaning “and here is what to do next”. Charging a cycle is the one place that does <em>not</em> call that function right away: it stores it and returns. The next turn picks up by calling the stored function. No exception, no fiber, just an ordinary return.</p>
-<p class="code-label">src/battle/step_robot.cr</p>
-<pre><code>private def tick(n : Int32, &amp;after : -&gt; Nil) : Nil
-  return if @halted
-  if n &lt;= 0
-    after.call
-    return
-  end
-  @cycles += 1
-  remaining = n - 1
-  @resume = -&gt; { tick(remaining, &amp;after) }   # pause here; resume later
-end</code></pre>
 <p>The parser also gains <code>try_parse</code>, which reports a syntax error as data instead of raising, so one robot's typo can't take down a whole battle. The page sends 2 to 4 robots and a seed into <code>crystal-robots.wasm</code> and gets back the standings and an animated SVG replay.</p>
+<div class="diff-view" data-diff="c-phase-5b-2-battle-entirely-in-the-browse"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/ec9d70af35391ffcd0cf19bb2d5d2d68c617449d">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout de88c3f
+<pre><code>git checkout ec9d70a
 crystal run ci.cr -- --with-wasm32
 node --input-type=module -e '...'   # full command in the commit message</code></pre>
+<p class="cmd-note">The Node check is in this commit’s message. Look for a winner and the length of the SVG replay after the browser build passes.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>{"seed":1,"limit":200000,"cycles":101085,"winner":"counter","robots":[{"name":"counter","active":true,"damage":50,...},{"name":"rabbit","active":false,"damage":100,...},{"name":"sniper","active":false,"damage":100,...}]}
 svg replay: 48663 chars</code></pre>
@@ -1045,12 +1147,14 @@ svg replay: 48663 chars</code></pre>
 </section>
 <section class="commit" id="c-phase-6-the-browser-robot-editor">
 <h3>Phase 6: the browser robot editor</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/0209f41e6aae6395248832467c00ee75ff102361" data-subject="Phase 6: the browser robot editor">0209f41</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/45c36505087e0986f37ddfd0b022297c646a0ce9" data-subject="Phase 6: the browser robot editor">45c3650</a></p>
 <p>Watching battles is fun; writing a robot that wins one is the point. <code>site/editor/</code> is a plain text-box editor: start from any example, change it, and it is checked as you type (half a second after you stop). A Fight button runs your robot against others. The live check is a new entry point that never traps on a half-typed program, built on <code>try_parse</code>. The editor's cheat sheet comes from the same robot API table U.4 introduced, exported as JSON at build time.</p>
+<div class="diff-view" data-diff="c-phase-6-the-browser-robot-editor"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/45c36505087e0986f37ddfd0b022297c646a0ce9">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 0209f41
+<pre><code>git checkout 45c3650
 node --input-type=module -e '...'   # checks three sources; full command in the commit message</code></pre>
+<p class="cmd-note">Run the Node check from this commit’s message. Its three answers show a syntax mistake, an unknown name and a valid robot.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>{..."error":{"message":"Cannot reduce 🅼 (MainHead) in 🅼∋⟮№，❢🔙⏎ at 1:1","line":1,"col":1},"problems":[]}
 {..."error":null,"problems":[{"message":"undefined variable or function speed_up","line":2,"col":13}]}
@@ -1060,12 +1164,14 @@ node --input-type=module -e '...'   # checks three sources; full command in the 
 </section>
 <section class="commit" id="c-fix-the-editor-s-line-number-gutter-drif">
 <h3>Fix the editor's line-number gutter drifting on scroll and wrapped lines</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/61f8760997335b997c1b0fe3ec27b96b81a05fad" data-subject="Fix the editor&#x27;s line-number gutter drifting on scroll and wrapped lines">61f8760</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/b56793b28f0ac12a7246342ad8c8f21979b5e8fc" data-subject="Fix the editor&#x27;s line-number gutter drifting on scroll and wrapped lines">b56793b</a></p>
 <p>Reported from an iPhone: the line numbers drifted away from the lines they labelled. Two bugs. The number column had no fixed height, so it never scrolled with the text. And long lines wrapped onto two rows while the numbers counted one, so every wrapped line pushed the numbers below it out of step. The fix turns wrapping off and keeps the scroll positions in sync, and a new spec drives a real headless Chromium to prove it, using only Node's built-in networking.</p>
+<div class="diff-view" data-diff="c-fix-the-editor-s-line-number-gutter-drif"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/b56793b28f0ac12a7246342ad8c8f21979b5e8fc">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 61f8760
+<pre><code>git checkout b56793b
 crystal spec spec/editor_gutter_spec.cr -v</code></pre>
+<p class="cmd-note">This spec drives a browser without opening a visible window. Look for one passing example after it scrolls the editor.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>site/editor gutter (headless)
 ...
@@ -1076,13 +1182,15 @@ Finished in 10.1 seconds
 </section>
 <section class="commit" id="c-phase-6-battle-playback-at-real-frame-ra">
 <h3>Phase 6: battle playback at real frame rate, with event-guaranteed frames</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/bdc0faea15c6675c4f0cb0774369f0ced87667f8" data-subject="Phase 6: battle playback at real frame rate, with event-guaranteed frames">bdc0fae</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/13db130c468c39f01348211b77bb82ce0590dd1d" data-subject="Phase 6: battle playback at real frame rate, with event-guaranteed frames">13db130</a></p>
 <p>The first in-page replay was an SVG animation with a few hundred keyframes: choppy, and likely to skip the moments worth seeing, because a shot fired between two sampled frames simply didn't appear. Now the engine always records a frame when something happens (a shot, a hit, a death), whatever the sampling rate. The page gets a compact binary log of frames instead of a giant animation, and <code>site/battle-playback.js</code> draws it at 60 frames per second with play, pause, speed and a scrubber.</p>
 <p>This commit also carries a bug nobody noticed for a while: the log stores positions in CROBOTS <em>clicks</em> (ten per meter), and the new player drew them as meters.</p>
+<div class="diff-view" data-diff="c-phase-6-battle-playback-at-real-frame-ra"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/13db130c468c39f01348211b77bb82ce0590dd1d">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout bdc0fae
+<pre><code>git checkout 13db130
 node --input-type=module -e '...'   # full command in the commit message</code></pre>
+<p class="cmd-note">Use the Node check in this commit’s message. Even with a low frame limit, the result has more frames because shots and hits are kept.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>max_frames 400: 469 frames in 24396 bytes, 82425 cycles, winner sniper, SVG skeleton 2194 chars
 max_frames 20000: 5494 frames in 285696 bytes, 82425 cycles, winner sniper, SVG skeleton 2194 chars</code></pre>
@@ -1091,15 +1199,14 @@ max_frames 20000: 5494 frames in 285696 bytes, 82425 cycles, winner sniper, SVG 
 </section>
 <section class="commit" id="c-pages-battle-draw-robots-and-missiles-in">
 <h3>Pages battle: draw robots and missiles in meters, not clicks</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/f0fa6729cec6e137c9e18614e661447e0e7ae44f" data-subject="Pages battle: draw robots and missiles in meters, not clicks">f0fa672</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/3222b06b1fb1a141db9370f36f60af206eee512a" data-subject="Pages battle: draw robots and missiles in meters, not clicks">3222b06</a></p>
 <p>Here is that bug. On the published page every robot and missile landed about ten times too far out, off the field entirely: a battle “ran” with nothing visible where it should be. The fix is one division. The test is the interesting part: it decodes a real battle with the real player code and checks every coordinate is inside the field <em>and</em> that some coordinate is above 100, so the opposite mistake, dividing twice, would also fail.</p>
-<p class="code-label">site/battle-playback.js</p>
-<pre><code>// src/battle/field.cr keeps positions in CROBOTS clicks, 10 per meter.
-const CLICK = 10;</code></pre>
+<div class="diff-view" data-diff="c-pages-battle-draw-robots-and-missiles-in"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/3222b06b1fb1a141db9370f36f60af206eee512a">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout f0fa672
+<pre><code>git checkout 3222b06
 node --input-type=module -e '...'   # full command in the commit message</code></pre>
+<p class="cmd-note">Use the Node check in this commit’s message. The coordinates should now lie within the thousand-meter field.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>frames 102 coordinate range 19.8 to 940.6 meters
 first frame: [ [ '841.3', '570.1' ], [ '19.8', '297.4' ] ]</code></pre>
@@ -1108,14 +1215,16 @@ first frame: [ [ '841.3', '570.1' ], [ '19.8', '297.4' ] ]</code></pre>
 </section>
 <section class="commit" id="c-pages-deploy-mark-site-js-as-es-modules">
 <h3>Pages deploy: mark site/*.js as ES modules so the playback spec runs on older Node</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/039c818454ba349f8af6a0a1a4a84ea59d57d61c" data-subject="Pages deploy: mark site/*.js as ES modules so the playback spec runs on older Node">039c818</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/9a342ee9965a3e4f600ce2618bd6de9a544ad3be" data-subject="Pages deploy: mark site/*.js as ES modules so the playback spec runs on older Node">9a342ee</a></p>
 <p>The first deploy after that fix failed, and the reason is a nice example of how environments differ. The new test has Node load the site's JavaScript, which uses modern <code>import</code>/<code>export</code>. Recent Node versions detect that on their own; Node 20.18 and older assume the old module style and fail. A one-line <code>site/package.json</code> declaring the files as ES modules settles it for every version.</p>
+<div class="diff-view" data-diff="c-pages-deploy-mark-site-js-as-es-modules"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/9a342ee9965a3e4f600ce2618bd6de9a544ad3be">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
 <pre><code># without the fix, under Node 20.18
 crystal spec spec/battle_playback_spec.cr
 # with it
 crystal spec spec/battle_playback_spec.cr</code></pre>
+<p class="cmd-note">These two runs show the same spec before and after the one-line fix. Look for the second run to pass on older Node.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>SyntaxError: Named export 'decodeFrames' not found. The requested module '../../site/battle-playback.js' is a CommonJS module, ...
 1 examples, 1 failures, 0 errors, 0 pending
@@ -1126,13 +1235,15 @@ v20.18.1
 </section>
 <section class="commit" id="c-pages-deploy-run-the-headless-editor-gut">
 <h3>Pages deploy: run the headless editor gutter spec with the runner's Google Chrome</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/523768de185706f69eb54112053aacfe085ab1ae" data-subject="Pages deploy: run the headless editor gutter spec with the runner&#x27;s Google Chrome">523768d</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/16883da8b247e82da53956215c7aabfe744fc6c3" data-subject="Pages deploy: run the headless editor gutter spec with the runner&#x27;s Google Chrome">16883da</a></p>
 <p>Then the build failed again, for a different reason. GitHub's build machines had moved to a newer Ubuntu, where <code>chromium</code> is a launcher that doesn't start reliably in that environment. The browser test waited ten seconds for Chromium, gave up, and said nothing about why. The fix points the test at the build machine's own Google Chrome, waits longer, and, most usefully, puts the browser's own error output into the failure message so the next surprise explains itself. The deploy after this went green.</p>
+<div class="diff-view" data-diff="c-pages-deploy-run-the-headless-editor-gut"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/16883da8b247e82da53956215c7aabfe744fc6c3">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 523768d
+<pre><code>git checkout 16883da
 CHROMIUM_BIN=/nonexistent crystal spec spec/editor_gutter_spec.cr
 CHROMIUM_BIN=/tmp/stall-browser crystal spec spec/editor_gutter_spec.cr 2&gt;&amp;1 | grep -E 'Error: |examples,'</code></pre>
+<p class="cmd-note">The first command shows a missing browser becomes pending; the second uses a deliberately stalled one. Look for a timeout message that names the browser.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>1 examples, 0 failures, 0 errors, 1 pending
        Error: timed out waiting for chromium devtools port (binary: /tmp/stall-browser; stderr, last 2000 characters:
@@ -1146,14 +1257,16 @@ CHROMIUM_BIN=/tmp/stall-browser crystal spec spec/editor_gutter_spec.cr 2&gt;&am
 <p>Everything so far lives in a repository and a bare test page. This chapter turns jadonk.github.io/crystal-robots into the project's front door, written for people who have never programmed before. A manual explains the game the way the CROBOTS manual did, with every example checked against the real parser. The landing page opens on a battle already in progress, then lets you peel it back one layer at a time: the robot's code, the parser collapsing it pass by pass, its syntax tree, and the WebAssembly bytes it compiles to. The whole tournament runs inside <code>crystal-robots.wasm</code>, and every fight can be replayed exactly from its recorded seed. A seven-level challenge walks a beginner from “make it move” to entering that tournament, checking each level against real battles. And replays finally show what each robot prints with <code>puts</code>, in step with the action.</p>
 <section class="commit" id="c-pages-a-robot-manual-and-the-shared-site">
 <h3>Pages: a robot manual and the shared site stylesheet</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/f8831abca22f69cbccc4344717d11a751af6a2bf" data-subject="Pages: a robot manual and the shared site stylesheet">f8831ab</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/ae8856bfd78f7aa5a20e28891911054873526f28" data-subject="Pages: a robot manual and the shared site stylesheet">ae8856b</a></p>
 <p>A game for beginners needs a manual before it needs anything clever. This one starts with a short robot explained line by line and the language as the parser actually accepts it, then every robot command. The command list isn't typed into the page: it's rendered from <code>cheat-sheet.json</code>, which is generated from the same table the code checks every builtin against, so the manual can't list a command that doesn't exist. A spec goes further and pulls every complete example out of the page and runs it through the parser and checker, so a code sample in the manual that stops compiling fails the build. The same commit adds <code>site.css</code>, one small stylesheet with light and dark colors taken from the battlefield's robot palette, which every page after it shares.</p>
+<div class="diff-view" data-diff="c-pages-a-robot-manual-and-the-shared-site"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/ae8856bfd78f7aa5a20e28891911054873526f28">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout f8831ab
+<pre><code>git checkout ae8856b
 crystal spec spec/manual_spec.cr -v
 crystal run ci.cr -- --with-wasm32
 crystal run ci.cr -- --with-wasmer</code></pre>
+<p class="cmd-note">The manual spec checks its examples with the real parser. Look for four passing examples.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>4 examples, 0 failures, 0 errors, 0 pending
 121 examples, 0 failures, 0 errors, 10 pending
@@ -1165,16 +1278,18 @@ crystal run ci.cr -- --with-wasmer</code></pre>
 </section>
 <section class="commit" id="c-browser-a-whole-tournament-inside-crysta">
 <h3>Browser: a whole tournament inside crystal-robots.wasm</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/d24ece56bce1bff0d09817fb8011a0cda3acebca" data-subject="Browser: a whole tournament inside crystal-robots.wasm">d24ece5</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/673ccad369f77790e49bd4cb02e3e2f0e89f9e78" data-subject="Browser: a whole tournament inside crystal-robots.wasm">673ccad</a></p>
 <p>Chapter 4's tournament engine never needed a server; it just needed someone to call it. Here <code>crystal-robots.wasm</code> gets a <code>crd_tournament_run</code> export that runs pool play and the bracket in one call. Two details matter. First, every fight records its entrants and its seed, so the page can later replay any single fight through the ordinary battle call and get the same winner; a spec replays a pool fight and a bracket game to prove it. Second, everything a robot author can get wrong (too few robots, a duplicate name, a robot that doesn't parse) comes back as data. W.1 established why that matters: on this target any <code>raise</code> stops the whole module, so the tournament refuses to start rather than letting the engine throw.</p>
 <p>An early version also hand-validated the request's JSON syntax, about 120 lines of it. It came out again: the page builds every request with <code>JSON.stringify</code>, so malformed JSON could only be the page's own bug, and the battle call had already set the rule of trapping only on that.</p>
+<div class="diff-view" data-diff="c-browser-a-whole-tournament-inside-crysta"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/673ccad369f77790e49bd4cb02e3e2f0e89f9e78">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout d24ece5
+<pre><code>git checkout 673ccad
 crystal spec spec/browser_tournament_spec.cr -v
 crystal spec -Dcrd_wasm32 spec/wasm32_spec.cr -e tournament -v
 crystal run ci.cr -- --with-wasm32
 crystal run ci.cr -- --with-wasmer</code></pre>
+<p class="cmd-note"><code>-e tournament</code> selects the browser tournament spec by name. Look for its result to match the native tournament.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>5 examples, 0 failures, 0 errors, 0 pending
 1 examples, 0 failures, 0 errors, 0 pending
@@ -1187,15 +1302,17 @@ crystal run ci.cr -- --with-wasmer</code></pre>
 </section>
 <section class="commit" id="c-pages-a-landing-page-that-opens-on-a-liv">
 <h3>Pages: a landing page that opens on a live battle and peels back to the WebAssembly</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/54f278d3e062adb9daabc36808baac55896a9a6d" data-subject="Pages: a landing page that opens on a live battle and peels back to the WebAssembly">54f278d</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/93bf54230cef940360e0557641e512796956ae9c" data-subject="Pages: a landing page that opens on a live battle and peels back to the WebAssembly">93bf542</a></p>
 <p>The front page now does one thing first: a four-robot battle starts as soon as the module loads. A legend shows each robot's damage live, Rematch picks a new seed, and <code>?seed=N</code> makes any battle shareable. Click a robot and the page peels it back in five layers: its code; the parser's passes, stepped one at a time until the whole program collapses to a single symbol; the syntax tree, from a new <code>crd_ast</code> export that reports a broken program as data; the WebAssembly bytes, decoded by a small <code>wasm-view.js</code> into sections and instructions next to the bytes they came from; and what the engine did with that robot in this battle.</p>
 <p>The old test page moves to <code>/workbench/</code> unchanged. A headless browser check opens all five layers and fails if the page scrolls sideways at phone width.</p>
+<div class="diff-view" data-diff="c-pages-a-landing-page-that-opens-on-a-liv"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/93bf54230cef940360e0557641e512796956ae9c">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 54f278d
+<pre><code>git checkout 93bf542
 crystal spec -Dcrd_wasm32 spec/landing_spec.cr spec/browser_ast_spec.cr spec/wasm_view_spec.cr -v
 crystal run ci.cr -- --with-wasm32
 crystal run ci.cr -- --with-wasmer</code></pre>
+<p class="cmd-note">These specs check the landing page’s layers and its WebAssembly view. Look for four passing examples, then open the published page in a browser to watch the battle.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>4 examples, 0 failures, 0 errors, 0 pending
 132 examples, 0 failures, 0 errors, 10 pending
@@ -1207,15 +1324,17 @@ crystal run ci.cr -- --with-wasmer</code></pre>
 </section>
 <section class="commit" id="c-pages-a-tournament-page-and-a-seven-leve">
 <h3>Pages: a tournament page and a seven-level robot challenge</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/654627490f8cff9c8cba32549b466de1b8282bc0" data-subject="Pages: a tournament page and a seven-level robot challenge">6546274</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/74c7a631ddc2bc0d348e2cf6273860e690a8d085" data-subject="Pages: a tournament page and a seven-level robot challenge">74c7a63</a></p>
 <p>The tournament page lets you pick three to eight robots, now including the five from <code>robots/*.md</code>, and runs the whole thing in a Web Worker so the page stays responsive. It draws the pools and the bracket, and any fight in either can be replayed on the spot, with the replay's winner shown next to the recorded one.</p>
 <p>The challenge is the part aimed squarely at beginners: “Can your robot win the tournament?” Seven levels take you from moving at all, to seeing the target, hitting it, destroying it, beating a moving robot, beating one that fights back, and finally entering the tournament. Each check runs real battles in your browser and says in one sentence why it passed or failed, with the deciding battle there to watch. Your robot and progress are kept in the browser, so the tournament page can enter “Your robot” too.</p>
+<div class="diff-view" data-diff="c-pages-a-tournament-page-and-a-seven-leve"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/74c7a631ddc2bc0d348e2cf6273860e690a8d085">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 6546274
+<pre><code>git checkout 74c7a63
 crystal spec -Dcrd_wasm32 spec/challenge_checks_spec.cr spec/challenge_tournament_spec.cr spec/site_robots_spec.cr -v
 crystal run ci.cr -- --with-wasm32
 crystal run ci.cr -- --with-wasmer</code></pre>
+<p class="cmd-note">The selected specs check the challenge and its tournament. Look for three passing examples before the full build.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>3 examples, 0 failures, 0 errors, 0 pending
 135 examples, 0 failures, 0 errors, 10 pending
@@ -1227,15 +1346,17 @@ crystal run ci.cr -- --with-wasmer</code></pre>
 </section>
 <section class="commit" id="c-replays-show-what-each-robot-prints">
 <h3>Replays show what each robot prints</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/25e0dd351f84bac743ecdd52e53e3e71e80b82b0" data-subject="Replays show what each robot prints">25e0dd3</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/51e23381cba8db5ad544adaabda3352fdbf21669" data-subject="Replays show what each robot prints">51e2338</a></p>
 <p><code>puts</code> is the oldest debugging tool there is, and until now a robot's printing vanished in the browser. Its lines were collected during a battle but never reached the page, and they had no time attached, so a replay couldn't have shown them at the right moment anyway. Each line now records the battle cycle it was printed on, identically in both engines, and the replay grows a console under the arena that shows only what has been printed up to the current moment. Scrub backward and the lines disappear again. The challenge's hints now suggest printing what your scanner sees.</p>
+<div class="diff-view" data-diff="c-replays-show-what-each-robot-prints"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/51e23381cba8db5ad544adaabda3352fdbf21669">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 25e0dd3
+<pre><code>git checkout 51e2338
 crystal run printer_demo.cr -- printer.cr
 crystal spec spec/battle_spec.cr:112 spec/browser_spec.cr:40 -v
 crystal run ci.cr -- --with-wasm32
 crystal run ci.cr -- --with-wasmer</code></pre>
+<p class="cmd-note">The numbered spec locations run the two output checks. Look for both to pass; a replay should show a line only after its battle cycle.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>2 examples, 0 failures, 0 errors, 0 pending
 137 examples, 0 failures, 0 errors, 10 pending
@@ -1252,13 +1373,14 @@ crystal run ci.cr -- --with-wasmer</code></pre>
 <p>This chapter makes the breakpoints real, without relying on any browser-specific feature. The emitter learns a resumable mode: each function becomes numbered blocks run by a dispatch loop, and everything a paused robot needs to remember (where it was, its local variables, the half-finished parts of an expression) lives in its own memory instead of on WebAssembly's stack. Calling the module's <code>step()</code> runs exactly one CROBOTS cycle and returns. Then <code>crystal-robots.wasm</code> builds one such module per robot and lets the battlefield step them. The proof is the same idea as A.13's differential spec, scaled up: sixty seeded battles and a full tournament produce byte-for-byte identical results whether the robots are compiled or interpreted, and the compiled ones are faster.</p>
 <section class="commit" id="c-a-resumable-webassembly-emitter-compiled">
 <h3>A resumable WebAssembly emitter: compiled robots that pause at every cycle</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/2107a8c45ed8f2ddd0802c3434a7042d0dd3f3cb" data-subject="A resumable WebAssembly emitter: compiled robots that pause at every cycle">2107a8c</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/b9a3816e1d29e086b6359acdf5d5fa001668d2ea" data-subject="A resumable WebAssembly emitter: compiled robots that pause at every cycle">b9a3816</a></p>
 <p>Here is the problem stated plainly. The battlefield runs four robots in lockstep, one CROBOTS cycle each, round and round. A compiled robot is a WebAssembly function, and a WebAssembly function, once called, runs until it returns. There is no instruction for “stop here and carry on later”. Browsers are adding ways around that, but each one is a newer feature that only some browsers have, and this project wanted plain WebAssembly that runs everywhere, wasmer included.</p>
 <p>So the emitter does the pausing itself. In resumable mode every function is cut into numbered blocks at each place a cycle is charged, and run by a loop that jumps to the saved block number. Nothing is left on WebAssembly's own value stack when a block ends: half-finished calculations go into local variables, and every call in progress keeps its block number, locals and temporaries in a 2 KB frame in the robot's own memory. Calling <code>step()</code> runs exactly one cycle, stores where it got to, and returns. Calling it again carries on, even from deep inside nested function calls. Recursion that goes too deep becomes the same robot error the interpreter reports, not a crash.</p>
 <p>The proof reuses A.13's idea at full scale. Under wasmer, every bundled robot fights three seeds in two- and four-robot fields, once compiled and once interpreted, and every recorded frame, cycle count, restart, printed line and winner must match exactly. The modules grow about ten to fifteen times larger for it, which still means a few kilobytes.</p>
+<div class="diff-view" data-diff="c-a-resumable-webassembly-emitter-compiled"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/b9a3816e1d29e086b6359acdf5d5fa001668d2ea">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 2107a8c
+<pre><code>git checkout b9a3816
 WASMER_DIR=$PWD/.wasmer crystal spec -Dwasmer spec/wasm_resumable_spec.cr -v
 bin/crystal-robots -c examples/sniper.cr -o /dev/null --resumable
 bin/crystal-robots -c examples/sniper.cr | wc -c
@@ -1266,6 +1388,7 @@ bin/crystal-robots -c examples/counter.cr -o /dev/null --resumable
 bin/crystal-robots -c examples/counter.cr | wc -c
 crystal run ci.cr -- --with-wasm32
 crystal run ci.cr -- --with-wasmer</code></pre>
+<p class="cmd-note"><code>--resumable</code> builds a robot that exports one-cycle steps; <code>wc -c</code> counts ordinary module bytes for comparison. Look for eight passing resume specs.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>resumable WASM
   pauses before a builtin and resumes a nested call
@@ -1293,17 +1416,19 @@ Module size: 10703 bytes
 </section>
 <section class="commit" id="c-compiled-robots-fight-in-the-browser">
 <h3>Compiled robots fight in the browser</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/1bceb5fc9b9e54048888e1cb741774fac85fcd7f" data-subject="Compiled robots fight in the browser">1bceb5f</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/33d67dd0d7b3e127dfa919ab88e10a9bbb08d089" data-subject="Compiled robots fight in the browser">33d67dd</a></p>
 <p>The last step wires it up. <code>crystal-robots.wasm</code> compiles each robot in resumable mode and asks the page for a fresh copy of that robot's module per battle. Each copy's builtins (<code>scan</code>, <code>drive</code>, <code>cannon</code> and the rest) call back into <code>crystal-robots.wasm</code> to act on that robot's own place on the battlefield, and the battlefield steps each robot by calling its <code>step()</code>. Battles run in a Web Worker, where the robot modules are compiled ahead of time. A robot the resumable emitter can't handle falls back to the interpreter on its own, and the legend says which way each robot ran.</p>
 <p>One linking detail is worth a sentence. The quick way to let the Crystal code call functions the page provides is a linker flag that turns every unresolved symbol into an import, which would also quietly turn any real linking mistake into a failure at run time. Declaring just those three functions as coming from a named import module (<code>crd_host</code>) keeps the linker strict.</p>
 <p>Sixty seeded battles and a full eight-robot tournament now come out byte-for-byte identical compiled and interpreted, and the compiled robots are the faster of the two.</p>
+<div class="diff-view" data-diff="c-compiled-robots-fight-in-the-browser"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/33d67dd0d7b3e127dfa919ab88e10a9bbb08d089">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 1bceb5f
+<pre><code>git checkout 33d67dd
 crystal spec -Dcrd_wasm32 spec/wasm32_compiled_spec.cr -v
 node -e '...WebAssembly.Module.imports(site/crystal-robots.wasm), minus wasi...'
 crystal run ci.cr -- --with-wasm32
 crystal run ci.cr -- --with-wasmer</code></pre>
+<p class="cmd-note">The Node command in this commit’s message inspects the browser module’s imports. Look for the compiled battle spec to pass and the compiled timing to be lower.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>browser compiled robots
 compiled 143 ms; interpreter 201 ms for the 4-robot 60,000-cycle battle
@@ -1318,14 +1443,16 @@ compiled 143 ms; interpreter 201 ms for the 4-robot 60,000-cycle battle
 </section>
 <section class="commit" id="c-plain-language-for-first-time-programmer">
 <h3>Plain language for first-time programmers, and a CROBOTS-style manual</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/3dcf77d962898d5c7ba76c5bc7d007a150bf2243" data-subject="Plain language for first-time programmers, and a CROBOTS-style manual">3dcf77d</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/f499967faed630aea133a633eef86d2a41c3c6c8" data-subject="Plain language for first-time programmers, and a CROBOTS-style manual">f499967</a></p>
 <p>With the machinery done, the words got another pass. The site is for people who have never programmed, so it now explains the game first and the computer science last, taking its tone from the CROBOTS manual: the battlefield with diagrams, every command with an example, tactics drawn from the bundled robots. Error messages are translated whole into plain sentences that keep the names from your code (“drive needs 2 numbers, but 1 was given”), and anything the page doesn't recognise is shown as it is rather than half-translated. The same commit fixes two test problems that broke builds: a test that assumed Node was installed, and a browser test that failed after passing because Chrome was still writing to its temporary folder.</p>
+<div class="diff-view" data-diff="c-plain-language-for-first-time-programmer"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/f499967faed630aea133a633eef86d2a41c3c6c8">See the whole change on GitHub</a>.</p></div>
 <div class="tryit">
 <p class="code-label">Try it</p>
-<pre><code>git checkout 3dcf77d
+<pre><code>git checkout f499967
 PATH=&lt;everything but node&gt; crystal spec
 crystal run ci.cr -- --with-wasm32
 crystal run ci.cr -- --with-wasmer</code></pre>
+<p class="cmd-note">The altered <code>PATH</code> check runs without Node available. Look for the ordinary specs to pass, then the browser build to finish green.</p>
 <p class="code-label">What you'll see</p>
 <pre class="output"><code>145 examples, 0 failures, 0 errors, 34 pending
 146 examples, 0 failures, 0 errors, 18 pending
@@ -1337,9 +1464,10 @@ crystal run ci.cr -- --with-wasmer</code></pre>
 </section>
 <section class="commit commit-small" id="c-pages-a-favicon">
 <h3>Pages: a favicon</h3>
-<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/09443e1b19207221f4511b869f93c34ea2ec8bc9" data-subject="Pages: a favicon">09443e1</a></p>
+<p class="commit-meta">Commit <a class="commit-link" href="https://github.com/jadonk/crystal-robots/commit/c2570755d30081fb156860a7ab3f18c8a2eccc88" data-subject="Pages: a favicon">c257075</a></p>
 <p>And the smallest commit in the story: a robot from the arena, turret aimed and a missile in flight, as the site's icon.</p>
 
+<div class="diff-view" data-diff="c-pages-a-favicon"><p>Selected change: <a href="https://github.com/jadonk/crystal-robots/commit/c2570755d30081fb156860a7ab3f18c8a2eccc88">See the whole change on GitHub</a>.</p></div>
 </section>
 </section>
 <section class="chapter" id="next">
@@ -1360,5 +1488,6 @@ crystal run ci.cr -- --with-wasmer</code></pre>
     </article>
   </main>
 </div>
+<script type="module" src="./diff-view.js"></script>
 </body>
 </html>

@@ -1,0 +1,274 @@
+{
+  "sha": "6a15aea1bbe1aede715667e8e00885fdb52bc67b",
+  "subject": "Phase A.8: if / elsif / else",
+  "summary": "Robots can choose what to do based on a test.",
+  "files": [
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 6,
+      "removed": 0,
+      "role": "Checks which robot programs the parser accepts."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 29,
+      "removed": 0,
+      "role": "Checks the instructions written for robot programs."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 6,
+      "removed": 3,
+      "role": "Groups the words and symbols in a robot program into meaningful steps."
+    },
+    {
+      "path": "src/compiler/program.cr",
+      "added": 5,
+      "removed": 0,
+      "role": "Builds or runs a robot program."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 40,
+      "removed": 3,
+      "role": "Turns robot steps into WebAssembly instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/wasm_emitter.cr",
+      "note": "An `if` gives a robot a choice: run the first body whose condition is true, or run `else` if none is. This method collects each condition with its statements so the emitter can write that choice as nested WebAssembly branches.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "      body_of(stmt).each { |s| code += statement(s, ctx) }",
+          "old": 280,
+          "new": 283
+        },
+        {
+          "kind": " ",
+          "text": "      code += op(Opcodes::Br) + WASM_Emitter.unsignedLEB128(0)",
+          "old": 281,
+          "new": 284
+        },
+        {
+          "kind": " ",
+          "text": "      ctx.depth -= 1",
+          "old": 282,
+          "new": 285
+        },
+        {
+          "kind": " ",
+          "text": "      code += op(Opcodes::End) # loop",
+          "old": 283,
+          "new": 286
+        },
+        {
+          "kind": " ",
+          "text": "      ctx.loops.pop",
+          "old": 284,
+          "new": 287
+        },
+        {
+          "kind": " ",
+          "text": "      ctx.depth -= 1",
+          "old": 285,
+          "new": 288
+        },
+        {
+          "kind": " ",
+          "text": "      code += op(Opcodes::End) # block",
+          "old": 286,
+          "new": 289
+        },
+        {
+          "kind": " ",
+          "text": "      code",
+          "old": 287,
+          "new": 290
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 288,
+          "new": 291
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 289,
+          "new": 292
+        },
+        {
+          "kind": "+",
+          "text": "    # `if`/`elsif`/`else`, each a `{condition, statements}` branch (`else`'s",
+          "old": null,
+          "new": 293
+        },
+        {
+          "kind": "+",
+          "text": "    # condition is `nil`), as nested WASM `if { ... } else { ... }` blocks.",
+          "old": null,
+          "new": 294
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "    private def if_statement(stmt : Int32, ctx : Ctx) : Bytes",
+          "old": null,
+          "new": 295
+        },
+        {
+          "kind": "+",
+          "text": "      branches = [] of {Int32?, Array(Int32)}",
+          "old": null,
+          "new": 296
+        },
+        {
+          "kind": "+",
+          "text": "      @program.children(stmt).each do |k|",
+          "old": null,
+          "new": 297
+        },
+        {
+          "kind": "+",
+          "text": "        case @program.type(k)",
+          "old": null,
+          "new": 298
+        },
+        {
+          "kind": "+",
+          "text": "        when Type::IfHead, Type::ElsifHead",
+          "old": null,
+          "new": 299
+        },
+        {
+          "kind": "+",
+          "text": "          branches << {@program.arg(k, 1), [] of Int32}",
+          "old": null,
+          "new": 300
+        },
+        {
+          "kind": "+",
+          "text": "        when Type::ElseKeyword",
+          "old": null,
+          "new": 301
+        },
+        {
+          "kind": "+",
+          "text": "          branches << {nil, [] of Int32}",
+          "old": null,
+          "new": 302
+        },
+        {
+          "kind": "+",
+          "text": "        when Type::Statement",
+          "old": null,
+          "new": 303
+        },
+        {
+          "kind": "+",
+          "text": "          branches.last[1] << k",
+          "old": null,
+          "new": 304
+        },
+        {
+          "kind": "+",
+          "text": "        end",
+          "old": null,
+          "new": 305
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 306
+        },
+        {
+          "kind": "+",
+          "text": "      emit_branches(branches, ctx)",
+          "old": null,
+          "new": 307
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 308
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 309
+        },
+        {
+          "kind": "+",
+          "text": "    private def emit_branches(branches : Array({Int32?, Array(Int32)}), ctx : Ctx) : Bytes",
+          "old": null,
+          "new": 310
+        },
+        {
+          "kind": "+",
+          "text": "      return Bytes[] if branches.empty?",
+          "old": null,
+          "new": 311
+        },
+        {
+          "kind": "+",
+          "text": "      cond, stmts = branches[0]",
+          "old": null,
+          "new": 312
+        },
+        {
+          "kind": "+",
+          "text": "      if cond.nil?",
+          "old": null,
+          "new": 313
+        },
+        {
+          "kind": "+",
+          "text": "        return stmts.reduce(Bytes[]) { |code, s| code + statement(s, ctx) }",
+          "old": null,
+          "new": 314
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 315
+        },
+        {
+          "kind": "+",
+          "text": "      code = expression(cond) + op(Opcodes::If) + Bytes[BlockVoid]",
+          "old": null,
+          "new": 316
+        },
+        {
+          "kind": "+",
+          "text": "      ctx.depth += 1",
+          "old": null,
+          "new": 317
+        },
+        {
+          "kind": "+",
+          "text": "      code = stmts.reduce(code) { |c, s| c + statement(s, ctx) }",
+          "old": null,
+          "new": 318
+        },
+        {
+          "kind": "+",
+          "text": "      rest = branches[1..]",
+          "old": null,
+          "new": 319
+        }
+      ],
+      "line_notes": {
+        "branches << {nil": "`else` has no test to check. It runs when the earlier tests did not choose a branch."
+      }
+    }
+  ]
+}

@@ -1,0 +1,264 @@
+{
+  "sha": "2033e63457ac3662e091736738cb3f40d27ee933",
+  "subject": "Phase A.7: comparisons and while/until loops",
+  "summary": "Robots can compare values and repeat steps.",
+  "files": [
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 11,
+      "removed": 0,
+      "role": "Checks which robot programs the parser accepts."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 16,
+      "removed": 0,
+      "role": "Checks the instructions written for robot programs."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 24,
+      "removed": 6,
+      "role": "Groups the words and symbols in a robot program into meaningful steps."
+    },
+    {
+      "path": "src/compiler/program.cr",
+      "added": 14,
+      "removed": 0,
+      "role": "Builds or runs a robot program."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 80,
+      "removed": 13,
+      "role": "Turns robot steps into WebAssembly instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/wasm_emitter.cr",
+      "note": "[[WebAssembly|#word-webassembly]] has no `while`. It has a block you can jump out of and a loop you can jump back to, so the compiler uses both: check the condition, leave when the work is done, otherwise run the body and return to the top.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "        op(Opcodes::Br) + WASM_Emitter.unsignedLEB128(ctx.depth - exit)",
+          "old": null,
+          "new": 259
+        },
+        {
+          "kind": "+",
+          "text": "      else",
+          "old": null,
+          "new": 260
+        },
+        {
+          "kind": "+",
+          "text": "        expression(@program.arg(stmt, 0)) + op(Opcodes::Drop)",
+          "old": null,
+          "new": 261
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 262
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 263
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 264
+        },
+        {
+          "kind": "+",
+          "text": "    # `while`/`until`: `block { loop { cond; br_if exit; body; br loop } }`.",
+          "old": null,
+          "new": 265
+        },
+        {
+          "kind": "+",
+          "text": "    # `while` exits when the condition is false (`i32.eqz` first); `until`",
+          "old": null,
+          "new": 266
+        },
+        {
+          "kind": "+",
+          "text": "    # exits when it is true.",
+          "old": null,
+          "new": 267
+        },
+        {
+          "kind": "+",
+          "text": "    private def loop_statement(stmt : Int32, ctx : Ctx, while_true : Bool) : Bytes",
+          "old": null,
+          "new": 268
+        },
+        {
+          "kind": "+",
+          "text": "      head = @program.children(stmt)[0]",
+          "old": null,
+          "new": 269
+        },
+        {
+          "kind": "+",
+          "text": "      cond = @program.arg(head, 1)",
+          "old": null,
+          "new": 270
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "      code = op(Opcodes::Block) + Bytes[BlockVoid]",
+          "old": null,
+          "new": 271
+        },
+        {
+          "kind": "+",
+          "text": "      ctx.depth += 1",
+          "old": null,
+          "new": 272
+        },
+        {
+          "kind": "+",
+          "text": "      exit = ctx.depth",
+          "old": null,
+          "new": 273
+        },
+        {
+          "kind": "+",
+          "text": "      ctx.loops << exit",
+          "old": null,
+          "new": 274
+        },
+        {
+          "kind": "+",
+          "text": "      code += op(Opcodes::Loop) + Bytes[BlockVoid]",
+          "old": null,
+          "new": 275
+        },
+        {
+          "kind": "+",
+          "text": "      ctx.depth += 1",
+          "old": null,
+          "new": 276
+        },
+        {
+          "kind": "+",
+          "text": "      code += expression(cond)",
+          "old": null,
+          "new": 277
+        },
+        {
+          "kind": "+",
+          "text": "      code += op(Opcodes::I32_eqz) if while_true",
+          "old": null,
+          "new": 278
+        },
+        {
+          "kind": "+",
+          "text": "      code += op(Opcodes::Br_if) + WASM_Emitter.unsignedLEB128(ctx.depth - exit)",
+          "old": null,
+          "new": 279
+        },
+        {
+          "kind": "+",
+          "text": "      body_of(stmt).each { |s| code += statement(s, ctx) }",
+          "old": null,
+          "new": 280
+        },
+        {
+          "kind": "+",
+          "text": "      code += op(Opcodes::Br) + WASM_Emitter.unsignedLEB128(0)",
+          "old": null,
+          "new": 281
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      ctx.depth -= 1",
+          "old": null,
+          "new": 282
+        },
+        {
+          "kind": "+",
+          "text": "      code += op(Opcodes::End) # loop",
+          "old": null,
+          "new": 283
+        },
+        {
+          "kind": "+",
+          "text": "      ctx.loops.pop",
+          "old": null,
+          "new": 284
+        },
+        {
+          "kind": "+",
+          "text": "      ctx.depth -= 1",
+          "old": null,
+          "new": 285
+        },
+        {
+          "kind": "+",
+          "text": "      code += op(Opcodes::End) # block",
+          "old": null,
+          "new": 286
+        },
+        {
+          "kind": "+",
+          "text": "      code",
+          "old": null,
+          "new": 287
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 288
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 289
+        },
+        {
+          "kind": "+",
+          "text": "    # `run`: one `statement` per top-level statement.",
+          "old": null,
+          "new": 290
+        },
+        {
+          "kind": " ",
+          "text": "    def code_section : Bytes",
+          "old": 219,
+          "new": 291
+        },
+        {
+          "kind": "+",
+          "text": "      ctx = Ctx.new",
+          "old": null,
+          "new": 292
+        },
+        {
+          "kind": " ",
+          "text": "      code = Bytes[]",
+          "old": 220,
+          "new": 293
+        }
+      ],
+      "line_notes": {
+        "code += op(Opcodes::I32_eqz)": "`while` keeps going while its test is true, so this flips the answer: now true means it is time to leave.",
+        "code += op(Opcodes::Br_if)": "Leave the outer block if the test says the loop is done.",
+        "code += op(Opcodes::Br) +": "Jump back to the top of the loop and check again."
+      }
+    }
+  ]
+}

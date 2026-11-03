@@ -1,0 +1,20 @@
+{
+  "sha": "000319b01ad7867aab89e59046a0cfb78b2a9563",
+  "subject": "Phase U.2: crystal and riscv emitter placeholders",
+  "summary": "The project reserves names for two future emitters.",
+  "files": [
+    {
+      "path": "src/compiler/crystal_emitter.cr",
+      "added": 0,
+      "removed": 0,
+      "role": "Builds or runs a robot program."
+    },
+    {
+      "path": "src/compiler/riscv_emitter.cr",
+      "added": 0,
+      "removed": 0,
+      "role": "Builds or runs a robot program."
+    }
+  ],
+  "excerpts": []
+}

@@ -1,0 +1,403 @@
+{
+  "sha": "1c95a0feaac56b8f0180e1f102e7731a9446464d",
+  "subject": "Phase B.2: parenthesized builtin calls",
+  "summary": "Robots can call builtins with parentheses.",
+  "files": [
+    {
+      "path": "spec/interpreter_spec.cr",
+      "added": 2,
+      "removed": 1,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 3,
+      "removed": 1,
+      "role": "Checks which robot programs the parser accepts."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 10,
+      "removed": 1,
+      "role": "Checks the instructions written for robot programs."
+    },
+    {
+      "path": "src/compiler/checker.cr",
+      "added": 6,
+      "removed": 5,
+      "role": "Finds mistakes in a robot program before it runs."
+    },
+    {
+      "path": "src/compiler/interpreter.cr",
+      "added": 6,
+      "removed": 4,
+      "role": "Runs robot steps directly so their behavior can be checked."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 2,
+      "removed": 0,
+      "role": "Groups the words and symbols in a robot program into meaningful steps."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 6,
+      "removed": 4,
+      "role": "Turns robot steps into WebAssembly instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/parser.cr",
+      "note": "These two parser rules accept one or two arguments inside parentheses, as the example robots write them. The earlier bare call forms still work, so `scan(3, 4)` and `scan 3, 4` reach the same action.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 90,
+          "new": 90
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 91,
+          "new": 91
+        },
+        {
+          "kind": " ",
+          "text": "    # Grammar rules in priority order. Each pass applies the FIRST rule in",
+          "old": 92,
+          "new": 92
+        },
+        {
+          "kind": " ",
+          "text": "    # this list that matches anywhere, to every non-overlapping match.",
+          "old": 93,
+          "new": 93
+        },
+        {
+          "kind": " ",
+          "text": "    GRAMMAR = [",
+          "old": 94,
+          "new": 94
+        },
+        {
+          "kind": " ",
+          "text": "      # headers first: a def or main header must never be read as a call",
+          "old": 95,
+          "new": 95
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:main_head, /🏁⟮🐍⟯🔖⏎/, Type::MainHead),",
+          "old": 96,
+          "new": 96
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:global, /🌐⟮𝑥，#{V}⟯⏎/, Type::Statement),",
+          "old": 97,
+          "new": 97
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:def_head, /🔕𝑥(⟮(𝑥(，𝑥)*)?⟯)?⏎/, Type::DefHead),",
+          "old": 98,
+          "new": 98
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:literal, /[🔢🔚]/, Type::Expression),",
+          "old": 99,
+          "new": 99
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "      Rule.new(:call0, /∉/, Type::Expression),",
+          "old": 100,
+          "new": 100
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:call, /𝑥⟮(#{V}(，#{V})*)?⟯/, Type::Expression),",
+          "old": 101,
+          "new": 101
+        },
+        {
+          "kind": "+",
+          "text": "      Rule.new(:call1, /∊⟮#{V}⟯/, Type::Expression),",
+          "old": null,
+          "new": 102
+        },
+        {
+          "kind": "+",
+          "text": "      Rule.new(:call2, /∋⟮#{V}，#{V}⟯/, Type::Expression),",
+          "old": null,
+          "new": 103
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:paren, /⟮#{V}⟯/, Type::Expression),",
+          "old": 102,
+          "new": 104
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:neg, /(?<![№𝑥😑⟯])⊖#{V}/, Type::Expression),",
+          "old": 103,
+          "new": 105
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:mul, infix(MULOPS, \"\"), Type::Expression),",
+          "old": 104,
+          "new": 106
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:add, infix(ADDOPS, MULOPS), Type::Expression),",
+          "old": 105,
+          "new": 107
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "      Rule.new(:cmp, infix(CMPOPS, MULOPS + ADDOPS), Type::Expression),",
+          "old": 106,
+          "new": 108
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:eq, infix(EQOPS, MULOPS + ADDOPS + CMPOPS), Type::Expression),",
+          "old": 107,
+          "new": 109
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:command1, /∊#{V}(?=[⏎⟯])/, Type::Expression),",
+          "old": 108,
+          "new": 110
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:command2, /∋#{V}，#{V}(?=[⏎⟯])/, Type::Expression),",
+          "old": 109,
+          "new": 111
+        },
+        {
+          "kind": " ",
+          "text": "      # assignment is right associative: only once the value is complete",
+          "old": 110,
+          "new": 112
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:assign, /𝑥＝#{V}(?=⏎)/, Type::Expression),",
+          "old": 111,
+          "new": 113
+        },
+        {
+          "kind": " ",
+          "text": "      # block headers",
+          "old": 112,
+          "new": 114
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:if_head, /🔜#{V}⏎/, Type::IfHead),",
+          "old": 113,
+          "new": 115
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/wasm_emitter_spec.cr",
+      "note": "The test runs each form through compiled WebAssembly and compares the answers. A robot can use familiar parentheses without changing what `sqrt` or `scan` does.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "  wasmer_it \"calls a zero-argument builtin\" do",
+          "old": 78,
+          "new": 82
+        },
+        {
+          "kind": " ",
+          "text": "    run_puts(\"puts damage\\nputs speed\\n\").should eq [11, 22]",
+          "old": 79,
+          "new": 83
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 80,
+          "new": 84
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 81,
+          "new": 85
+        },
+        {
+          "kind": " ",
+          "text": "  wasmer_it \"calls a two-argument builtin with both arguments in order\" do",
+          "old": 82,
+          "new": 86
+        },
+        {
+          "kind": " ",
+          "text": "    run_puts(\"puts scan 3, 4\\n\").should eq [7]",
+          "old": 83,
+          "new": 87
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 84,
+          "new": 88
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 85,
+          "new": 89
+        },
+        {
+          "kind": " ",
+          "text": "  wasmer_it \"calls the math one-argument builtins\" do",
+          "old": 86,
+          "new": 90
+        },
+        {
+          "kind": " ",
+          "text": "    run_puts(\"puts sqrt(16)\\nputs sin(90)\\nputs cos(0)\\n\").should eq [4, 1, 1]",
+          "old": 87,
+          "new": 91
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 88,
+          "new": 92
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 89,
+          "new": 93
+        },
+        {
+          "kind": "+",
+          "text": "  wasmer_it \"calls one- and two-argument builtins with parens the same as bare\" do",
+          "old": null,
+          "new": 94
+        },
+        {
+          "kind": "+",
+          "text": "    run_puts(\"puts sqrt(16)\\n\").should eq run_puts(\"puts sqrt 16\\n\")",
+          "old": null,
+          "new": 95
+        },
+        {
+          "kind": "+",
+          "text": "    run_puts(\"puts scan(3, 4)\\n\").should eq run_puts(\"puts scan 3, 4\\n\")",
+          "old": null,
+          "new": 96
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 97
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 98
+        },
+        {
+          "kind": " ",
+          "text": "  it \"only imports the builtins the program actually calls\" do",
+          "old": 90,
+          "new": 99
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "    program = CrystalRobots::Compiler::Parser.new(\"puts damage\\n\").program",
+          "old": 91,
+          "new": 100
+        },
+        {
+          "kind": " ",
+          "text": "    W.new(program).imports.should eq [\"puts\", \"damage\"]",
+          "old": 92,
+          "new": 101
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 93,
+          "new": 102
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 94,
+          "new": 103
+        },
+        {
+          "kind": " ",
+          "text": "  wasmer_it \"calls a user function and uses its implicit last-expression return\" do",
+          "old": 95,
+          "new": 104
+        },
+        {
+          "kind": " ",
+          "text": "    source = <<-ROBOT",
+          "old": 96,
+          "new": 105
+        },
+        {
+          "kind": " ",
+          "text": "      def double(n)",
+          "old": 97,
+          "new": 106
+        },
+        {
+          "kind": " ",
+          "text": "      n * 2",
+          "old": 98,
+          "new": 107
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 99,
+          "new": 108
+        },
+        {
+          "kind": " ",
+          "text": "      puts double(21)",
+          "old": 100,
+          "new": 109
+        },
+        {
+          "kind": " ",
+          "text": "      ROBOT",
+          "old": 101,
+          "new": 110
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

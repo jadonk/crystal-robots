@@ -1,0 +1,363 @@
+{
+  "sha": "3cd6dd936573dc9d002ef437622cfff1e8467c52",
+  "subject": "Phase B.6: assignment inside a condition, bare calls as call arguments",
+  "summary": "Robots can assign while testing a condition and pass bare calls as arguments.",
+  "files": [
+    {
+      "path": "spec/checker_spec.cr",
+      "added": 5,
+      "removed": 0,
+      "role": "Checks that mistakes are reported clearly."
+    },
+    {
+      "path": "spec/interpreter_spec.cr",
+      "added": 5,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 5,
+      "removed": 0,
+      "role": "Checks which robot programs the parser accepts."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 25,
+      "removed": 0,
+      "role": "Checks the instructions written for robot programs."
+    },
+    {
+      "path": "src/compiler/checker.cr",
+      "added": 7,
+      "removed": 0,
+      "role": "Finds mistakes in a robot program before it runs."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 10,
+      "removed": 8,
+      "role": "Groups the words and symbols in a robot program into meaningful steps."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/parser.cr",
+      "note": "An assignment can now finish before `)` or `,` as well as a line break. This lets a robot save a scan result inside a `while` test instead of needing a separate line.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "      Rule.new(:neg, /(?<![№𝑥😑⟯])⊖#{V}/, Type::Expression),",
+          "old": 109,
+          "new": 111
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:mul, infix(MULOPS, \"\"), Type::Expression),",
+          "old": 110,
+          "new": 112
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:add, infix(ADDOPS, MULOPS), Type::Expression),",
+          "old": 111,
+          "new": 113
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:cmp, infix(CMPOPS, MULOPS + ADDOPS), Type::Expression),",
+          "old": 112,
+          "new": 114
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:eq, infix(EQOPS, MULOPS + ADDOPS + CMPOPS), Type::Expression),",
+          "old": 113,
+          "new": 115
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:and, infix(ANDOPS, MULOPS + ADDOPS + CMPOPS + EQOPS), Type::Expression),",
+          "old": 114,
+          "new": 116
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:or, infix(OROPS, MULOPS + ADDOPS + CMPOPS + EQOPS + ANDOPS), Type::Expression),",
+          "old": 115,
+          "new": 117
+        },
+        {
+          "kind": "-",
+          "text": "      Rule.new(:command1, /∊#{V}(?=[⏎⟯])/, Type::Expression),",
+          "old": 116,
+          "new": null
+        },
+        {
+          "kind": "-",
+          "text": "      Rule.new(:command2, /∋#{V}，#{V}(?=[⏎⟯])/, Type::Expression),",
+          "old": 117,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "      Rule.new(:command1, /∊#{V}(?=[⏎⟯，])/, Type::Expression),",
+          "old": null,
+          "new": 118
+        },
+        {
+          "kind": "+",
+          "text": "      Rule.new(:command2, /∋#{V}，#{V}(?=[⏎⟯，])/, Type::Expression),",
+          "old": null,
+          "new": 119
+        },
+        {
+          "kind": " ",
+          "text": "      # assignment is right associative: only once the value is complete",
+          "old": 118,
+          "new": 120
+        }
+      ],
+      "lines": [
+        {
+          "kind": "-",
+          "text": "      Rule.new(:assign, /𝑥＝#{V}(?=⏎)/, Type::Expression),",
+          "old": 119,
+          "new": null
+        },
+        {
+          "kind": "-",
+          "text": "      Rule.new(:opassign, /𝑥[➕➖✖⁒]#{V}(?=⏎)/, Type::Expression),",
+          "old": 120,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "      Rule.new(:assign, /𝑥＝#{V}(?=[⏎⟯，])/, Type::Expression),",
+          "old": null,
+          "new": 121
+        },
+        {
+          "kind": "+",
+          "text": "      Rule.new(:opassign, /𝑥[➕➖✖⁒]#{V}(?=[⏎⟯，])/, Type::Expression),",
+          "old": null,
+          "new": 122
+        },
+        {
+          "kind": " ",
+          "text": "      # block headers",
+          "old": 121,
+          "new": 123
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:if_head, /🔜#{V}⏎/, Type::IfHead),",
+          "old": 122,
+          "new": 124
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:elsif_head, /🔘#{V}⏎/, Type::ElsifHead),",
+          "old": 123,
+          "new": 125
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:while_head, /🔣#{V}⏎/, Type::WhileHead),",
+          "old": 124,
+          "new": 126
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "      Rule.new(:until_head, /🔂#{V}⏎/, Type::UntilHead),",
+          "old": 125,
+          "new": 127
+        },
+        {
+          "kind": " ",
+          "text": "      # simple statements",
+          "old": 126,
+          "new": 128
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:return, /↩#{V}?⏎/, Type::Statement),",
+          "old": 127,
+          "new": 129
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:break, /🔓⏎/, Type::Statement),",
+          "old": 128,
+          "new": 130
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:exprstmt, /#{V}⏎/, Type::Statement),",
+          "old": 129,
+          "new": 131
+        },
+        {
+          "kind": " ",
+          "text": "      # blocks reduce only once their body is entirely statements",
+          "old": 130,
+          "new": 132
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:if, /🅸❢*(🅴❢*)*(🔗⏎❢*)?🔙⏎/, Type::Statement),",
+          "old": 131,
+          "new": 133
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:while, /🆆❢*🔙⏎/, Type::Statement),",
+          "old": 132,
+          "new": 134
+        }
+      ],
+      "line_notes": {
+        "Rule.new(:assign, /𝑥＝#{V}(?=[⏎⟯，])": "This says the value may end before a line break, closing parenthesis or comma."
+      }
+    },
+    {
+      "file": "spec/checker_spec.cr",
+      "note": "The checker test uses a name first assigned in a condition and expects no error. That matters because a valid robot should not be stopped before it runs.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "  it \"allows a function to call one defined later in the source\" do",
+          "old": 48,
+          "new": 48
+        },
+        {
+          "kind": " ",
+          "text": "    issues(\"def first\\nsecond()\\nend\\ndef second\\n1\\nend\\nputs first()\\n\").should be_empty",
+          "old": 49,
+          "new": 49
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 50,
+          "new": 50
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 51,
+          "new": 51
+        },
+        {
+          "kind": " ",
+          "text": "  it \"allows a plain top-level assignment as an implicit global constant\" do",
+          "old": 52,
+          "new": 52
+        },
+        {
+          "kind": " ",
+          "text": "    issues(\"C1X = 10\\nputs C1X\\n\").should be_empty",
+          "old": 53,
+          "new": 53
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 54,
+          "new": 54
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 55,
+          "new": 55
+        },
+        {
+          "kind": " ",
+          "text": "  it \"allows a bare call to a zero-argument function\" do",
+          "old": 56,
+          "new": 56
+        },
+        {
+          "kind": " ",
+          "text": "    issues(\"def go\\n1\\nend\\nputs go\\n\").should be_empty",
+          "old": 57,
+          "new": 57
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 58,
+          "new": 58
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 59,
+          "new": 59
+        },
+        {
+          "kind": "+",
+          "text": "  it \"allows an assignment inside a condition, at the top level and inside main\" do",
+          "old": null,
+          "new": 60
+        },
+        {
+          "kind": "+",
+          "text": "    issues(\"i = 3\\nwhile (n = i) > 0\\ni -= 1\\nend\\nputs n\\n\").should be_empty",
+          "old": null,
+          "new": 61
+        },
+        {
+          "kind": "+",
+          "text": "    issues(%(main(\"Test\") do\\nwhile (n = 1) > 0\\nbreak\\nend\\nputs n\\nend\\n)).should be_empty",
+          "old": null,
+          "new": 62
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 63
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 64
+        },
+        {
+          "kind": " ",
+          "text": "  it \"reports every issue, not just the first\" do",
+          "old": 60,
+          "new": 65
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "    issues(\"puts mystery\\nputs go(1)\\n\").should eq [\"undefined variable mystery\", \"undefined function go\"]",
+          "old": 61,
+          "new": 66
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 62,
+          "new": 67
+        },
+        {
+          "kind": " ",
+          "text": "end",
+          "old": 63,
+          "new": 68
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

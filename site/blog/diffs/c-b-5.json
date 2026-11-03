@@ -1,0 +1,457 @@
+{
+  "sha": "610e3b59f03f20c104f5765377e62968d64b04fd",
+  "subject": "Phase B.5: logical and/or and bitwise xor",
+  "summary": "Robots can combine tests and use bitwise exclusive-or.",
+  "files": [
+    {
+      "path": "spec/interpreter_spec.cr",
+      "added": 11,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 6,
+      "removed": 0,
+      "role": "Checks which robot programs the parser accepts."
+    },
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 10,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 15,
+      "removed": 2,
+      "role": "Checks the instructions written for robot programs."
+    },
+    {
+      "path": "src/compiler/checker.cr",
+      "added": 1,
+      "removed": 1,
+      "role": "Finds mistakes in a robot program before it runs."
+    },
+    {
+      "path": "src/compiler/interpreter.cr",
+      "added": 4,
+      "removed": 1,
+      "role": "Runs robot steps directly so their behavior can be checked."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 7,
+      "removed": 2,
+      "role": "Groups the words and symbols in a robot program into meaningful steps."
+    },
+    {
+      "path": "src/compiler/program.cr",
+      "added": 3,
+      "removed": 0,
+      "role": "Builds or runs a robot program."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 9,
+      "removed": 1,
+      "role": "Turns robot steps into WebAssembly instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/interpreter.cr",
+      "note": "Both sides of `&&` and `||` have already been evaluated when these lines combine their answers into 1 or 0. `^` combines the bits of two whole numbers, which gives a robot another way to calculate.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "      when Type::AddOperator then left + right",
+          "old": 317,
+          "new": 317
+        },
+        {
+          "kind": " ",
+          "text": "      when Type::SubOperator then left - right",
+          "old": 318,
+          "new": 318
+        },
+        {
+          "kind": " ",
+          "text": "      when Type::MulOperator then left * right",
+          "old": 319,
+          "new": 319
+        },
+        {
+          "kind": " ",
+          "text": "      when Type::DivOperator, Type::FloorDivOperator",
+          "old": 320,
+          "new": 320
+        },
+        {
+          "kind": " ",
+          "text": "        left.tdiv(right)",
+          "old": 321,
+          "new": 321
+        },
+        {
+          "kind": " ",
+          "text": "      when Type::ModOperator then left.remainder(right)",
+          "old": 322,
+          "new": 322
+        },
+        {
+          "kind": " ",
+          "text": "      when Type::EqOperator  then left == right ? 1 : 0",
+          "old": 323,
+          "new": 323
+        },
+        {
+          "kind": " ",
+          "text": "      when Type::NeOperator  then left != right ? 1 : 0",
+          "old": 324,
+          "new": 324
+        },
+        {
+          "kind": " ",
+          "text": "      when Type::LtOperator  then left < right ? 1 : 0",
+          "old": 325,
+          "new": 325
+        },
+        {
+          "kind": " ",
+          "text": "      when Type::GtOperator  then left > right ? 1 : 0",
+          "old": 326,
+          "new": 326
+        },
+        {
+          "kind": " ",
+          "text": "      when Type::LeOperator  then left <= right ? 1 : 0",
+          "old": 327,
+          "new": 327
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "      when Type::GeOperator  then left >= right ? 1 : 0",
+          "old": 328,
+          "new": 328
+        },
+        {
+          "kind": "+",
+          "text": "      when Type::AndOperator then left != 0 && right != 0 ? 1 : 0",
+          "old": null,
+          "new": 329
+        },
+        {
+          "kind": "+",
+          "text": "      when Type::OrOperator  then left != 0 || right != 0 ? 1 : 0",
+          "old": null,
+          "new": 330
+        },
+        {
+          "kind": "+",
+          "text": "      when Type::XorOperator then left ^ right",
+          "old": null,
+          "new": 331
+        },
+        {
+          "kind": " ",
+          "text": "      else",
+          "old": 329,
+          "new": 332
+        },
+        {
+          "kind": " ",
+          "text": "        raise \"operator #{opt} is not supported by the interpreter\"",
+          "old": 330,
+          "new": 333
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 331,
+          "new": 334
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 332,
+          "new": 335
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 333,
+          "new": 336
+        },
+        {
+          "kind": " ",
+          "text": "    private def builtin0(name : String) : Int32",
+          "old": 334,
+          "new": 337
+        },
+        {
+          "kind": " ",
+          "text": "      case name",
+          "old": 335,
+          "new": 338
+        },
+        {
+          "kind": " ",
+          "text": "      when \"damage\" then @host.damage",
+          "old": 336,
+          "new": 339
+        },
+        {
+          "kind": " ",
+          "text": "      when \"speed\"  then @host.speed",
+          "old": 337,
+          "new": 340
+        },
+        {
+          "kind": " ",
+          "text": "      when \"loc_x\"  then @host.loc_x",
+          "old": 338,
+          "new": 341
+        },
+        {
+          "kind": " ",
+          "text": "      when \"loc_y\"  then @host.loc_y",
+          "old": 339,
+          "new": 342
+        },
+        {
+          "kind": " ",
+          "text": "      when \"sleep\"  then @host.sleep",
+          "old": 340,
+          "new": 343
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/interpreter_spec.cr",
+      "note": "The test tries all three operators and checks the numbers printed. It keeps the interpreter in step with the compiled robot path.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "      puts 3",
+          "old": 24,
+          "new": 24
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 25,
+          "new": 25
+        },
+        {
+          "kind": " ",
+          "text": "      j = 0",
+          "old": 26,
+          "new": 26
+        },
+        {
+          "kind": " ",
+          "text": "      while j < 100",
+          "old": 27,
+          "new": 27
+        },
+        {
+          "kind": " ",
+          "text": "      j = j + 1",
+          "old": 28,
+          "new": 28
+        },
+        {
+          "kind": " ",
+          "text": "      break",
+          "old": 29,
+          "new": 29
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 30,
+          "new": 30
+        },
+        {
+          "kind": " ",
+          "text": "      puts j",
+          "old": 31,
+          "new": 31
+        },
+        {
+          "kind": " ",
+          "text": "      ROBOT",
+          "old": 32,
+          "new": 32
+        },
+        {
+          "kind": " ",
+          "text": "    interpret_puts(source).should eq [1, 1]",
+          "old": 33,
+          "new": 33
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 34,
+          "new": 34
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 35,
+          "new": 35
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  it \"computes && || and ^, evaluating both sides\" do",
+          "old": null,
+          "new": 36
+        },
+        {
+          "kind": "+",
+          "text": "    source = <<-ROBOT",
+          "old": null,
+          "new": 37
+        },
+        {
+          "kind": "+",
+          "text": "      a = 3 > 2",
+          "old": null,
+          "new": 38
+        },
+        {
+          "kind": "+",
+          "text": "      b = 2 > 3",
+          "old": null,
+          "new": 39
+        },
+        {
+          "kind": "+",
+          "text": "      puts a && b",
+          "old": null,
+          "new": 40
+        },
+        {
+          "kind": "+",
+          "text": "      puts a || b",
+          "old": null,
+          "new": 41
+        },
+        {
+          "kind": "+",
+          "text": "      puts 5 ^ 3",
+          "old": null,
+          "new": 42
+        },
+        {
+          "kind": "+",
+          "text": "      ROBOT",
+          "old": null,
+          "new": 43
+        },
+        {
+          "kind": "+",
+          "text": "    interpret_puts(source).should eq [0, 1, 6]",
+          "old": null,
+          "new": 44
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 45
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 46
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "  it \"compound-assigns += -= *= %=\" do",
+          "old": 36,
+          "new": 47
+        },
+        {
+          "kind": " ",
+          "text": "    interpret_puts(\"global(i, 10)\\ni += 5\\ni -= 2\\ni *= 3\\ni %= 10\\nputs i\\n\").should eq [((10 + 5 - 2) * 3) % 10]",
+          "old": 37,
+          "new": 48
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 38,
+          "new": 49
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 39,
+          "new": 50
+        },
+        {
+          "kind": " ",
+          "text": "  it \"calls builtins through the host, bare and parenthesized\" do",
+          "old": 40,
+          "new": 51
+        },
+        {
+          "kind": " ",
+          "text": "    interpret_puts(\"puts damage\\nputs scan 3, 4\\n\").should eq [11, 7]",
+          "old": 41,
+          "new": 52
+        },
+        {
+          "kind": " ",
+          "text": "    interpret_puts(\"puts sqrt(16)\\nputs scan(3, 4)\\n\").should eq [4, 7]",
+          "old": 42,
+          "new": 53
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 43,
+          "new": 54
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 44,
+          "new": 55
+        },
+        {
+          "kind": " ",
+          "text": "  it \"calls user functions, including recursively, with implicit and explicit return\" do",
+          "old": 45,
+          "new": 56
+        },
+        {
+          "kind": " ",
+          "text": "    source = <<-ROBOT",
+          "old": 46,
+          "new": 57
+        },
+        {
+          "kind": " ",
+          "text": "      def fact(n)",
+          "old": 47,
+          "new": 58
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

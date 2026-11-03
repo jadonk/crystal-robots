@@ -1,0 +1,425 @@
+{
+  "sha": "7fbce2eda2056d78a3a2c544737460addacb3f90",
+  "subject": "Phase A.10: user-defined functions",
+  "summary": "Robots can name a set of steps and call it later.",
+  "files": [
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 10,
+      "removed": 0,
+      "role": "Checks which robot programs the parser accepts."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 52,
+      "removed": 0,
+      "role": "Checks the instructions written for robot programs."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 14,
+      "removed": 8,
+      "role": "Groups the words and symbols in a robot program into meaningful steps."
+    },
+    {
+      "path": "src/compiler/program.cr",
+      "added": 10,
+      "removed": 7,
+      "role": "Builds or runs a robot program."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 163,
+      "removed": 37,
+      "role": "Turns robot steps into WebAssembly instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/parser.cr",
+      "note": "The parser must tell a plain variable from the start of a function call. The changed `V` pattern waits when a name is followed by `(`, so a call such as `aim(30)` stays together instead of being split too soon.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "      {/\\A[ \\t\\r]+/, :skip},",
+          "old": 57,
+          "new": 57
+        },
+        {
+          "kind": " ",
+          "text": "      {/\\A(\\n|;)+/, :newline},",
+          "old": 58,
+          "new": 58
+        },
+        {
+          "kind": " ",
+          "text": "      {/\\A[0-9]+/, :number},",
+          "old": 59,
+          "new": 59
+        },
+        {
+          "kind": " ",
+          "text": "      {/\\A(\\/\\/|==|!=|<=|>=|[-+*\\/%(),=<>])/, :operator},",
+          "old": 60,
+          "new": 60
+        },
+        {
+          "kind": " ",
+          "text": "      {/\\A[A-Za-z_][A-Za-z0-9_]*/, :word},",
+          "old": 61,
+          "new": 61
+        },
+        {
+          "kind": " ",
+          "text": "    ]",
+          "old": 62,
+          "new": 62
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 63,
+          "new": 63
+        },
+        {
+          "kind": "-",
+          "text": "    # Anything that is already a value: a number, an identifier, or a",
+          "old": 64,
+          "new": null
+        },
+        {
+          "kind": "-",
+          "text": "    # reduced expression.",
+          "old": 65,
+          "new": null
+        },
+        {
+          "kind": "-",
+          "text": "    V = \"[№𝑥😑]\"",
+          "old": 66,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "    # Anything that is already a value: a number, a reduced expression, or",
+          "old": null,
+          "new": 64
+        },
+        {
+          "kind": "+",
+          "text": "    # an identifier -- but not one immediately followed by `(`, which is a",
+          "old": null,
+          "new": 65
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "    # pending call and must wait for the `call` rule, not be scooped up as",
+          "old": null,
+          "new": 66
+        },
+        {
+          "kind": "+",
+          "text": "    # a bare value by an infix rule first.",
+          "old": null,
+          "new": 67
+        },
+        {
+          "kind": "+",
+          "text": "    V = \"(?:[№😑]|𝑥(?!⟮))\"",
+          "old": null,
+          "new": 68
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 67,
+          "new": 69
+        },
+        {
+          "kind": " ",
+          "text": "    # Infix operator glyphs by precedence level, tightest first.",
+          "old": 68,
+          "new": 70
+        },
+        {
+          "kind": " ",
+          "text": "    MULOPS = \"⊗／⊘％\"",
+          "old": 69,
+          "new": 71
+        },
+        {
+          "kind": " ",
+          "text": "    ADDOPS = \"⊕⊖\"",
+          "old": 70,
+          "new": 72
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "    CMPOPS = \"≺≻≼≽\"",
+          "old": 71,
+          "new": 73
+        },
+        {
+          "kind": " ",
+          "text": "    EQOPS  = \"≟≠\"",
+          "old": 72,
+          "new": 74
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 73,
+          "new": 75
+        },
+        {
+          "kind": " ",
+          "text": "    # An infix rule at level L reduces `V op V` only when the left operand",
+          "old": 74,
+          "new": 76
+        },
+        {
+          "kind": " ",
+          "text": "    # is not preceded by an operator of level <= L (that operand belongs to",
+          "old": 75,
+          "new": 77
+        },
+        {
+          "kind": " ",
+          "text": "    # the earlier operator, giving left associativity) and the right",
+          "old": 76,
+          "new": 78
+        },
+        {
+          "kind": " ",
+          "text": "    # operand is not followed by an operator of a tighter level (that",
+          "old": 77,
+          "new": 79
+        },
+        {
+          "kind": " ",
+          "text": "    # operand belongs to the tighter operator instead). See docs/PARSER.md",
+          "old": 78,
+          "new": 80
+        },
+        {
+          "kind": " ",
+          "text": "    # section 2 for the full reasoning.",
+          "old": 79,
+          "new": 81
+        },
+        {
+          "kind": " ",
+          "text": "    def self.infix(ops : String, higher : String) : Regex",
+          "old": 80,
+          "new": 82
+        },
+        {
+          "kind": " ",
+          "text": "      ahead = higher.empty? ? \"\" : \"(?![#{higher}])\"",
+          "old": 81,
+          "new": 83
+        },
+        {
+          "kind": " ",
+          "text": "      Regex.new(\"(?<![#{higher}#{ops}])#{V}[#{ops}]#{V}#{ahead}\")",
+          "old": 82,
+          "new": 84
+        }
+      ],
+      "line_notes": {
+        "V = ": "The `(?!⟮)` part means “only if an opening parenthesis does not come next.” That leaves the name for the call rule."
+      }
+    },
+    {
+      "file": "src/compiler/wasm_emitter.cr",
+      "note": "A call evaluates each argument, then jumps to the named function. This lets a robot reuse a calculation or action instead of copying its steps everywhere.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "      when :mul, :add, :cmp, :eq",
+          "old": 238,
+          "new": 321
+        },
+        {
+          "kind": "-",
+          "text": "        binary(@program.type(@program.arg(i, 1)), expression(@program.arg(i, 0)), expression(@program.arg(i, 2)))",
+          "old": 239,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "        binary(@program.type(@program.arg(i, 1)), expression(@program.arg(i, 0), ctx), expression(@program.arg(i, 2), ctx))",
+          "old": null,
+          "new": 322
+        },
+        {
+          "kind": " ",
+          "text": "      when :call0",
+          "old": 240,
+          "new": 323
+        },
+        {
+          "kind": " ",
+          "text": "        call(import_index(@program.lexeme(i)))",
+          "old": 241,
+          "new": 324
+        },
+        {
+          "kind": " ",
+          "text": "      when :command1",
+          "old": 242,
+          "new": 325
+        },
+        {
+          "kind": "-",
+          "text": "        expression(@program.arg(i, 1)) + call(import_index(@program.lexeme(@program.arg(i, 0))))",
+          "old": 243,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "        expression(@program.arg(i, 1), ctx) + call(import_index(@program.lexeme(@program.arg(i, 0))))",
+          "old": null,
+          "new": 326
+        },
+        {
+          "kind": " ",
+          "text": "      when :command2",
+          "old": 244,
+          "new": 327
+        },
+        {
+          "kind": "-",
+          "text": "        expression(@program.arg(i, 1)) + expression(@program.arg(i, 3)) +",
+          "old": 245,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "        expression(@program.arg(i, 1), ctx) + expression(@program.arg(i, 3), ctx) +",
+          "old": null,
+          "new": 328
+        },
+        {
+          "kind": " ",
+          "text": "          call(import_index(@program.lexeme(@program.arg(i, 0))))",
+          "old": 246,
+          "new": 329
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "      when :call",
+          "old": null,
+          "new": 330
+        },
+        {
+          "kind": "+",
+          "text": "        kids = @program.children(i)",
+          "old": null,
+          "new": 331
+        },
+        {
+          "kind": "+",
+          "text": "        name = @program.lexeme(kids[0])",
+          "old": null,
+          "new": 332
+        },
+        {
+          "kind": "+",
+          "text": "        args = kids[2..].reject { |k| {Type::CloseParen, Type::Comma}.includes?(@program.type(k)) }",
+          "old": null,
+          "new": 333
+        },
+        {
+          "kind": "+",
+          "text": "        args.reduce(Bytes[]) { |code, a| code + expression(a, ctx) } + call(function_index(name))",
+          "old": null,
+          "new": 334
+        },
+        {
+          "kind": " ",
+          "text": "      else",
+          "old": 247,
+          "new": 335
+        },
+        {
+          "kind": " ",
+          "text": "        raise Unsupported.new(\"expression #{n.rule} is not supported in WASM\")",
+          "old": 248,
+          "new": 336
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 249,
+          "new": 337
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 250,
+          "new": 338
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 251,
+          "new": 339
+        },
+        {
+          "kind": " ",
+          "text": "    # `/` and `//` both truncate toward zero for now, and none of the four",
+          "old": 252,
+          "new": 340
+        },
+        {
+          "kind": " ",
+          "text": "    # trap on division by zero the way WASM's own `i32.div_s` does; CROBOTS's",
+          "old": 253,
+          "new": 341
+        },
+        {
+          "kind": " ",
+          "text": "    # floored division and its divide-by-zero-is-zero rule are a later",
+          "old": 254,
+          "new": 342
+        },
+        {
+          "kind": " ",
+          "text": "    # commit's problem, once a robot can actually divide by something that",
+          "old": 255,
+          "new": 343
+        },
+        {
+          "kind": " ",
+          "text": "    # might be zero.",
+          "old": 256,
+          "new": 344
+        },
+        {
+          "kind": " ",
+          "text": "    private def binary(opt : Type, left : Bytes, right : Bytes) : Bytes",
+          "old": 257,
+          "new": 345
+        },
+        {
+          "kind": " ",
+          "text": "      case opt",
+          "old": 258,
+          "new": 346
+        }
+      ],
+      "line_notes": {
+        "args.reduce(Bytes[])": "Write each argument before the call, so the function can take those values from the stack in order."
+      }
+    }
+  ]
+}

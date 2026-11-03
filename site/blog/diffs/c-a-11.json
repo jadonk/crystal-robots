@@ -1,0 +1,286 @@
+{
+  "sha": "2631ebd6d9b16e38cfce89f46779de693a6f9093",
+  "subject": "Phase A.11: main(\"Name\") do ... end, the entry point",
+  "summary": "Each robot can have a named starting block.",
+  "files": [
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 4,
+      "removed": 0,
+      "role": "Checks which robot programs the parser accepts."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 15,
+      "removed": 0,
+      "role": "Checks the instructions written for robot programs."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 10,
+      "removed": 4,
+      "role": "Groups the words and symbols in a robot program into meaningful steps."
+    },
+    {
+      "path": "src/compiler/program.cr",
+      "added": 4,
+      "removed": 0,
+      "role": "Builds or runs a robot program."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 13,
+      "removed": 2,
+      "role": "Turns robot steps into WebAssembly instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/wasm_emitter.cr",
+      "note": "The compiler sets the statements inside `main` aside and writes them after the other top-level statements. That lets setup happen first, wherever the named starting block appears in the file.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 453,
+          "new": 453
+        },
+        {
+          "kind": " ",
+          "text": "      ctx.depth -= 1",
+          "old": 454,
+          "new": 454
+        },
+        {
+          "kind": " ",
+          "text": "      code + op(Opcodes::End)",
+          "old": 455,
+          "new": 455
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 456,
+          "new": 456
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 457,
+          "new": 457
+        },
+        {
+          "kind": " ",
+          "text": "    private def locals_decl(count : Int32) : Bytes",
+          "old": 458,
+          "new": 458
+        },
+        {
+          "kind": " ",
+          "text": "      count == 0 ? Bytes[0] : Bytes[1] + WASM_Emitter.unsignedLEB128(count) + Bytes[Valtype::I32.value]",
+          "old": 459,
+          "new": 459
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 460,
+          "new": 460
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 461,
+          "new": 461
+        },
+        {
+          "kind": "-",
+          "text": "    # `run`: one `statement` per top-level statement, `def`s excluded.",
+          "old": 462,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "    # `run`: every top-level statement except `def` (compiled separately)",
+          "old": null,
+          "new": 462
+        },
+        {
+          "kind": "+",
+          "text": "    # and `main` (deferred: its body runs last, as the entry point).",
+          "old": null,
+          "new": 463
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "    private def run_body : Bytes",
+          "old": 463,
+          "new": 464
+        },
+        {
+          "kind": " ",
+          "text": "      ctx = Ctx.new",
+          "old": 464,
+          "new": 465
+        },
+        {
+          "kind": "+",
+          "text": "      main_stmts = [] of Int32",
+          "old": null,
+          "new": 466
+        },
+        {
+          "kind": " ",
+          "text": "      code = Bytes[]",
+          "old": 465,
+          "new": 467
+        },
+        {
+          "kind": "-",
+          "text": "      body_of(@program.root).each { |stmt| code += statement(stmt, ctx) }",
+          "old": 466,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "      body_of(@program.root).each do |stmt|",
+          "old": null,
+          "new": 468
+        },
+        {
+          "kind": "+",
+          "text": "        case @program[stmt].rule",
+          "old": null,
+          "new": 469
+        },
+        {
+          "kind": "+",
+          "text": "        when :def",
+          "old": null,
+          "new": 470
+        },
+        {
+          "kind": "+",
+          "text": "        when :main",
+          "old": null,
+          "new": 471
+        },
+        {
+          "kind": "+",
+          "text": "          main_stmts = body_of(stmt)",
+          "old": null,
+          "new": 472
+        },
+        {
+          "kind": "+",
+          "text": "        else",
+          "old": null,
+          "new": 473
+        },
+        {
+          "kind": "+",
+          "text": "          code += statement(stmt, ctx)",
+          "old": null,
+          "new": 474
+        },
+        {
+          "kind": "+",
+          "text": "        end",
+          "old": null,
+          "new": 475
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 476
+        },
+        {
+          "kind": "+",
+          "text": "      main_stmts.each { |s| code += statement(s, ctx) }",
+          "old": null,
+          "new": 477
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "      code += op(Opcodes::End)",
+          "old": 467,
+          "new": 478
+        },
+        {
+          "kind": " ",
+          "text": "      locals_decl(ctx.locals.size) + code",
+          "old": 468,
+          "new": 479
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 469,
+          "new": 480
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 470,
+          "new": 481
+        },
+        {
+          "kind": " ",
+          "text": "    # One WASM function per `def`: its parameters seed `ctx.locals`, a",
+          "old": 471,
+          "new": 482
+        },
+        {
+          "kind": " ",
+          "text": "    # further local (`ctx.ret`) holds the implicit return value, and the",
+          "old": 472,
+          "new": 483
+        },
+        {
+          "kind": " ",
+          "text": "    # body ends by pushing it.",
+          "old": 473,
+          "new": 484
+        },
+        {
+          "kind": " ",
+          "text": "    private def function_body(name : String) : Bytes",
+          "old": 474,
+          "new": 485
+        },
+        {
+          "kind": " ",
+          "text": "      stmt = @program.children(@program.root).find! do |s|",
+          "old": 475,
+          "new": 486
+        },
+        {
+          "kind": " ",
+          "text": "        @program[s].rule == :def && @program.lexeme(@program.children(@program.arg(s, 0))[1]) == name",
+          "old": 476,
+          "new": 487
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 477,
+          "new": 488
+        },
+        {
+          "kind": " ",
+          "text": "      head = @program.arg(stmt, 0)",
+          "old": 478,
+          "new": 489
+        }
+      ],
+      "line_notes": {
+        "main_stmts = body_of(stmt)": "Keep the robot’s starting steps for later. Other top-level setup steps are written first."
+      }
+    }
+  ]
+}

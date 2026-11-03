@@ -1,0 +1,415 @@
+{
+  "sha": "1f6dd1e2aeeafe3de8a31248278ef8206e094090",
+  "subject": "Phase B.7: case / when / else",
+  "summary": "Robots can choose a path with case and when.",
+  "files": [
+    {
+      "path": "spec/checker_spec.cr",
+      "added": 5,
+      "removed": 0,
+      "role": "Checks that mistakes are reported clearly."
+    },
+    {
+      "path": "spec/interpreter_spec.cr",
+      "added": 19,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 5,
+      "removed": 0,
+      "role": "Checks which robot programs the parser accepts."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 19,
+      "removed": 0,
+      "role": "Checks the instructions written for robot programs."
+    },
+    {
+      "path": "src/compiler/checker.cr",
+      "added": 12,
+      "removed": 1,
+      "role": "Finds mistakes in a robot program before it runs."
+    },
+    {
+      "path": "src/compiler/interpreter.cr",
+      "added": 25,
+      "removed": 0,
+      "role": "Runs robot steps directly so their behavior can be checked."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 6,
+      "removed": 6,
+      "role": "Groups the words and symbols in a robot program into meaningful steps."
+    },
+    {
+      "path": "src/compiler/program.cr",
+      "added": 4,
+      "removed": 0,
+      "role": "Builds or runs a robot program."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 42,
+      "removed": 0,
+      "role": "Turns robot steps into WebAssembly instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/parser.cr",
+      "note": "The parser groups a `case` value with its `when` choices and optional `else`. A robot can use this shape to choose among directions or states.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "      Rule.new(:elsif_head, /🔘#{V}⏎/, Type::ElsifHead),",
+          "old": 125,
+          "new": 122
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:while_head, /🔣#{V}⏎/, Type::WhileHead),",
+          "old": 126,
+          "new": 123
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:until_head, /🔂#{V}⏎/, Type::UntilHead),",
+          "old": 127,
+          "new": 124
+        },
+        {
+          "kind": "+",
+          "text": "      Rule.new(:case_head, /🔔#{V}⏎/, Type::CaseHead),",
+          "old": null,
+          "new": 125
+        },
+        {
+          "kind": "+",
+          "text": "      Rule.new(:when_head, /🔶#{V}⏎/, Type::WhenHead),",
+          "old": null,
+          "new": 126
+        },
+        {
+          "kind": " ",
+          "text": "      # simple statements",
+          "old": 128,
+          "new": 127
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:return, /↩#{V}?⏎/, Type::Statement),",
+          "old": 129,
+          "new": 128
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:break, /🔓⏎/, Type::Statement),",
+          "old": 130,
+          "new": 129
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:exprstmt, /#{V}⏎/, Type::Statement),",
+          "old": 131,
+          "new": 130
+        },
+        {
+          "kind": " ",
+          "text": "      # blocks reduce only once their body is entirely statements",
+          "old": 132,
+          "new": 131
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:if, /🅸❢*(🅴❢*)*(🔗⏎❢*)?🔙⏎/, Type::Statement),",
+          "old": 133,
+          "new": 132
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:while, /🆆❢*🔙⏎/, Type::Statement),",
+          "old": 134,
+          "new": 133
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "      Rule.new(:until, /🆄❢*🔙⏎/, Type::Statement),",
+          "old": 135,
+          "new": 134
+        },
+        {
+          "kind": "+",
+          "text": "      Rule.new(:case, /🅲(🆂❢*)+(🔗⏎❢*)?🔙⏎/, Type::Statement),",
+          "old": null,
+          "new": 135
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:def, /🅳❢*🔙⏎/, Type::Statement),",
+          "old": 136,
+          "new": 136
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:main, /🅼❢*🔙⏎/, Type::Statement),",
+          "old": 137,
+          "new": 137
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:program, /\\A❢+\\z/, Type::Program),",
+          "old": 138,
+          "new": 138
+        },
+        {
+          "kind": " ",
+          "text": "    ]",
+          "old": 139,
+          "new": 139
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 140,
+          "new": 140
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "    property program : Program",
+          "old": 141,
+          "new": 141
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 142,
+          "new": 142
+        },
+        {
+          "kind": " ",
+          "text": "    # Parse `src` completely. Raises `Parser::Error` when the text cannot",
+          "old": 143,
+          "new": 143
+        },
+        {
+          "kind": " ",
+          "text": "    # be reduced to a program.",
+          "old": 144,
+          "new": 144
+        },
+        {
+          "kind": " ",
+          "text": "    def initialize(src : String = \"\")",
+          "old": 145,
+          "new": 145
+        },
+        {
+          "kind": " ",
+          "text": "      @program = Program.new(src)",
+          "old": 146,
+          "new": 146
+        },
+        {
+          "kind": " ",
+          "text": "      Parser.parse(@program)",
+          "old": 147,
+          "new": 147
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/interpreter_spec.cr",
+      "note": "The test gives the same choice several values and checks the selected branch. It also checks the fallback when no `when` matches.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "require \"./spec_helper\"",
+          "old": 1,
+          "new": 1
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 2,
+          "new": 2
+        },
+        {
+          "kind": " ",
+          "text": "alias Interpreter = CrystalRobots::Compiler::Interpreter",
+          "old": 3,
+          "new": 3
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 4,
+          "new": 4
+        },
+        {
+          "kind": " ",
+          "text": "describe Interpreter do",
+          "old": 5,
+          "new": 5
+        },
+        {
+          "kind": " ",
+          "text": "  it \"runs puts, arithmetic and globals\" do",
+          "old": 6,
+          "new": 6
+        },
+        {
+          "kind": " ",
+          "text": "    interpret_puts(\"global(count, 5)\\nputs count + 1\\n\").should eq [6]",
+          "old": 7,
+          "new": 7
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 8,
+          "new": 8
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 9,
+          "new": 9
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  it \"matches the right case/when branch, and falls back to else\" do",
+          "old": null,
+          "new": 10
+        },
+        {
+          "kind": "+",
+          "text": "    source = <<-ROBOT",
+          "old": null,
+          "new": 11
+        },
+        {
+          "kind": "+",
+          "text": "      def label(n)",
+          "old": null,
+          "new": 12
+        },
+        {
+          "kind": "+",
+          "text": "      case n",
+          "old": null,
+          "new": 13
+        },
+        {
+          "kind": "+",
+          "text": "      when 1",
+          "old": null,
+          "new": 14
+        },
+        {
+          "kind": "+",
+          "text": "      10",
+          "old": null,
+          "new": 15
+        },
+        {
+          "kind": "+",
+          "text": "      when 2",
+          "old": null,
+          "new": 16
+        },
+        {
+          "kind": "+",
+          "text": "      20",
+          "old": null,
+          "new": 17
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "      else",
+          "old": null,
+          "new": 18
+        },
+        {
+          "kind": "+",
+          "text": "      99",
+          "old": null,
+          "new": 19
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 20
+        },
+        {
+          "kind": "+",
+          "text": "      end",
+          "old": null,
+          "new": 21
+        },
+        {
+          "kind": "+",
+          "text": "      puts label(1)",
+          "old": null,
+          "new": 22
+        },
+        {
+          "kind": "+",
+          "text": "      puts label(2)",
+          "old": null,
+          "new": 23
+        },
+        {
+          "kind": "+",
+          "text": "      puts label(3)",
+          "old": null,
+          "new": 24
+        },
+        {
+          "kind": "+",
+          "text": "      ROBOT",
+          "old": null,
+          "new": 25
+        },
+        {
+          "kind": "+",
+          "text": "    interpret_puts(source).should eq [10, 20, 99]",
+          "old": null,
+          "new": 26
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 27
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 28
+        },
+        {
+          "kind": " ",
+          "text": "  it \"runs while, until, if/elsif/else and break\" do",
+          "old": 10,
+          "new": 29
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

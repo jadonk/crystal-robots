@@ -1,0 +1,166 @@
+{
+  "sha": "f0e79e11431c48fb5c68164f2a71b1d7c1cf7f89",
+  "subject": "Phase A.13: the reference interpreter",
+  "summary": "Two independent runners can check each other’s answers.",
+  "files": [
+    {
+      "path": "spec/differential_spec.cr",
+      "added": 66,
+      "removed": 0,
+      "role": "Checks that both ways of running a robot agree."
+    },
+    {
+      "path": "spec/interpreter_spec.cr",
+      "added": 56,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 11,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "src/compiler/interpreter.cr",
+      "added": 311,
+      "removed": 0,
+      "role": "Runs robot steps directly so their behavior can be checked."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "spec/differential_spec.cr",
+      "note": "Each robot program is run twice, once by the [[interpreter|#word-interpreter]] and once compiled to WebAssembly, and the two printed answers must agree. This catches mistakes that one runner’s own tests might miss.",
+      "before": [
+        {
+          "kind": "+",
+          "text": "    shots = shots + 1",
+          "old": null,
+          "new": 47
+        },
+        {
+          "kind": "+",
+          "text": "    cannon angle, r",
+          "old": null,
+          "new": 48
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 49
+        },
+        {
+          "kind": "+",
+          "text": "    main(\"Test\") do",
+          "old": null,
+          "new": 50
+        },
+        {
+          "kind": "+",
+          "text": "    puts fact(5)",
+          "old": null,
+          "new": 51
+        },
+        {
+          "kind": "+",
+          "text": "    puts fire(10, 20)",
+          "old": null,
+          "new": 52
+        },
+        {
+          "kind": "+",
+          "text": "    puts shots",
+          "old": null,
+          "new": 53
+        },
+        {
+          "kind": "+",
+          "text": "    puts damage",
+          "old": null,
+          "new": 54
+        },
+        {
+          "kind": "+",
+          "text": "    puts sqrt 16",
+          "old": null,
+          "new": 55
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 56
+        },
+        {
+          "kind": "+",
+          "text": "    ROBOT",
+          "old": null,
+          "new": 57
+        },
+        {
+          "kind": "+",
+          "text": "}",
+          "old": null,
+          "new": 58
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 59
+        },
+        {
+          "kind": "+",
+          "text": "describe \"the interpreter and the WASM emitter\" do",
+          "old": null,
+          "new": 60
+        },
+        {
+          "kind": "+",
+          "text": "  ROBOTS.each do |name, source|",
+          "old": null,
+          "new": 61
+        },
+        {
+          "kind": "+",
+          "text": "    wasmer_it \"agree on #{name}\" do",
+          "old": null,
+          "new": 62
+        },
+        {
+          "kind": "+",
+          "text": "      interpret_puts(source).should eq run_puts(source)",
+          "old": null,
+          "new": 63
+        },
+        {
+          "kind": "+",
+          "text": "    end",
+          "old": null,
+          "new": 64
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 65
+        },
+        {
+          "kind": "+",
+          "text": "end",
+          "old": null,
+          "new": 66
+        }
+      ],
+      "line_notes": {
+        "interpret_puts(source).should eq run_puts(source)": "Compare the text printed by each runner for the same robot. A difference means at least one path needs fixing."
+      }
+    }
+  ]
+}

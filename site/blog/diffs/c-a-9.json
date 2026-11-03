@@ -1,0 +1,244 @@
+{
+  "sha": "abf7f9b50e57939d9d2a035cf3108e5f338ae486",
+  "subject": "Phase A.9: the CROBOTS builtins as host imports",
+  "summary": "Robots can sense the arena and act in it.",
+  "files": [
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 6,
+      "removed": 0,
+      "role": "Checks which robot programs the parser accepts."
+    },
+    {
+      "path": "spec/spec_helper.cr",
+      "added": 30,
+      "removed": 7,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 17,
+      "removed": 0,
+      "role": "Checks the instructions written for robot programs."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 13,
+      "removed": 3,
+      "role": "Groups the words and symbols in a robot program into meaningful steps."
+    },
+    {
+      "path": "src/compiler/program.cr",
+      "added": 11,
+      "removed": 1,
+      "role": "Builds or runs a robot program."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 45,
+      "removed": 14,
+      "role": "Turns robot steps into WebAssembly instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/wasm_emitter.cr",
+      "note": "A robot can now ask for its speed or damage and call actions such as `scan`, `cannon`, and `drive`. The compiler passes their arguments to the [[host|#word-host]], the part outside the robot program that knows the arena.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "      case n.rule",
+          "old": 202,
+          "new": 228
+        },
+        {
+          "kind": " ",
+          "text": "      when :lex",
+          "old": 203,
+          "new": 229
+        },
+        {
+          "kind": " ",
+          "text": "        n.type == Type::Identifier ? global_get(@program.value(n)) : const(@program.value(n).to_i32)",
+          "old": 204,
+          "new": 230
+        },
+        {
+          "kind": " ",
+          "text": "      when :assign",
+          "old": 205,
+          "new": 231
+        },
+        {
+          "kind": " ",
+          "text": "        name = @program.value(@program.arg(i, 0))",
+          "old": 206,
+          "new": 232
+        },
+        {
+          "kind": " ",
+          "text": "        expression(@program.arg(i, 2)) + global_set(name) + global_get(name)",
+          "old": 207,
+          "new": 233
+        },
+        {
+          "kind": " ",
+          "text": "      when :paren",
+          "old": 208,
+          "new": 234
+        },
+        {
+          "kind": " ",
+          "text": "        expression(@program.arg(i, 1))",
+          "old": 209,
+          "new": 235
+        },
+        {
+          "kind": " ",
+          "text": "      when :neg",
+          "old": 210,
+          "new": 236
+        },
+        {
+          "kind": " ",
+          "text": "        const(0) + expression(@program.arg(i, 1)) + op(Opcodes::I32_sub)",
+          "old": 211,
+          "new": 237
+        },
+        {
+          "kind": " ",
+          "text": "      when :mul, :add, :cmp, :eq",
+          "old": 212,
+          "new": 238
+        },
+        {
+          "kind": " ",
+          "text": "        binary(@program.type(@program.arg(i, 1)), expression(@program.arg(i, 0)), expression(@program.arg(i, 2)))",
+          "old": 213,
+          "new": 239
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "      when :call0",
+          "old": null,
+          "new": 240
+        },
+        {
+          "kind": "+",
+          "text": "        call(import_index(@program.lexeme(i)))",
+          "old": null,
+          "new": 241
+        },
+        {
+          "kind": " ",
+          "text": "      when :command1",
+          "old": 214,
+          "new": 242
+        },
+        {
+          "kind": "-",
+          "text": "        expression(@program.arg(i, 1)) + call(PUTS_IMPORT_INDEX)",
+          "old": 215,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "        expression(@program.arg(i, 1)) + call(import_index(@program.lexeme(@program.arg(i, 0))))",
+          "old": null,
+          "new": 243
+        },
+        {
+          "kind": "+",
+          "text": "      when :command2",
+          "old": null,
+          "new": 244
+        },
+        {
+          "kind": "+",
+          "text": "        expression(@program.arg(i, 1)) + expression(@program.arg(i, 3)) +",
+          "old": null,
+          "new": 245
+        }
+      ],
+      "after": [
+        {
+          "kind": "+",
+          "text": "          call(import_index(@program.lexeme(@program.arg(i, 0))))",
+          "old": null,
+          "new": 246
+        },
+        {
+          "kind": " ",
+          "text": "      else",
+          "old": 216,
+          "new": 247
+        },
+        {
+          "kind": " ",
+          "text": "        raise Unsupported.new(\"expression #{n.rule} is not supported in WASM\")",
+          "old": 217,
+          "new": 248
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 218,
+          "new": 249
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 219,
+          "new": 250
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 220,
+          "new": 251
+        },
+        {
+          "kind": " ",
+          "text": "    # `/` and `//` both truncate toward zero for now, and none of the four",
+          "old": 221,
+          "new": 252
+        },
+        {
+          "kind": " ",
+          "text": "    # trap on division by zero the way WASM's own `i32.div_s` does; CROBOTS's",
+          "old": 222,
+          "new": 253
+        },
+        {
+          "kind": " ",
+          "text": "    # floored division and its divide-by-zero-is-zero rule are a later",
+          "old": 223,
+          "new": 254
+        },
+        {
+          "kind": " ",
+          "text": "    # commit's problem, once a robot can actually divide by something that",
+          "old": 224,
+          "new": 255
+        },
+        {
+          "kind": " ",
+          "text": "    # might be zero.",
+          "old": 225,
+          "new": 256
+        },
+        {
+          "kind": " ",
+          "text": "    private def binary(opt : Type, left : Bytes, right : Bytes) : Bytes",
+          "old": 226,
+          "new": 257
+        }
+      ],
+      "line_notes": {
+        "when :command2": "Two-argument actions put both numbers on the stack before calling the host. For example, `drive` needs a direction and a speed."
+      }
+    }
+  ]
+}

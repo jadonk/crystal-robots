@@ -1,0 +1,118 @@
+require "./spec_helper"
+require "yaml"
+require "json"
+require "file_utils"
+
+BLOG_ROOT     = File.expand_path("..", __DIR__)
+BLOG_CHROMIUM = if (configured = ENV["CHROMIUM_BIN"]?) && !configured.empty?
+                  Process.find_executable(configured)
+                else
+                  Process.find_executable("chromium") || Process.find_executable("chromium-browser") || Process.find_executable("google-chrome")
+                end
+
+def blog_git(dir : String, *args : String)
+  output = IO::Memory.new
+  errors = IO::Memory.new
+  status = Process.run("git", args.to_a, chdir: dir, output: output, error: errors)
+  status.success?.should be_true, "git #{args.join(" ")}: #{errors}"
+  output.to_s.strip
+end
+
+def blog_build(dir : String)
+  output = IO::Memory.new
+  errors = IO::Memory.new
+  status = Process.run("crystal", ["run", File.join(BLOG_ROOT, "scripts/build_blog_diffs.cr"), "--", "HEAD"], chdir: dir, output: output, error: errors)
+  {status, output.to_s, errors.to_s}
+end
+
+describe "blog diff data" do
+  it "builds a deterministic range from a tiny repository and checks both anchors" do
+    dir = File.join(Dir.tempdir, "blog-diffs-#{Process.pid}-#{Random.rand(1_000_000)}")
+    Dir.mkdir_p(File.join(dir, "site/blog/diffs"))
+    begin
+      blog_git(dir, "init", "-q")
+      blog_git(dir, "config", "user.name", "Test")
+      blog_git(dir, "config", "user.email", "test@example.com")
+      File.write(File.join(dir, "hello.cr"), "puts 1\nputs 3\n")
+      blog_git(dir, "add", ".")
+      blog_git(dir, "commit", "-qm", "Start")
+      File.write(File.join(dir, "hello.cr"), "puts 2\nputs 4\n")
+      blog_git(dir, "add", ".")
+      blog_git(dir, "commit", "-qm", "Change number")
+      File.write(File.join(dir, "site/blog/index.html"), %(<section class="commit" id="c-change"><a class="commit-link" data-subject="Change number"></a></section>))
+      notes_path = File.join(dir, "site/blog/diffs/notes.yml")
+      notes = %({"roles":{"hello.cr":"Example program."},"commits":{"c-change":{"summary":"Changes the printed number.","excerpts":[{"file":"hello.cr","anchor":"puts 2","through":"puts 4","note":"The new number is two."}]}}})
+      File.write(notes_path, notes)
+      status, _, errors = blog_build(dir)
+      status.success?.should be_true, errors
+      result_path = File.join(dir, "site/blog/diffs/c-change.json")
+      first = File.read(result_path)
+      result = JSON.parse(first)
+      result["subject"].as_s.should eq("Change number")
+      result["sha"].as_s.size.should eq(40)
+      result["files"][0]["added"].as_i.should eq(2)
+      result["excerpts"][0]["lines"].as_a.any? { |line| line["kind"].as_s == "+" && line["new"].as_i == 1 }.should be_true
+      result["excerpts"][0]["lines"].as_a.last["text"].as_s.should eq("puts 4")
+      blog_build(dir)[0].success?.should be_true
+      File.read(result_path).should eq(first)
+      File.write(File.join(dir, "site/blog/index.html"), %(<section class="commit" id="c-change"><a class="commit-link" data-subject="Mapped number"></a></section>))
+      map_path = File.join(dir, "site/blog/diffs/sources.map")
+      File.write(map_path, "Mapped number=#{blog_git(dir, "rev-parse", "HEAD")}\n")
+      mapped_output = IO::Memory.new
+      mapped_errors = IO::Memory.new
+      mapped_status = Process.run("crystal", ["run", File.join(BLOG_ROOT, "scripts/build_blog_diffs.cr"), "--", "HEAD", "--map", map_path], chdir: dir, output: mapped_output, error: mapped_errors)
+      mapped_status.success?.should be_true, mapped_errors.to_s
+      JSON.parse(File.read(result_path))["subject"].as_s.should eq("Mapped number")
+      File.write(File.join(dir, "site/blog/index.html"), %(<section class="commit" id="c-change"><a class="commit-link" data-subject="Change number"></a></section>))
+      File.write(notes_path, notes.gsub("puts 4", "missing end"))
+      status, _, errors = blog_build(dir)
+      status.success?.should be_false
+      errors.includes?("through").should be_true
+      errors.includes?("missing end").should be_true
+      File.write(notes_path, notes.gsub("puts 4", "puts"))
+      status, _, errors = blog_build(dir)
+      status.success?.should be_false
+      errors.includes?("through").should be_true
+      errors.includes?("need exactly one").should be_true
+      File.write(notes_path, notes.gsub("puts 2", "missing text"))
+      status, _, errors = blog_build(dir)
+      status.success?.should be_false
+      errors.includes?("anchor").should be_true
+      errors.includes?("missing text").should be_true
+      File.write(File.join(dir, "site/blog/index.html"), %(<section class="commit" id="c-change"><a class="commit-link" data-subject="Change number"></a></section><section class="commit" id="c-catch-up"><p>A large code swap.</p></section>))
+      File.write(notes_path, notes.sub(%("c-change":), %("c-catch-up":{"summary":"The code catches up.","note":"This code was built separately.","excerpts":[]},"c-change":)))
+      blog_build(dir)[0].success?.should be_true
+      catch_up = JSON.parse(File.read(File.join(dir, "site/blog/diffs/c-catch-up.json")))
+      catch_up["summary"].as_s.should eq("The code catches up.")
+      catch_up["note"].as_s.should eq("This code was built separately.")
+      catch_up["excerpts"].as_a.should be_empty
+    ensure
+      FileUtils.rm_rf(dir)
+    end
+  end
+
+  it "has notes and generated data for every blog view" do
+    html = File.read(File.join(BLOG_ROOT, "site/blog/index.html"))
+    notes = YAML.parse(File.read(File.join(BLOG_ROOT, "site/blog/diffs/notes.yml")))["commits"].as_h
+    ids = html.scan(/data-diff="([^"]+)"/).map(&.[1])
+    ids.size.should eq(61)
+    ids.each do |id|
+      notes.has_key?(YAML::Any.new(id)).should be_true
+      File.exists?(File.join(BLOG_ROOT, "site/blog/diffs/#{id}.json")).should be_true
+    end
+  end
+end
+
+describe "blog diff views (headless)" do
+  if (bin = BLOG_CHROMIUM) && Process.find_executable("node")
+    it "renders every blog change, toggles by keyboard, and fits at 360px" do
+      output = IO::Memory.new
+      errors = IO::Memory.new
+      status = Process.run("node", ["spec/support/blog_diffs_check.mjs", bin], output: output, error: errors)
+      status.success?.should be_true, "blog_diffs_check.mjs failed: #{output}\n#{errors}"
+      JSON.parse(output.to_s)["ok"].as_bool.should be_true
+    end
+  else
+    pending "blog diff view needs node and a browser (CHROMIUM_BIN, chromium, chromium-browser, or google-chrome)"
+  end
+end

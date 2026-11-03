@@ -1,0 +1,427 @@
+{
+  "sha": "e52306b63639f210305888841c5c6bd4272e1abd",
+  "subject": "Phase B.3: implicit global constants and bare zero-argument calls",
+  "summary": "Robots can declare constants with assignment and call their own functions by name.",
+  "files": [
+    {
+      "path": "spec/checker_spec.cr",
+      "added": 8,
+      "removed": 0,
+      "role": "Checks that mistakes are reported clearly."
+    },
+    {
+      "path": "spec/interpreter_spec.cr",
+      "added": 16,
+      "removed": 0,
+      "role": "Checks that a piece of the project behaves as expected."
+    },
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 5,
+      "removed": 0,
+      "role": "Checks which robot programs the parser accepts."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 8,
+      "removed": 0,
+      "role": "Checks the instructions written for robot programs."
+    },
+    {
+      "path": "src/compiler/checker.cr",
+      "added": 7,
+      "removed": 1,
+      "role": "Finds mistakes in a robot program before it runs."
+    },
+    {
+      "path": "src/compiler/interpreter.cr",
+      "added": 35,
+      "removed": 5,
+      "role": "Runs robot steps directly so their behavior can be checked."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 21,
+      "removed": 1,
+      "role": "Turns robot steps into WebAssembly instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/checker.cr",
+      "note": "A top-level assignment now introduces a global name before the checker examines the rest of the program. That lets a robot keep a value such as a chosen corner in `C1X = 10`.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    # defined later in the source.",
+          "old": 64,
+          "new": 64
+        },
+        {
+          "kind": " ",
+          "text": "    private def collect_declarations : Nil",
+          "old": 65,
+          "new": 65
+        },
+        {
+          "kind": " ",
+          "text": "      @program.children(@program.root).each do |stmt|",
+          "old": 66,
+          "new": 66
+        },
+        {
+          "kind": " ",
+          "text": "        case @program[stmt].rule",
+          "old": 67,
+          "new": 67
+        },
+        {
+          "kind": " ",
+          "text": "        when :global",
+          "old": 68,
+          "new": 68
+        },
+        {
+          "kind": " ",
+          "text": "          @globals << @program.value(@program.arg(stmt, 2))",
+          "old": 69,
+          "new": 69
+        },
+        {
+          "kind": " ",
+          "text": "        when :def",
+          "old": 70,
+          "new": 70
+        },
+        {
+          "kind": " ",
+          "text": "          head = @program.children(stmt)[0]",
+          "old": 71,
+          "new": 71
+        },
+        {
+          "kind": " ",
+          "text": "          idents = @program.children(head).select { |i| @program.type(i) == Type::Identifier }",
+          "old": 72,
+          "new": 72
+        },
+        {
+          "kind": " ",
+          "text": "          name = @program.lexeme(idents[0])",
+          "old": 73,
+          "new": 73
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "          issue(idents[0], \"#{name} is already defined\") if @arity.has_key?(name)",
+          "old": 74,
+          "new": 74
+        },
+        {
+          "kind": " ",
+          "text": "          @arity[name] = idents.size - 1",
+          "old": 75,
+          "new": 75
+        },
+        {
+          "kind": "+",
+          "text": "        when :exprstmt",
+          "old": null,
+          "new": 76
+        },
+        {
+          "kind": "+",
+          "text": "          # A plain top-level assignment (`C1X = 10`) is an implicit",
+          "old": null,
+          "new": 77
+        },
+        {
+          "kind": "+",
+          "text": "          # global too, the shape the example robots use for constants.",
+          "old": null,
+          "new": 78
+        },
+        {
+          "kind": "+",
+          "text": "          expr = @program.arg(stmt, 0)",
+          "old": null,
+          "new": 79
+        },
+        {
+          "kind": "+",
+          "text": "          @globals << @program.value(@program.arg(expr, 0)) if @program[expr].rule == :assign",
+          "old": null,
+          "new": 80
+        },
+        {
+          "kind": " ",
+          "text": "        end",
+          "old": 76,
+          "new": 81
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 77,
+          "new": 82
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 78,
+          "new": 83
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 79,
+          "new": 84
+        },
+        {
+          "kind": " ",
+          "text": "    private def check_function(stmt : Int32) : Nil",
+          "old": 80,
+          "new": 85
+        },
+        {
+          "kind": " ",
+          "text": "      head = @program.arg(stmt, 0)",
+          "old": 81,
+          "new": 86
+        },
+        {
+          "kind": " ",
+          "text": "      idents = @program.children(head).select { |i| @program.type(i) == Type::Identifier }",
+          "old": 82,
+          "new": 87
+        },
+        {
+          "kind": " ",
+          "text": "      params = idents[1..].map { |i| @program.lexeme(i) }",
+          "old": 83,
+          "new": 88
+        },
+        {
+          "kind": " ",
+          "text": "      locals = params.to_set",
+          "old": 84,
+          "new": 89
+        },
+        {
+          "kind": " ",
+          "text": "      body_of(stmt).each { |s| locals.concat(assigned_names(s)) }",
+          "old": 85,
+          "new": 90
+        },
+        {
+          "kind": " ",
+          "text": "      scope = Scope.new(locals, in_function: true, in_loop: false)",
+          "old": 86,
+          "new": 91
+        },
+        {
+          "kind": " ",
+          "text": "      body_of(stmt).each { |s| check_statement(s, scope) }",
+          "old": 87,
+          "new": 92
+        }
+      ],
+      "line_notes": {}
+    },
+    {
+      "file": "spec/wasm_emitter_spec.cr",
+      "note": "This test calls `bump` twice without `()` and checks that the count reaches two. A robot can write short action names the way the older examples do.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 32,
+          "new": 32
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 33,
+          "new": 33
+        },
+        {
+          "kind": " ",
+          "text": "  wasmer_it \"negates a value\" do",
+          "old": 34,
+          "new": 34
+        },
+        {
+          "kind": " ",
+          "text": "    run_puts(\"puts -5 + 2\\n\").should eq [-3]",
+          "old": 35,
+          "new": 35
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 36,
+          "new": 36
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 37,
+          "new": 37
+        },
+        {
+          "kind": " ",
+          "text": "  wasmer_it \"computes / // and %\" do",
+          "old": 38,
+          "new": 38
+        },
+        {
+          "kind": " ",
+          "text": "    run_puts(\"puts 7 / 2\\nputs 7 // 2\\nputs 7 % 2\\n\").should eq [3, 3, 1]",
+          "old": 39,
+          "new": 39
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 40,
+          "new": 40
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 41,
+          "new": 41
+        },
+        {
+          "kind": "+",
+          "text": "  wasmer_it \"treats a plain top-level assignment as an implicit global constant\" do",
+          "old": null,
+          "new": 42
+        },
+        {
+          "kind": "+",
+          "text": "    run_puts(\"C1X = 10\\nC1Y = 20\\ndef total\\nC1X + C1Y\\nend\\nputs total\\n\").should eq [30]",
+          "old": null,
+          "new": 43
+        }
+      ],
+      "lines": [
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 44
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 45
+        },
+        {
+          "kind": "+",
+          "text": "  wasmer_it \"calls a zero-argument user function without parens\" do",
+          "old": null,
+          "new": 46
+        },
+        {
+          "kind": "+",
+          "text": "    run_puts(\"global(count, 0)\\ndef bump\\ncount = count + 1\\nend\\nbump\\nbump\\nputs count\\n\").should eq [2]",
+          "old": null,
+          "new": 47
+        },
+        {
+          "kind": "+",
+          "text": "  end",
+          "old": null,
+          "new": 48
+        },
+        {
+          "kind": "+",
+          "text": "",
+          "old": null,
+          "new": 49
+        },
+        {
+          "kind": " ",
+          "text": "  wasmer_it \"declares a global and reads it back\" do",
+          "old": 42,
+          "new": 50
+        },
+        {
+          "kind": " ",
+          "text": "    run_puts(\"global(count, 5)\\nputs count\\n\").should eq [5]",
+          "old": 43,
+          "new": 51
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 44,
+          "new": 52
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 45,
+          "new": 53
+        },
+        {
+          "kind": " ",
+          "text": "  wasmer_it \"assigns to a global and keeps mutating it\" do",
+          "old": 46,
+          "new": 54
+        },
+        {
+          "kind": " ",
+          "text": "    run_puts(\"global(count, 0)\\ncount = count + 1\\ncount = count + 1\\nputs count\\n\").should eq [2]",
+          "old": 47,
+          "new": 55
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 48,
+          "new": 56
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 49,
+          "new": 57
+        },
+        {
+          "kind": " ",
+          "text": "  wasmer_it \"computes comparisons\" do",
+          "old": 50,
+          "new": 58
+        },
+        {
+          "kind": " ",
+          "text": "    run_puts(\"puts 1 < 2\\nputs 2 < 1\\nputs 3 == 3\\nputs 3 != 3\\nputs 5 >= 5\\n\").should eq [1, 0, 1, 0, 1]",
+          "old": 51,
+          "new": 59
+        },
+        {
+          "kind": " ",
+          "text": "  end",
+          "old": 52,
+          "new": 60
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 53,
+          "new": 61
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}

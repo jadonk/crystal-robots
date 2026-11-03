@@ -1,0 +1,399 @@
+{
+  "sha": "2ae5e0565e578395ca7634b9a22d80d81e3c3f70",
+  "subject": "Phase A.6: global variables and assignment",
+  "summary": "Robots can remember a number and change it later.",
+  "files": [
+    {
+      "path": "spec/parser_spec.cr",
+      "added": 10,
+      "removed": 2,
+      "role": "Checks which robot programs the parser accepts."
+    },
+    {
+      "path": "spec/wasm_emitter_spec.cr",
+      "added": 8,
+      "removed": 0,
+      "role": "Checks the instructions written for robot programs."
+    },
+    {
+      "path": "src/compiler/parser.cr",
+      "added": 18,
+      "removed": 13,
+      "role": "Groups the words and symbols in a robot program into meaningful steps."
+    },
+    {
+      "path": "src/compiler/program.cr",
+      "added": 7,
+      "removed": 3,
+      "role": "Builds or runs a robot program."
+    },
+    {
+      "path": "src/compiler/wasm_emitter.cr",
+      "added": 53,
+      "removed": 16,
+      "role": "Turns robot steps into WebAssembly instructions."
+    }
+  ],
+  "excerpts": [
+    {
+      "file": "src/compiler/wasm_emitter.cr",
+      "note": "An assignment stores a number under a name so later steps can use it. The emitter also reads the stored value back, because an assignment can itself be used where a value is expected.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    def export_section : Bytes",
+          "old": 142,
+          "new": 170
+        },
+        {
+          "kind": " ",
+          "text": "      WASM_Emitter.createSection(Section::Export,",
+          "old": 143,
+          "new": 171
+        },
+        {
+          "kind": " ",
+          "text": "        WASM_Emitter.encodeVector([",
+          "old": 144,
+          "new": 172
+        },
+        {
+          "kind": " ",
+          "text": "          WASM_Emitter.encodeString(\"run\") + Bytes[ExportType::Func.value] + WASM_Emitter.unsignedLEB128(RUN_FUNC_INDEX),",
+          "old": 145,
+          "new": 173
+        },
+        {
+          "kind": " ",
+          "text": "        ]))",
+          "old": 146,
+          "new": 174
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 147,
+          "new": 175
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 148,
+          "new": 176
+        },
+        {
+          "kind": " ",
+          "text": "    # Emit code that leaves the value of expression node `i` on the stack.",
+          "old": 149,
+          "new": 177
+        },
+        {
+          "kind": " ",
+          "text": "    def expression(i : Int32) : Bytes",
+          "old": 150,
+          "new": 178
+        },
+        {
+          "kind": " ",
+          "text": "      n = @program[i]",
+          "old": 151,
+          "new": 179
+        },
+        {
+          "kind": " ",
+          "text": "      case n.rule",
+          "old": 152,
+          "new": 180
+        },
+        {
+          "kind": " ",
+          "text": "      when :lex",
+          "old": 153,
+          "new": 181
+        }
+      ],
+      "lines": [
+        {
+          "kind": "-",
+          "text": "        const(@program.value(n).to_i32)",
+          "old": 154,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "        n.type == Type::Identifier ? global_get(@program.value(n)) : const(@program.value(n).to_i32)",
+          "old": null,
+          "new": 182
+        },
+        {
+          "kind": "+",
+          "text": "      when :assign",
+          "old": null,
+          "new": 183
+        },
+        {
+          "kind": "+",
+          "text": "        name = @program.value(@program.arg(i, 0))",
+          "old": null,
+          "new": 184
+        },
+        {
+          "kind": "+",
+          "text": "        expression(@program.arg(i, 2)) + global_set(name) + global_get(name)",
+          "old": null,
+          "new": 185
+        },
+        {
+          "kind": " ",
+          "text": "      when :paren",
+          "old": 155,
+          "new": 186
+        },
+        {
+          "kind": " ",
+          "text": "        expression(@program.arg(i, 1))",
+          "old": 156,
+          "new": 187
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "      when :neg",
+          "old": 157,
+          "new": 188
+        },
+        {
+          "kind": " ",
+          "text": "        const(0) + expression(@program.arg(i, 1)) + op(Opcodes::I32_sub)",
+          "old": 158,
+          "new": 189
+        },
+        {
+          "kind": " ",
+          "text": "      when :mul, :add",
+          "old": 159,
+          "new": 190
+        },
+        {
+          "kind": " ",
+          "text": "        binary(@program.type(@program.arg(i, 1)), expression(@program.arg(i, 0)), expression(@program.arg(i, 2)))",
+          "old": 160,
+          "new": 191
+        },
+        {
+          "kind": " ",
+          "text": "      when :command1",
+          "old": 161,
+          "new": 192
+        },
+        {
+          "kind": " ",
+          "text": "        expression(@program.arg(i, 1)) + call(PUTS_IMPORT_INDEX)",
+          "old": 162,
+          "new": 193
+        },
+        {
+          "kind": " ",
+          "text": "      else",
+          "old": 163,
+          "new": 194
+        },
+        {
+          "kind": " ",
+          "text": "        raise Unsupported.new(\"expression #{n.rule} is not supported in WASM\")",
+          "old": 164,
+          "new": 195
+        },
+        {
+          "kind": " ",
+          "text": "      end",
+          "old": 165,
+          "new": 196
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 166,
+          "new": 197
+        }
+      ],
+      "line_notes": {
+        "global_set(name) + global_get(name)": "`global_set` saves the value in a slot shared by the program; `global_get` puts it back on the stack for the surrounding expression."
+      }
+    },
+    {
+      "file": "src/compiler/parser.cr",
+      "note": "The parser recognizes a name, `=`, and a finished value as an assignment. Waiting for the value to finish prevents it from storing only part of a calculation.",
+      "before": [
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 65,
+          "new": 67
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 66,
+          "new": 68
+        },
+        {
+          "kind": " ",
+          "text": "    # Grammar rules in priority order. Each pass applies the FIRST rule in",
+          "old": 67,
+          "new": 69
+        },
+        {
+          "kind": " ",
+          "text": "    # this list that matches anywhere, to every non-overlapping match.",
+          "old": 68,
+          "new": 70
+        },
+        {
+          "kind": " ",
+          "text": "    GRAMMAR = [",
+          "old": 69,
+          "new": 71
+        },
+        {
+          "kind": "+",
+          "text": "      # a global header must never be read as anything else",
+          "old": null,
+          "new": 72
+        },
+        {
+          "kind": "+",
+          "text": "      Rule.new(:global, /🌐⟮𝑥，#{V}⟯⏎/, Type::Statement),",
+          "old": null,
+          "new": 73
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:paren, /⟮#{V}⟯/, Type::Expression),",
+          "old": 70,
+          "new": 74
+        },
+        {
+          "kind": "-",
+          "text": "      Rule.new(:neg, /(?<![№😑⟯])⊖#{V}/, Type::Expression),",
+          "old": 71,
+          "new": null
+        },
+        {
+          "kind": "+",
+          "text": "      Rule.new(:neg, /(?<![№𝑥😑⟯])⊖#{V}/, Type::Expression),",
+          "old": null,
+          "new": 75
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:mul, infix(MULOPS, \"\"), Type::Expression),",
+          "old": 72,
+          "new": 76
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:add, infix(ADDOPS, MULOPS), Type::Expression),",
+          "old": 73,
+          "new": 77
+        }
+      ],
+      "lines": [
+        {
+          "kind": " ",
+          "text": "      Rule.new(:command1, /∊#{V}(?=[⏎⟯])/, Type::Expression),",
+          "old": 74,
+          "new": 78
+        },
+        {
+          "kind": "+",
+          "text": "      # assignment is right associative: only once the value is complete",
+          "old": null,
+          "new": 79
+        },
+        {
+          "kind": "+",
+          "text": "      Rule.new(:assign, /𝑥＝#{V}(?=⏎)/, Type::Expression),",
+          "old": null,
+          "new": 80
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:exprstmt, /#{V}⏎/, Type::Statement),",
+          "old": 75,
+          "new": 81
+        },
+        {
+          "kind": " ",
+          "text": "      Rule.new(:program, /\\A❢+\\z/, Type::Program),",
+          "old": 76,
+          "new": 82
+        },
+        {
+          "kind": " ",
+          "text": "    ]",
+          "old": 77,
+          "new": 83
+        }
+      ],
+      "after": [
+        {
+          "kind": " ",
+          "text": "",
+          "old": 78,
+          "new": 84
+        },
+        {
+          "kind": " ",
+          "text": "    property program : Program",
+          "old": 79,
+          "new": 85
+        },
+        {
+          "kind": " ",
+          "text": "",
+          "old": 80,
+          "new": 86
+        },
+        {
+          "kind": " ",
+          "text": "    # Parse `src` completely. Raises `Parser::Error` when the text cannot",
+          "old": 81,
+          "new": 87
+        },
+        {
+          "kind": " ",
+          "text": "    # be reduced to a program.",
+          "old": 82,
+          "new": 88
+        },
+        {
+          "kind": " ",
+          "text": "    def initialize(src : String = \"\")",
+          "old": 83,
+          "new": 89
+        },
+        {
+          "kind": " ",
+          "text": "      @program = Program.new(src)",
+          "old": 84,
+          "new": 90
+        },
+        {
+          "kind": " ",
+          "text": "      Parser.parse(@program)",
+          "old": 85,
+          "new": 91
+        },
+        {
+          "kind": " ",
+          "text": "    end",
+          "old": 86,
+          "new": 92
+        }
+      ],
+      "line_notes": {}
+    }
+  ]
+}
