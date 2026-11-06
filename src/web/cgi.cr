@@ -127,9 +127,28 @@ module CrystalRobots::Web
       scrub = {"GATEWAY_INTERFACE" => nil, "PATH_INFO" => nil, "QUERY_STRING" => nil, "REQUEST_METHOD" => nil,
                "CONTENT_LENGTH" => nil, "SCRIPT_NAME" => nil, "HTTP_COOKIE" => nil,
                "HOME" => ENV["HOME"]? || ENV["FOSSIL_HOME"]? || "/tmp"}
-      status = Process.run("fossil", args, env: scrub, output: output, error: Process::Redirect::Close)
+      status = Process.run(fossil_program, args, env: scrub, output: output, error: Process::Redirect::Close)
       raise QueryError.new("fossil #{args.first}: exit #{status.exit_code}") unless status.success?
       output.to_s
+    end
+
+    # The fossil serving this request, by its full path. OCX's app page
+    # gives the program no PATH, so `fossil` alone may not be found. The
+    # nearest ancestor process that is fossil (the parent under Fossil's
+    # /ext; under OCX's app page, ocx2-cgi's parent), as ocx-console finds
+    # it; else PATH's, else a usual place.
+    def self.fossil_program : String
+      {% if flag?(:linux) %}
+        pid = LibC.getppid.to_s
+        8.times do
+          break if pid == "0" || pid == "1"
+          exe = (File.readlink("/proc/#{pid}/exe") rescue "").rchop(" (deleted)")
+          return exe if File.basename(exe) == "fossil"
+          pid = (File.read("/proc/#{pid}/stat").split(") ").last.split(' ')[1]? rescue nil) || break
+        end
+      {% end %}
+      Process.find_executable("fossil") ||
+        {"/usr/local/bin/fossil", "/usr/bin/fossil"}.find { |f| File::Info.executable?(f) } || "fossil"
     end
   end
 
@@ -148,14 +167,38 @@ module CrystalRobots::Web
       text[0, 40].gsub('\\', "\\\\").gsub('"', "\\\"")
     end
 
+    # OCX's app page runs an installed app at /ext/ocx2-cgi/app/NAME. It gives
+    # the app no SCRIPT_NAME: the repository's address is FOSSIL_URI and the
+    # whole path is PATH_INFO, seen on the server as /app/NAME[/rest] (the
+    # /ext/ocx2-cgi before it is taken too, as ocx-console takes it).
+    APP_PATH = %r{\A(?:/ext/ocx2-cgi)?/app/([a-z][a-z0-9-]*)(/.*)?\z}
+
+    # The app's name and the path under it, when OCX's app page runs this.
+    getter app : {String, String}?
+
     def initialize(@env : Hash(String, String) = ENV.to_h, @out : IO = STDOUT, @in : IO = STDIN)
+      script = @env["SCRIPT_NAME"]? || ""
+      if (script.empty? && @env.has_key?("FOSSIL_URI")) || script.ends_with?("/ext/ocx2-cgi")
+        if (m = (@env["PATH_INFO"]? || "").match(APP_PATH))
+          @app = {m[1], m[2]? || ""}
+        end
+      end
+    end
+
+    # The repository's address, as FOSSIL_URI names it, without a trailing slash.
+    def top : String
+      (env["FOSSIL_URI"]? || (env["SCRIPT_NAME"]? || "").sub(%r{/ext(/.*)?\z}, "")).rstrip('/')
     end
 
     # Links stay inside whatever namespace this binary is served under: the
-    # deployed `/ext/robots`, or a session preview at `/ext/preview/<id>`.
-    # Fossil prefixes root-relative links in Markdown with the repository
-    # root, so the base always starts at `/ext/`.
+    # deployed `/ext/robots`, a session preview at `/ext/preview/<id>`, or
+    # OCX's app page at `/ext/ocx2-cgi/app/crystal-robots`. Fossil prefixes
+    # root-relative links in Markdown with the repository root, so the base
+    # always starts at `/ext/`.
     def link_base : String
+      if (a = app)
+        return "/ext/ocx2-cgi/app/#{a[0]}"
+      end
       sn = env["SCRIPT_NAME"]? || ""
       if (i = sn.index("/ext/"))
         sn[i..].rstrip('/')
@@ -200,6 +243,7 @@ module CrystalRobots::Web
     # rewrites Markdown link targets with the repository prefix, but not
     # attributes inside raw HTML, so those need `SCRIPT_NAME` verbatim.
     def form_base : String
+      return top + link_base if app
       sn = (env["SCRIPT_NAME"]? || "").rstrip('/')
       sn.includes?("/ext/") ? sn : link_base
     end
@@ -236,9 +280,14 @@ module CrystalRobots::Web
       !user.empty? && !{"anonymous", "nobody"}.includes?(user)
     end
 
-    # Fossil's login page returns to `g` afterwards.
-    def login_link(back : String = form_base + "/" + path) : String
-      "/login?g=#{URI.encode_www_form(back)}"
+    # Fossil's login page returns to `g` afterwards, `sub` being the page
+    # under this app's base. Under OCX's app page `g` is the path under the
+    # repository, without its leading slash: Fossil's login redirects to
+    # the repository's address plus `g`, so the full address would double
+    # the repository's prefix (as ocx-console found).
+    def login_link(sub : String = path) : String
+      back = app ? "#{link_base.lchop('/')}/#{sub}" : "#{form_base}/#{sub}"
+      "/login?g=#{URI.encode_www_form(back.rstrip('/'))}"
     end
 
     # Routes map to capability letters; the repository's grants decide who
@@ -276,7 +325,7 @@ module CrystalRobots::Web
     end
 
     def path : String
-      (env["PATH_INFO"]? || "").strip('/')
+      ((a = app) ? a[1] : env["PATH_INFO"]? || "").strip('/')
     end
 
     def method : String
@@ -401,7 +450,8 @@ module CrystalRobots::Web
 
     def forbidden : Nil
       @out << "Status: 403 Forbidden\r\nContent-Type: text/html\r\n\r\n"
-      @out << "<p>403 Forbidden. <a href=\"/login\">Log in</a> to access this resource.</p>"
+      # Raw HTML, which Fossil does not prefix with the repository's address.
+      @out << "<p>403 Forbidden. <a href=\"" << HTML.escape(top + login_link) << "\">Log in</a> to access this resource.</p>"
     end
 
     def plain(status : String, text : String) : Nil
@@ -494,7 +544,7 @@ module CrystalRobots::Web
         elsif logged_in?
           md << "\n## Battle and parse\n\nRunning battles and parsing your own robots needs check-in permission (`i`) on this repository; ask the maintainer for it.\n\n"
         else
-          md << "\n## Battle and parse\n\nRunning battles and parsing your own robots needs a login with check-in permission: [log in](#{login_link(form_base)}) and this page will offer both.\n\n"
+          md << "\n## Battle and parse\n\nRunning battles and parsing your own robots needs a login with check-in permission: [log in](#{login_link("")}) and this page will offer both.\n\n"
         end
         md << "\n## Editor\n\n[Build your own robot](#{EDITOR_URL}) in the browser: fork an example, get checked as you type, "
         md << "and fight it, all client-side, no server round trip.\n\n"
@@ -779,7 +829,7 @@ module CrystalRobots::Web
         if !may_run? && logged_in?
           md << "Running a tournament needs check-in permission (`i`) on this repository; ask the maintainer for it.\n"
         elsif !may_run?
-          md << "Running a tournament needs a login with check-in permission: [log in](#{login_link(form_base + "/tournament")}) and this page will offer Start.\n"
+          md << "Running a tournament needs a login with check-in permission: [log in](#{login_link("tournament")}) and this page will offer Start.\n"
         end
       end
     end

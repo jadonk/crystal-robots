@@ -691,3 +691,71 @@ describe CrystalRobots::Web::CGI do
     end
   end
 end
+
+# OCX's app page runs the installed release at /ext/ocx2-cgi/app/NAME with
+# only the request's fields: FOSSIL_URI is the repository's address and
+# PATH_INFO the whole path, with no SCRIPT_NAME or GATEWAY_INTERFACE.
+private def app_env(path : String, caps = "oh", user = "jkridner", method = "GET", query = "") : Hash(String, String)
+  {"FOSSIL_URI" => "/crystal-robots", "PATH_INFO" => path, "REQUEST_METHOD" => method,
+   "QUERY_STRING" => query, "FOSSIL_CAPABILITIES" => caps, "FOSSIL_USER" => user}
+end
+
+describe "CrystalRobots::Web::CGI under OCX's app page" do
+  it "takes its base from FOSSIL_URI and the path after /app/NAME, as the server gives it" do
+    {"/app/crystal-robots/tournament", "/ext/ocx2-cgi/app/crystal-robots/tournament"}.each do |path|
+      cgi = CrystalRobots::Web::CGI.new(app_env(path), IO::Memory.new)
+      cgi.app.should eq({"crystal-robots", "/tournament"})
+      cgi.path.should eq "tournament"
+      cgi.link_base.should eq "/ext/ocx2-cgi/app/crystal-robots"
+      cgi.form_base.should eq "/crystal-robots/ext/ocx2-cgi/app/crystal-robots"
+    end
+  end
+
+  it "serves the overview at the app's own address" do
+    reply = IO::Memory.new
+    CrystalRobots::Web::CGI.new(app_env("/app/crystal-robots"), reply).serve
+    page = reply.to_s
+    page.should_not start_with "Status: 4"
+    page.should_not start_with "Status: 5"
+    page.should contain "/ext/ocx2-cgi/app/crystal-robots/"
+    page.should_not contain "/ext/crystal-robots/"
+  end
+
+  it "sends Fossil's login back to the page under the repository, not the full address" do
+    cgi = CrystalRobots::Web::CGI.new(app_env("/app/crystal-robots/battle", user: "nobody"), IO::Memory.new)
+    cgi.login_link.should eq "/login?g=ext%2Focx2-cgi%2Fapp%2Fcrystal-robots%2Fbattle"
+    cgi.login_link("").should eq "/login?g=ext%2Focx2-cgi%2Fapp%2Fcrystal-robots"
+  end
+
+  it "redirects within the app, by its full address" do
+    reply = IO::Memory.new
+    CrystalRobots::Web::CGI.new(app_env("/app/crystal-robots/docs"), reply).serve
+    if CrystalRobots::Web::Docs.built?
+      reply.to_s.should contain "Location: /crystal-robots/ext/ocx2-cgi/app/crystal-robots/docs/index.html"
+    else
+      reply.to_s.should contain "(/ext/ocx2-cgi/app/crystal-robots)"
+    end
+  end
+
+  it "keeps Fossil's own /ext as it was" do
+    env = {"GATEWAY_INTERFACE" => "CGI/1.1", "SCRIPT_NAME" => "/crystal-robots/ext/robots", "FOSSIL_URI" => "/crystal-robots",
+           "PATH_INFO" => "/app/x", "REQUEST_METHOD" => "GET"}
+    cgi = CrystalRobots::Web::CGI.new(env, IO::Memory.new)
+    cgi.app.should be_nil
+    cgi.path.should eq "app/x"
+    cgi.link_base.should eq "/ext/robots"
+  end
+end
+
+describe "CrystalRobots::Web::CGI refusing a viewer who may not read" do
+  it "links to Fossil's login under the repository's address, since raw HTML is not prefixed" do
+    reply = IO::Memory.new
+    CrystalRobots::Web::CGI.new(app_env("/app/crystal-robots", caps: "", user: "nobody"), reply).serve
+    reply.to_s.should contain %(href="/crystal-robots/login?g=ext%2Focx2-cgi%2Fapp%2Fcrystal-robots")
+    ext = {"GATEWAY_INTERFACE" => "CGI/1.1", "SCRIPT_NAME" => "/crystal-robots/ext/robots", "PATH_INFO" => "/battle",
+           "REQUEST_METHOD" => "GET", "FOSSIL_CAPABILITIES" => ""}
+    reply = IO::Memory.new
+    CrystalRobots::Web::CGI.new(ext, reply).serve
+    reply.to_s.should contain %(href="/crystal-robots/login?g=)
+  end
+end

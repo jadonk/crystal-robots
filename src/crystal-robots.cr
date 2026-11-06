@@ -396,7 +396,7 @@ module CrystalRobots
     end
 
     def customize_parser(parser)
-      parser.banner = "Welcome to Crystal Robots!\nUsage: crystal-robots [options] robot-source-file-1 [..2 [..3 [robot-source-file-4]]] [>file]"
+      parser.banner = "Welcome to Crystal Robots!\nusage: crystal-robots [options] robot-source-file-1 [..2 [..3 [robot-source-file-4]]] [>file]"
       parser.on "-v", "--version", "Show version and check-in" do
         puts CrystalRobots.version_line
         @exit = true
