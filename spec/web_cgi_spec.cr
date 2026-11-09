@@ -485,8 +485,9 @@ describe CrystalRobots::Web::CGI do
       link_page = run_tournament("oij", query, wiki, script: script)
       link_page.scan(/\]\(([^)]+)\)/).each { |m| m[1].should start_with "/ext/" }
       link_page.scan(/(?:href|action)="([^"]+)"/).each { |m| m[1].should start_with "/crystal-robots/ext/" }
-      # the shareable link shown as plain text is a full absolute URL, so it can be copied and pasted anywhere
-      link_page.should contain "http://localhost/crystal-robots/ext/preview/task-9/tournament?#{query}"
+      # with no FOSSIL_URL there is no trusted origin, so the shareable link's text is its full path, never a localhost URL
+      link_page.should contain "[/crystal-robots/ext/preview/task-9/tournament?#{query}]"
+      link_page.should_not contain "localhost"
 
       pools = run_start_round1(link_page, "oij", wiki, script: script)
       pools.scan(/\]\(([^)]+)\)/).each { |m| m[1].should start_with "/ext/" }
@@ -605,8 +606,9 @@ describe CrystalRobots::Web::CGI do
       cgi.wiki = wiki
       cgi.serve
       page = reply.to_s
-      page.should_not contain "evil.example"                                # the hostile header never reaches the page at all
-      page.should contain "http://localhost/ext/robots/tournament?#{query}" # falls back to the safe default, not a guess from the request
+      page.should_not contain "evil.example"                                                   # the hostile header never reaches the page at all
+      page.should_not contain "localhost"                                                      # no made-up origin either
+      page.should contain "[/ext/robots/tournament?#{query}](/ext/robots/tournament?#{query})" # just the link, which the browser makes absolute
 
       reply2 = IO::Memory.new
       cgi2 = CrystalRobots::Web::CGI.new(env.merge({"FOSSIL_URL" => "https://robots.example.org/crystal-robots"}), reply2)
@@ -701,6 +703,18 @@ private def app_env(path : String, caps = "oh", user = "jkridner", method = "GET
 end
 
 describe "CrystalRobots::Web::CGI under OCX's app page" do
+  it "gives a tournament's share link under the app page, with no localhost, since OCX passes no FOSSIL_URL" do
+    query = "r=counter&r=rabbit&r=rook&r=sniper&seed=1&limit=30000"
+    reply = IO::Memory.new
+    cgi = CrystalRobots::Web::CGI.new(app_env("/ext/ocx2-cgi/app/crystal-robots/tournament", "oij", query: query).merge({"HTTP_HOST" => "evil.example"}), reply)
+    cgi.wiki = CrystalRobots::Web::WikiRobots.from_pages(SAVED_ROBOTS)
+    cgi.serve
+    page = reply.to_s
+    page.should_not contain "localhost"
+    page.should_not contain "evil.example"
+    page.should contain "[/crystal-robots/ext/ocx2-cgi/app/crystal-robots/tournament?#{query}](/ext/ocx2-cgi/app/crystal-robots/tournament?#{query})"
+  end
+
   it "takes its base from FOSSIL_URI and the path after /app/NAME, as the server gives it" do
     {"/app/crystal-robots/tournament", "/ext/ocx2-cgi/app/crystal-robots/tournament"}.each do |path|
       cgi = CrystalRobots::Web::CGI.new(app_env(path), IO::Memory.new)
