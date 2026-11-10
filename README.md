@@ -1,23 +1,135 @@
 # crystal-robots
 
-A great way to learn about programming with a simple Ruby-like syntax. Write programs to battle
-it out with other programs on a virtual battlefield. Then, learn about how programming languages
-turn your code into instructions a machine can understand.
+crystal-robots is a programming game. You write a small program that drives
+a robot, and it battles other people's robots on a square battlefield. You
+can [play it in your browser](https://jadonk.github.io/crystal-robots/) now.
 
-`crystal-robots` is inspired and derived from:
-*  [CROBOTS - a programming game, for programmers, or aspiring programmers](http://tpoindex.github.io/crobots/),
-* the [Crystal Programming Language - A language for humans and computers](https://crystal-lang.org/),
-* and [chasm - a simple compile-to-WASM language](https://github.com/ColinEberhardt/chasm).
+## What it's for
 
-`crystal-robots` is my exploration of depending on my own programming tools, taking control over a programming
-language itself.
+The game is the way in. You write robots in
+[Crystal](https://crystal-lang.org), a programming language whose syntax is
+simple to read, much like Ruby's. Then you follow that same code all the way
+down: from the text you typed, through each step a *compiler* takes (the
+program that turns code a person writes into instructions a machine runs),
+to the instructions themselves. That path, from learning a language to
+understanding its compiler, is the point.
 
-* [Play, read the manual, and try a challenge](https://jadonk.github.io/crystal-robots/)
-* [Source on GitHub](https://github.com/jadonk/crystal-robots)
+The compiler here is kept small enough to read in an afternoon. Its ideas
+still apply to much larger compilers, so what you learn carries over to
+them.
 
-## Following along
+Jason Kridner started crystal-robots for a personal reason too: to depend
+on programming tools that can be read and changed all the way through,
+down to the language itself, rather than on tools that can only be used as
+given.
 
-The project’s story is told [commit by commit on the main branch](https://github.com/jadonk/crystal-robots/commits/main) and in the [project blog](https://jadonk.github.io/crystal-robots/blog/).
+## What it's made of
+
+- **Crystal**, for everything: the compiler, the battlefield, the web app
+  and the robots. A robot uses a small part of Crystal: whole numbers,
+  variables, `if`, `while`, functions, and the robot's *builtins* (commands
+  the game provides, such as `scan`, `drive` and `cannon`).
+- **CROBOTS**, the [1985 game by Tom Poindexter](http://tpoindex.github.io/crobots/)
+  that crystal-robots follows. Its battlefield, its builtins and its *cycle*
+  costs (how much time each operation takes) are ported from its C source.
+- **WebAssembly**, a standard set of machine-like instructions that every
+  web browser can run. The compiler's output is WebAssembly. The part that
+  writes those instructions out as bytes comes from
+  [chasm](https://github.com/ColinEberhardt/chasm), a small teaching
+  compiler by Colin Eberhardt.
+- **Fossil**, the version-control system that holds this project. Each
+  saved version is a *check-in*, named by a short hash such as
+  `66bc8fd2b2`. Fossil also serves the repository's web pages, including a
+  *wiki* (pages anyone with permission can edit), and the game runs as one
+  of those pages.
+
+## How it's shaped
+
+A robot passes through two stages inside crystal-robots. The *front end*
+reads the code and works out what it means. A *back end* then runs it.
+
+- **The front end.** A *parser* works out the structure of the code. This
+  one works in *passes*, going over the whole text once per pass. Each pass
+  applies exactly one *grammar rule*, a pattern such as "a number, a plus
+  sign and a number make a sum". So every step can be shown:
+  `bin/crystal-robots -t examples/counter.cr` prints one line per pass,
+  showing the whole robot rewritten as symbols after that pass. A *checker*
+  then reports mistakes, such
+  as a name that was never defined, with their line numbers.
+- **Two back ends.** The *interpreter* runs a robot directly from its
+  parsed structure. The compiler instead turns it into WebAssembly. Both
+  charge the same CROBOTS cycles, so a robot behaves the same either way.
+- **One battlefield.** One simulation, ported from CROBOTS, runs every
+  match, whichever back end runs the robots. Each match is *seeded*: the
+  same robots and the same seed always give the same fight, so a result
+  can be replayed and shared.
+- **A check from outside.** Every robot is also a valid Crystal program.
+  Crystal's own, full-sized compiler builds each example robot into
+  *native* machine code, the instructions of the computer at hand.
+  For that build, `src/prelude.cr` supplies the builtins as ordinary
+  Crystal code. This is not a
+  third way to play; it shows that a robot really is Crystal.
+
+The same code serves three places to play:
+
+- a web browser, where the compiler itself is compiled to WebAssembly and
+  runs in the page with no server;
+- a Fossil server, as the repository's own web app;
+- the command line, with `bin/crystal-robots`.
+
+## What success looks like
+
+The [Status](https://ollama.openbeagle.org/crystal-robots/wiki?name=Status)
+page says where the work stands today.
+
+1. **Play in a browser.** A new player writes a robot, sees it checked, and
+   watches it fight, with nothing to install. *Done:*
+   [the public site](https://jadonk.github.io/crystal-robots/), with a
+   [manual](https://jadonk.github.io/crystal-robots/manual/) and guided
+   [challenges](https://jadonk.github.io/crystal-robots/challenge/).
+2. **Play on the project's own server.** The game runs as the repository's
+   web app. Saved robots live in its wiki, and a *tournament* (many robots
+   playing round after round down to one champion) can be shared by its
+   link. *Done:*
+   [the app page](https://ollama.openbeagle.org/crystal-robots/ext/ocx2-cgi/app/crystal-robots),
+   serving [check-in 66bc8fd2b2](https://ollama.openbeagle.org/crystal-robots/info/66bc8fd2b2).
+3. **See how the code is read.** A player can watch the parser's passes
+   and see the WebAssembly their robot became. *Done:* the site's
+   [workbench](https://jadonk.github.io/crystal-robots/workbench/) page
+   shows the passes, and its [front page](https://jadonk.github.io/crystal-robots/)
+   shows the WebAssembly.
+4. **Follow how it was built.** A tutorial rebuilds the project one change at a
+   time, each with its code. *Done:* the
+   [project blog](https://jadonk.github.io/crystal-robots/blog/), merged in
+   [check-in 048d0ace53](https://ollama.openbeagle.org/crystal-robots/info/048d0ace53).
+5. **Down to a real processor.** The compiler also emits instructions for
+   RISC-V, a real processor design used in many small chips, and draws a
+   robot's parsed structure as a diagram (with Graphviz's *dot* format). *Not yet:*
+   `src/compiler/riscv_emitter.cr` and `src/compiler/dot_emitter.cr` are
+   empty placeholders.
+
+## The virtues behind it
+
+crystal-robots is one of several projects built with
+[OCX](https://ollama.openbeagle.org/ollama), a shared set of tools with
+which people and AI agents build and run these projects together. Like
+each of them, it follows OCX's four virtues:
+
+- **Clearly stated:** anyone can tell what each part does. The parser
+  applies one rule per pass and shows each pass, so a reader can watch it
+  work.
+- **Loosely coupled:** each part can be swapped without breaking the rest.
+  The interpreter and the WebAssembly back end sit behind the same
+  battlefield, and the browser, the server and the command line share the
+  same compiler.
+- **Demonstrably verified:** every claim is shown working, not just stated.
+  `crystal run ci.cr` runs the whole test suite and builds every example
+  robot natively. Run with `--with-wasmer` (wasmer is a program that runs
+  WebAssembly outside a browser), it also checks that each compiled robot
+  matches the interpreter, cycle for cycle.
+- **Parsimoniously bounded:** it does no more than it needs to. The robot
+  language has only what a robot needs, and the game keeps CROBOTS's rules
+  rather than inventing new ones.
 
 ## Installation
 
