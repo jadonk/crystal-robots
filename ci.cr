@@ -12,6 +12,13 @@
 #                                         # wasm32-wasi-libs under ./.wasm32-wasi-libs; needs
 #                                         # `node` on PATH (its specs drive the module through
 #                                         # site/wasi-shim.js, the same code the browser loads)
+#   crystal run ci.cr -- programs        # what it releases, as JSON (OCX's release route)
+#   crystal run ci.cr -- build OUT ARCH  # everything above, then, only if all is green, the
+#                                         # static crystal-robots, gate.txt and release.txt
+#                                         # (each file's SHA-256) into OUT, absent or empty,
+#                                         # for OCX's page deploy (patterns/stage.md); links
+#                                         # Alpine's static libraries from $HOME/browser-rootfs
+#                                         # (tools/browser-rootfs: browser_rootfs make-static)
 #
 # Without --with-wasmer the wasmer specs are reported as pending with their
 # reason, and without --with-wasm32 the wasm32 specs are too; neither is
@@ -28,6 +35,8 @@
 # HTTP::Client.
 require "http/client"
 require "file_utils"
+require "digest/sha256"
+require "json"
 
 CHECKOUT = __DIR__
 
@@ -113,9 +122,38 @@ def install_wasm32_wasi_libs(version : String, dest : String) : Nil
   puts "wasm32-wasi-libs #{version} installed: #{File.join(dest, "lib", "wasm32-wasi")}"
 end
 
+# OCX's release route ("What a project says it releases", as ocx-console's
+# ci.cr follows it): the program it releases, built static, as a CGI.
+ARCHITECTURES = %w(x86_64)
+RELEASED      = "crystal-robots"
+STATIC_LIBS   = File.join(Path.home, "browser-rootfs", "usr", "lib")
+
+if ARGV == ["programs"]
+  puts [{name: RELEASED, source: "src/cli.cr", kinds: %w(cgi), architectures: ARCHITECTURES}].to_json
+  exit 0
+end
+
+# `build OUT ARCH`: checked before the long gate, so a wrong call fails at once.
+release_dir = nil.as(String?)
+if ARGV.first? == "build"
+  unless ARGV.size == 3
+    STDERR.puts "usage: crystal run ci.cr -- build OUT ARCH"
+    exit 2
+  end
+  arch = ARGV[2]
+  host = `uname -m`.strip
+  abort "unsupported architecture #{arch}; supported: #{ARCHITECTURES.join(", ")}" unless ARCHITECTURES.includes?(arch)
+  abort "architecture #{arch} is not this host's #{host}" unless arch == host
+  release_dir = File.expand_path(ARGV[1])
+  if File.exists?(release_dir) && !(Dir.exists?(release_dir) && Dir.empty?(release_dir))
+    abort "#{release_dir} exists and is not an empty directory"
+  end
+  abort "no static libraries at #{STATIC_LIBS}: make them with tools/browser-rootfs (browser_rootfs make-static)" unless Dir.exists?(STATIC_LIBS)
+end
+
 with_wasmer = false
 with_wasm32 = false
-ARGV.each do |arg|
+(release_dir ? [] of String : ARGV).each do |arg|
   case arg
   when "--with-wasmer" then with_wasmer = true
   when "--with-wasm32" then with_wasm32 = true
@@ -260,7 +298,12 @@ ensure
   FileUtils.rm_rf(yaml_check_dir)
 end
 
-step!("crystal spec #{spec_flags.join(" ")}", "crystal", ["spec"] + spec_flags)
+announce("crystal spec #{spec_flags.join(" ")}")
+spec_output = IO::Memory.new
+spec_status = Process.run("crystal", ["spec"] + spec_flags, chdir: CHECKOUT,
+  output: IO::MultiWriter.new(STDOUT, spec_output), error: Process::Redirect::Inherit)
+fail!("crystal spec", spec_status) unless spec_status.success?
+spec_counts = spec_output.to_s.lines.reverse.find(&.includes?("examples,")).to_s.strip
 
 step!("crystal tool format --check", "crystal", ["tool", "format", "--check", "src", "spec", "scripts", "ci.cr"])
 
@@ -294,3 +337,30 @@ suffix = String.build do |s|
 end
 puts
 puts "== ci.cr: all green#{suffix}"
+
+# The release, only now that everything above is green. Run with no
+# arguments and an empty environment, the program gives its usage, as
+# OCX's import checks before it takes a release.
+if release_dir
+  announce("release: static #{RELEASED}")
+  gate = "green at #{Time.utc.to_rfc3339}: crystal spec #{spec_counts}; format check clean; examples and CLI smoke pass"
+  temporary = File.tempname(".#{RELEASED}-build", "", dir: File.dirname(release_dir))
+  Dir.mkdir(temporary)
+  begin
+    program = File.join(temporary, RELEASED)
+    exec!("static build", "crystal", ["build", "--release", "--static", "--no-debug",
+                                      "--link-flags", "-L#{STATIC_LIBS} -llzma -s", "src/cli.cr", "-o", program])
+    answer = `env -i #{program} 2>&1`
+    # As import smokes it: its output must hold the usage; with no robot
+    # files the command line exits 1, which import does not look at.
+    abort "#{RELEASED} didn't answer as it should: #{answer}" unless answer.includes?("usage: #{RELEASED}")
+    File.write(File.join(temporary, "gate.txt"), gate + "\n")
+    inventory = [RELEASED, "gate.txt"].map { |name| "#{Digest::SHA256.hexdigest(File.read(File.join(temporary, name)).to_slice)}  #{name}" }
+    File.write(File.join(temporary, "release.txt"), inventory.join("\n") + "\n")
+    Dir.delete(release_dir) if Dir.exists?(release_dir)
+    File.rename(temporary, release_dir)
+  ensure
+    FileUtils.rm_rf(temporary) if Dir.exists?(temporary)
+  end
+  puts "built into #{release_dir}"
+end

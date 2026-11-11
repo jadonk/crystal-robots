@@ -2,7 +2,11 @@ require "./crystal-robots"
 require "./web/cgi"
 
 # Under Fossil's /ext extension mechanism the same binary is the web app.
-if ENV["GATEWAY_INTERFACE"]?
+# OCX's app page (/ext/ocx2-cgi/app/crystal-robots) runs it with only the
+# request's fields, with no GATEWAY_INTERFACE, but always with
+# FOSSIL_REPOSITORY and REQUEST_METHOD. With an empty environment, as OCX's
+# import smokes it, it is the command line, and says `usage: crystal-robots`.
+if ENV["GATEWAY_INTERFACE"]? || ENV["FOSSIL_REPOSITORY"]? || ENV["REQUEST_METHOD"]?
   CrystalRobots::Web::CGI.new.serve
   exit 0
 end
